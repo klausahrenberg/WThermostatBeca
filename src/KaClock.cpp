@@ -1,12 +1,12 @@
 #include "KaClock.h"
 
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
 #include <Time.h>
 #include <TimeLib.h>
-#include <KaHttpClient.h>
 
 KaClock::KaClock(bool debug) {
 	this->debug = debug;

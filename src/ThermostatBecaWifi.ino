@@ -3,7 +3,7 @@
 #include "KaClock.h"
 
 #define APPLICATION "Thermostat Beca-Wifi"
-#define VERSION "0.6"
+#define VERSION "0.5"
 #define DEBUG false
 
 KaNetwork *network;
