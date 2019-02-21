@@ -39,6 +39,8 @@ Write firmware (1MB)
 * Hold the 'Temp down' button for 5 to 8 seconds, until the Wifi logo and display is blinking. This is the same procedure like connecting to the Tuya-Android-App
 * The ESP will start an Wifi Access Point. SSID is 'Thermostat_Beca-Wifi_ChipID', the password is '12345678'. Connect to this AP
 * Open the web browser and go to '192.168.4.1', the configuration page will prompt up. Go to 'Configure device'. There you can type in the parameters for your router(2G), password and also the connection to your MQTT broker, topic(<YOUR_TOPIC>) and user.
+
+![Setup](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/Setup_Wifi_MQTT.png)
 * Save settings, the ESP will restart, the thermostat is switched off
 * From now on your MQTT broker should receive a <YOUR_TOPIC>/state json update at every 5 minutes or at every change on the device (if the device (or better the display) is on or off, it doesn't matter). The json state looks actual like:
 ```json
