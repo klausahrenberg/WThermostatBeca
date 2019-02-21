@@ -40,7 +40,27 @@ Write firmware (1MB)
 * The ESP will start an Wifi Access Point. SSID is 'Thermostat_Beca-Wifi_ChipID', the password is '12345678'. Connect to this AP
 * Open the web browser and go to '192.168.4.1', the configuration page will prompt up. Go to 'Configure device'. There you can type in the parameters for your router(2G), password and also the connection to your MQTT broker, topic(<YOUR_TOPIC>) and user.
 * Save settings, the ESP will restart, the thermostat is switched off
-* From now on your MQTT broker should receive a <YOUR_TOPIC>/state json update at every 5 minutes or at every change on the device (if the device (or better the display) is on or off, it doesn't matter).
+* From now on your MQTT broker should receive a <YOUR_TOPIC>/state json update at every 5 minutes or at every change on the device (if the device (or better the display) is on or off, it doesn't matter). The json state looks actual like:
+```json
+{
+  "deviceOn":false,
+  "desiredTemperature":21.5,
+  "actualTemperature":20.5,
+  "actualFloorTemperature":20,
+  "manualMode":false,
+  "ecoMode":false,
+  "locked":false,
+  "clockTime":"2019-02-21 10:40:55",
+  "clockTimeRaw":1550745655,
+  "validTime":true,
+  "lastNtpSync": "2019-02-21 10:41:03",
+  "lastTimeZoneSync":"2019-02-21 10:41:04",
+  "dstOffset":0,
+  "rawOffset":32400,
+  "timeZone":"Asia/[..]",
+  "firmware":"0.5"
+ }
+```
 * You can set the parameters via MQTT with the parameter name and the direct value as payload: <YOUR_TOPIC>/<parameter> and value in payload. e.g.: <YOUR_TOPIC>/desiredTemperature; payload: 22.5
 ### Don't like or it doesn't work?
 Flash the original firmware (see installation). Instead of flashing ```ThermostatBecaWifi.bin```, use your saved ```originalFirmware1M.bin``` to restore your original firmware. Write me a message with your exact model and which parameter was not correct. Maybe your MQTT-server received some messages mcucommand/unknown - this would be also helpful for me. Again: I have tested this only with model bac-002-wifi. If you have another device, don't expect, that this is directly working.
