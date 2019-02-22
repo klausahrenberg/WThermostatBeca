@@ -55,6 +55,7 @@ Write firmware (1MB)
 
 ![Setup](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/Setup_Wifi_MQTT.png)
 * Save settings, the ESP will restart, the thermostat is switched off
+* Switch on the device. The clock should update automaticly within 30 seconds via NTP. If not, the wireless connection failed. Restart the configuration.
 * From now on your MQTT broker should receive a <YOUR_TOPIC>/state json update at every 5 minutes or at every change on the device (if the device (or better the display) is on or off, it doesn't matter). The json state looks actual like:
 ```json
 {
