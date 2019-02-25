@@ -53,7 +53,18 @@ Write firmware (1MB)
 ![Setup](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/Setup_Wifi_MQTT.png)
 * Save settings, the ESP will restart, the thermostat is switched off
 * Switch on the device. The clock should update automaticly within 30 seconds via NTP. If not, the wireless connection failed. Restart the configuration.
-* From now on your MQTT broker should receive a <YOUR_TOPIC>/state json update at every 5 minutes or at every change on the device (if the device (or better the display) is on or off, it doesn't matter). The json state looks actual like:
+## MQTT structure
+Your MQTT broker receive all messages to <YOUR_TOPIC>. The following commands will be send from the device:
+1. <YOUR_TOPIC>/state at every change on the device and/or every 5 minutes
+2. <YOUR_TOPIC>/schedules at the start of the device, at every change or request
+3. <YOUR_TOPIC>/message can contain 2 strings: 'unknown' for unknown commands received from MCU or 'error' for error messages.
+
+You can send the following commands to the device:
+1. <YOUR_TOPIC>/schedules/0 to request for the schedules. The schedules come back in 3 separate messages for workday, saturday and sunday 
+2. <YOUR_TOPIC>/webService/true|false can be called with an bool to switch the web service on or off
+3. <YOUR_TOPIC>/mcucommand sends directly serial mcu commands to the device. The has to be a string in hexa-form without the checksum buyte at the end, e.g. to set the desired temperature to 24.5C: "55 aa 01 07 00 08 02 02 00 04 00 00 00 31". This command is only for testing of unknown Tuya MCU commands and will not be required for regular work with the device.
+### State - json structure
+The state of the device is send in follwing json structure:
 ```json
 {
   "deviceOn":false,
@@ -74,7 +85,31 @@ Write firmware (1MB)
   "firmware":"0.5"
  }
 ```
-* You can set the parameters via MQTT with the parameter name and the direct value as payload: <YOUR_TOPIC>/<parameter> and value in payload. e.g.: <YOUR_TOPIC>/desiredTemperature; payload: 22.5
+You can set the parameters via MQTT with the parameter name and the direct value as payload: <YOUR_TOPIC>/<parameter> and value in payload. e.g.: <YOUR_TOPIC>/desiredTemperature; payload: 22.5
+### Schedules - json structure
+The schedules are only sent once at the start, at every change or on request. The structure of json (for workday): 
+```json
+{
+  "workday":{
+    "0":{"h":"06:00","t":20},
+    "1":{"h":"08:00","t":15},
+    "2":{"h":"11:30","t":15},
+    "3":{"h":"13:30","t":15},
+    "4":{"h":"17:00","t":22},
+    "5":{"h":"22:00","t":15}
+  }
+}  
+```  
+Same 2 other messages are send for "saturday" and "sunday".
+The schedules can be set/modified with same structure or only parts of it. To set for example the schedule 0 for workday, send <YOUR_TOPIC>/schedules with following json:
+```json
+{
+  "workday":{
+    "0":{"h":"6:00","t":22}
+  }
+} 
+```  
+Only the specified parts of schedules will be changed.
 ### Don't like or it doesn't work?
 Flash the original firmware (see installation). Instead of flashing ```ThermostatBecaWifi.bin```, use your saved ```originalFirmware1M.bin``` to restore your original firmware. Write me a message with your exact model and which parameter was not correct. Maybe your MQTT-server received some messages mcucommand/unknown - this would be also helpful for me. Again: I have tested this only with model bac-002-wifi. If you have another device, don't expect that this is working directly.
 ### Build this firmware from source
