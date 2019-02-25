@@ -13,10 +13,11 @@ bool startConfigIfNoSettingsFound) {
 	WiFi.mode(WIFI_STA);
 	this->applicationName = applicationName;
 	this->firmwareVersion = firmwareVersion;
-	this->mqttClient = new KaPubSubClient(debug, wifiClient);
+	this->webServer = nullptr;
 	this->dnsApServer = nullptr;
-	this->apServer = nullptr;
 	this->debug = debug;
+	this->updateRunning = false;
+	this->mqttClient = new KaPubSubClient(/*debug,*/ wifiClient);
 	lastMqttConnect = lastWifiConnect = 0;
 	networkState = NETWORK_NOT_CONNECTED;
 	gotIpEventHandler = WiFi.onStationModeGotIP(
@@ -36,9 +37,9 @@ bool startConfigIfNoSettingsFound) {
 				this->mqttCallback(topic, payload, length);
 			});
 	if (loadSettings()) {
-		mqttClient->setServer(mqttServer, 1883);
+		mqttClient->setServer(mqttServer.c_str(), 1883);
 	} else if (startConfigIfNoSettingsFound) {
-		this->startConfiguration();
+		this->startWebServer();
 	}
 }
 
@@ -80,9 +81,7 @@ bool KaNetwork::loadSettings() {
 		this->mqttTopic = readString(132, 65);
 		this->mqttUser = readString(197, 33);
 		this->mqttPassword = readString(230, 65);
-		log(
-				"Settings loaded successfully. SSID '" + ssid
-						+ "'; MQTT server '" + mqttServer + "'");
+		log("Settings loaded successfully. SSID '" + ssid + "'; MQTT server '" + mqttServer + "'");
 	} else {
 		log("No stored settings found");
 	}
@@ -104,8 +103,12 @@ void KaNetwork::saveSettings() {
 	EEPROM.end();
 }
 
+/**
+ * returns true, if no configuration mode and no own ap is opened
+ */
 bool KaNetwork::loop(bool waitForWifiConnection) {
-	if (!isInConfigurationMode()) {
+	boolean result = true;
+	if (!isWebServerRunning()) {
 		if ((ssid != "") && (mqttServer != "")) {
 			long now = millis();
 			//WiFi connection
@@ -134,16 +137,18 @@ bool KaNetwork::loop(bool waitForWifiConnection) {
 					lastMqttConnect = now;
 				}
 			}
-			if (mqttClient->connected()) {
-				mqttClient->loop();
-			}
 		}
-		return true;
 	} else {
-		dnsApServer->processNextRequest();
-		apServer->handleClient();
-		return false;
+		if (isSoftAP()) {
+			dnsApServer->processNextRequest();
+		}
+		webServer->handleClient();
+		result = (dnsApServer == nullptr);
 	}
+	if (mqttClient->connected()) {
+		mqttClient->loop();
+	}
+	return result;
 }
 
 void KaNetwork::setOnNotify(THandlerFunction onNotify) {
@@ -169,7 +174,19 @@ bool KaNetwork::publishMqtt(String topic, JsonObject& json) {
 	char payloadBuffer[MQTT_MAX_PACKET_SIZE];
 	json.printTo(payloadBuffer, sizeof(payloadBuffer));
 	topic = mqttTopic + (topic != "" ? "/" + topic : "");
-	int mSize = 5 + 2 + topic.length() + strlen(payloadBuffer);
+	//int mSize = 5 + 2 + topic.length() + strlen(payloadBuffer);
+	if (mqttClient->publish(topic.c_str(), payloadBuffer)) {
+		return true;
+	} else {
+		log("Sending MQTT message failed, rc=" + String(mqttClient->state()));
+		return false;
+	}
+}
+
+bool KaNetwork::publishMqtt(String topic, String payload) {
+	char payloadBuffer[MQTT_MAX_PACKET_SIZE];
+	payload.toCharArray(payloadBuffer, sizeof(payloadBuffer));
+	topic = mqttTopic + (topic != "" ? "/" + topic : "");
 	if (mqttClient->publish(topic.c_str(), payloadBuffer)) {
 		return true;
 	} else {
@@ -222,88 +239,53 @@ void KaNetwork::log(String debugMessage) {
 	}
 }
 
-void KaNetwork::startConfiguration() {
-	if (!isInConfigurationMode()) {
-		//Close existing connections
-		if (mqttClient->connected()) {
-			mqttClient->disconnect();
-		}
-		if (WiFi.status() == WL_CONNECTED) {
-			WiFi.disconnect(true);
-		}
-		//Create AP
+/**
+ * Creates a web server. If Wifi is not connected, then an own AP will be created
+ */
+void KaNetwork::startWebServer() {
+	if (!isWebServerRunning()) {
 		String apSsid = getClientName();
-		log("Start AccessPoint for configuration. SSID '" + apSsid + "'; password '" + CONFIG_PASSWORD + "'");
-		dnsApServer = new DNSServer();
-		apServer = new ESP8266WebServer(80);
-		WiFi.softAP(apSsid.c_str(), CONFIG_PASSWORD.c_str());
-		dnsApServer->setErrorReplyCode(DNSReplyCode::NoError);
-		dnsApServer->start(53, "*", WiFi.softAPIP());
-		apServer->on("/", std::bind(&KaNetwork::handleHttpRootRequest, this));
-		apServer->on("/wifi", std::bind(&KaNetwork::handleHttpWifi, this));
-		apServer->on("/saveConfiguration",
+		webServer = new ESP8266WebServer(80);
+		if (WiFi.status() != WL_CONNECTED) {
+			//Create own AP
+			log("Start AccessPoint for configuration. SSID '" + apSsid + "'; password '" + CONFIG_PASSWORD + "'");
+			dnsApServer = new DNSServer();
+			WiFi.softAP(apSsid.c_str(), CONFIG_PASSWORD.c_str());
+			dnsApServer->setErrorReplyCode(DNSReplyCode::NoError);
+			dnsApServer->start(53, "*", WiFi.softAPIP());
+		} else {
+			log("Start web server for configuration. IP " + WiFi.localIP().toString());
+		}
+		webServer->on("/", std::bind(&KaNetwork::handleHttpRootRequest, this));
+		webServer->on("/wifi", std::bind(&KaNetwork::handleHttpWifi, this));
+		webServer->on("/saveConfiguration",
 				std::bind(&KaNetwork::handleHttpSaveConfiguration, this));
-		apServer->on("/info", std::bind(&KaNetwork::handleHttpInfo, this));
-		apServer->on("/reset", std::bind(&KaNetwork::handleHttpReset, this));
-		apServer->on("/firmware", HTTP_GET,
+		webServer->on("/info", std::bind(&KaNetwork::handleHttpInfo, this));
+		webServer->on("/reset", std::bind(&KaNetwork::handleHttpReset, this));
+		webServer->on("/firmware", HTTP_GET,
 				std::bind(&KaNetwork::handleHttpFirmwareUpdate, this));
-		apServer->on("/firmware", HTTP_POST,
-				[&]() {
-					if (Update.hasError()) {
-						apServer->send(200, "text/html", String(F("Update error: ")) + firmwareUpdateError);
-					} else {
-						apServer->client().setNoDelay(true);
-						String page = HTTP_HEAD + HTTP_SCRIPT + HTTP_STYLE + HTTP_HEAD_END + HTTP_SAVED + HTTP_END;
-						page.replace("{v}", "Update successful.");
-						apServer->send(200, "text/html", page);
-					}
-					this->restart();
-				}, [&]() {
-					// handler for the file upload, get's the sketch bytes, and writes
-					// them through the Update object
-				HTTPUpload& upload = apServer->upload();
-
-				if(upload.status == UPLOAD_FILE_START) {
-					firmwareUpdateError = "";
-					if (debug) {
-						Serial.setDebugOutput(true);
-					}
-					WiFiUDP::stopAll();
-					log("Update: " + upload.filename);
-					uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-					if(!Update.begin(maxSketchSpace)) { //start with max available size
-						setFirmwareUpdateError();
-					}
-				} else if(upload.status == UPLOAD_FILE_WRITE && !firmwareUpdateError.length()) {
-					if(Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-						setFirmwareUpdateError();
-					}
-				} else if(upload.status == UPLOAD_FILE_END && !firmwareUpdateError.length()) {
-					if(Update.end(true)) { //true to set the size to the current progress
-						log("Update Success: " + String(upload.totalSize) + ". Rebooting...");
-					} else {
-						setFirmwareUpdateError();
-					}
-					if (debug) {
-						Serial.setDebugOutput(false);
-					}
-				} else if(upload.status == UPLOAD_FILE_ABORTED) {
-					Update.end();
-					log("Update was aborted.");
-				}
-				delay(0);
-			});
-		//Start ap http server
-		apServer->begin();
+		webServer->on("/firmware", HTTP_POST,
+				std::bind(&KaNetwork::handleHttpFirmwareUpdateFinished, this),
+				std::bind(&KaNetwork::handleHttpFirmwareUpdateUpload, this));
+		//Start http server
+		webServer->begin();
 	}
 }
 
-bool KaNetwork::isInConfigurationMode() {
-	return (apServer != nullptr);
+bool KaNetwork::isWebServerRunning() {
+	return (webServer != nullptr);
+}
+
+bool KaNetwork::isUpdateRunning() {
+	return this->updateRunning;
+}
+
+bool KaNetwork::isSoftAP() {
+	return ((isWebServerRunning()) && (dnsApServer != nullptr));
 }
 
 void KaNetwork::handleHttpRootRequest() {
-	if (isInConfigurationMode()) {
+	if (isWebServerRunning()) {
 		String page = HTTP_HEAD;
 		page.replace("{v}", applicationName);
 		page += HTTP_SCRIPT;
@@ -316,13 +298,13 @@ void KaNetwork::handleHttpRootRequest() {
 		page += HTTP_BUTTON_INFO;
 		page += HTTP_BUTTON_RESET;
 		page += HTTP_END;
-		apServer->sendHeader("Content-Length", String(page.length()));
-		apServer->send(200, "text/html", page);
+		webServer->sendHeader("Content-Length", String(page.length()));
+		webServer->send(200, "text/html", page);
 	}
 }
 
 void KaNetwork::handleHttpWifi() {
-	if (isInConfigurationMode()) {
+	if (isWebServerRunning()) {
 		String page = HTTP_HEAD;
 		page.replace("{v}", "Device Configuration");
 		page += HTTP_SCRIPT;
@@ -340,20 +322,19 @@ void KaNetwork::handleHttpWifi() {
 		page.replace("{mu}", this->mqttUser);
 		page.replace("{mp}", this->mqttPassword);
 
-		apServer->sendHeader("Content-Length", String(page.length()));
-		apServer->send(200, "text/html", page);
-		log("Sent Wifi configuration page.");
+		webServer->sendHeader("Content-Length", String(page.length()));
+		webServer->send(200, "text/html", page);
 	}
 }
 
 void KaNetwork::handleHttpSaveConfiguration() {
-	if (isInConfigurationMode()) {
-		this->ssid = apServer->arg("s");
-		this->password = apServer->arg("p");
-		this->mqttServer = apServer->arg("ms");
-		this->mqttTopic = apServer->arg("mt");
-		this->mqttUser = apServer->arg("mu");
-		this->mqttPassword = apServer->arg("mp");
+	if (isWebServerRunning()) {
+		this->ssid = webServer->arg("s");
+		this->password = webServer->arg("p");
+		this->mqttServer = webServer->arg("ms");
+		this->mqttTopic = webServer->arg("mt");
+		this->mqttUser = webServer->arg("mu");
+		this->mqttPassword = webServer->arg("mp");
 		this->saveSettings();
 
 		String page = HTTP_HEAD;
@@ -364,15 +345,15 @@ void KaNetwork::handleHttpSaveConfiguration() {
 		page += HTTP_END;
 		page.replace("{v}", "Settings saved.");
 
-		apServer->sendHeader("Content-Length", String(page.length()));
-		apServer->send(200, "text/html", page);
+		webServer->sendHeader("Content-Length", String(page.length()));
+		webServer->send(200, "text/html", page);
 
 		this->restart();
 	}
 }
 
 void KaNetwork::handleHttpInfo() {
-	if (isInConfigurationMode()) {
+	if (isWebServerRunning()) {
 		String page = HTTP_HEAD;
 		page.replace("{v}", "Info");
 		page += HTTP_SCRIPT;
@@ -392,13 +373,10 @@ void KaNetwork::handleHttpInfo() {
 		page += "<tr><th>Real Flash Size:</th><td>";
 		page += ESP.getFlashChipRealSize();
 		page += "</td></tr>";
-		page += "<tr><th>Soft AP IP:</th><td>";
-		page += WiFi.softAPIP().toString();
+		page += "<tr><th>IP address:</th><td>";
+		page += (isSoftAP() ? WiFi.softAPIP().toString() : WiFi.localIP().toString());
 		page += "</td></tr>";
-		page += "<tr><th>Soft AP MAC:</th><td>";
-		page += WiFi.softAPmacAddress();
-		page += "</td></tr>";
-		page += "<tr><th>Station MAC:</th><td>";
+		page += "<tr><th>MAC address:</th><td>";
 		page += WiFi.macAddress();
 		page += "</td></tr>";
 		page += "<tr><th>Current sketch size:</th><td>";
@@ -412,14 +390,14 @@ void KaNetwork::handleHttpInfo() {
 		page += "</td></tr>";
 		page += "</table>";
 		page += HTTP_END;
-		apServer->sendHeader("Content-Length", String(page.length()));
-		apServer->send(200, "text/html", page);
+		webServer->sendHeader("Content-Length", String(page.length()));
+		webServer->send(200, "text/html", page);
 	}
 }
 
 /** Handle the reset page */
 void KaNetwork::handleHttpReset() {
-	if (isInConfigurationMode()) {
+	if (isWebServerRunning()) {
 		String page = HTTP_HEAD;
 		page.replace("{v}", "Info");
 		page += HTTP_SCRIPT;
@@ -427,15 +405,15 @@ void KaNetwork::handleHttpReset() {
 		page += HTTP_HEAD_END;
 		page += "Module will reset in a few seconds.";
 		page += HTTP_END;
-		apServer->sendHeader("Content-Length", String(page.length()));
-		apServer->send(200, "text/html", page);
+		webServer->sendHeader("Content-Length", String(page.length()));
+		webServer->send(200, "text/html", page);
 
 		this->restart();
 	}
 }
 
 String KaNetwork::getHttpCaption() {
-	return "<h2>" + applicationName + "</h2><h3>Revision " + firmwareVersion + "</h3>";
+	return "<h2>" + applicationName + "</h2><h3>Revision " + firmwareVersion + (debug ? " (debug)" : "") + "</h3>";
 }
 
 String KaNetwork::getClientName() {
@@ -451,7 +429,7 @@ String KaNetwork::getClientName() {
 }
 
 void KaNetwork::handleHttpFirmwareUpdate() {
-	if (isInConfigurationMode()) {
+	if (isWebServerRunning()) {
 		String page = HTTP_HEAD;
 		page.replace("{v}", "Firmware update");
 		page += HTTP_SCRIPT;
@@ -461,9 +439,76 @@ void KaNetwork::handleHttpFirmwareUpdate() {
 		page += HTTP_FORM_FIRMWARE;
 		page += HTTP_END;
 
-		apServer->sendHeader("Content-Length", String(page.length()));
-		apServer->send(200, "text/html", page);
-		log("Sent Firmware update page.");
+		webServer->sendHeader("Content-Length", String(page.length()));
+		webServer->send(200, "text/html", page);
+	}
+}
+
+void KaNetwork::handleHttpFirmwareUpdateFinished() {
+	if (isWebServerRunning()) {
+		if (Update.hasError()) {
+			webServer->send(200, "text/html", String(F("Update error: ")) + firmwareUpdateError);
+		} else {
+			webServer->client().setNoDelay(true);
+			String page = HTTP_HEAD;
+			page += HTTP_SCRIPT;
+			page += HTTP_STYLE;
+			page += HTTP_HEAD;
+			page += HTTP_END;
+			page += HTTP_SAVED;
+			page += HTTP_END;
+			page.replace("{v}", "Update successful.");
+			webServer->send(200, "text/html", page);
+		}
+		this->restart();
+	}
+}
+
+void KaNetwork::handleHttpFirmwareUpdateUpload() {
+	if (isWebServerRunning()) {
+		//Start firmwareUpdate
+		this->updateRunning = true;
+		//Close existing MQTT connections
+		if (mqttClient->connected()) {
+			mqttClient->disconnect();
+		}
+		// handler for the file upload, get's the sketch bytes, and writes
+		// them through the Update object
+		HTTPUpload& upload = webServer->upload();
+
+		if(upload.status == UPLOAD_FILE_START) {
+			firmwareUpdateError = "";
+			if (debug) {
+				Serial.setDebugOutput(true);
+			}
+			WiFiUDP::stopAll();
+			log("Update: " + upload.filename);
+			uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+			if(!Update.begin(maxSketchSpace)) { //start with max available size
+				setFirmwareUpdateError();
+			}
+		} else if(upload.status == UPLOAD_FILE_WRITE && !firmwareUpdateError.length()) {
+			if(Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+				setFirmwareUpdateError();
+			}
+		} else if(upload.status == UPLOAD_FILE_END && !firmwareUpdateError.length()) {
+			if(Update.end(true)) { //true to set the size to the current progress
+				log("Update Success: " + String(upload.totalSize) + ". Rebooting...");
+			} else {
+				setFirmwareUpdateError();
+			}
+			if (debug) {
+				Serial.setDebugOutput(false);
+			}
+		} else if(upload.status == UPLOAD_FILE_ABORTED) {
+			Update.end();
+			log("Update was aborted.");
+			this->restart();
+		} else if (firmwareUpdateError.length()) {
+			log("Update was failed.");
+			this->restart();
+		}
+		delay(0);
 	}
 }
 
@@ -505,11 +550,13 @@ void KaNetwork::setFirmwareUpdateError() {
 	log(firmwareUpdateError);
 }
 
-void KaNetwork::stopConfiguration() {
-	if (isInConfigurationMode()) {
+void KaNetwork::stopWebServer() {
+	if ((isWebServerRunning()) && (!this->updateRunning)) {
+		log("Close web configuration.");
 		delay(100);
-		apServer->client().stop();
-		apServer = nullptr;
+		//apServer->client().stop();
+		webServer->stop();
+		webServer = nullptr;
 		if (onConfigurationFinished) {
 			onConfigurationFinished();
 		}
@@ -517,7 +564,8 @@ void KaNetwork::stopConfiguration() {
 }
 
 void KaNetwork::restart() {
-	stopConfiguration();
+	this->updateRunning = false;
+	stopWebServer();
 	delay(1000);
 	ESP.restart();
 	delay(2000);
