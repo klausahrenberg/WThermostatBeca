@@ -1,5 +1,5 @@
 # ThermostatBecaWifi
-Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. It's tested with model bac-002-wifi and should work with similar thermostats based on Tuya firmware. The model bac-002-wifi has 2 colors and can be purchased via Ali.
+Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. It's tested with model bac-002-wifi (BHT-002) and should work with similar thermostats based on Tuya firmware. The model bac-002-wifi has 2 colors and can be purchased via Ali.
 
 ![image of thermostat](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/bac-002-wifi.jpg)
 
@@ -10,15 +10,12 @@ And inside this device looks like this. On the right you can see the ESP8266 mod
 ## Notice
 Modifying and flashing of devices is at your own risk. I'm not responsible for bricked or damaged devices. I strongly recommend a backup of original firmware before installing any other software.
 ## Features
-The firmware is not finished yet, actual only for testing purposes
-### Working
-* Configuration of AccessPoint and MQTT connection via Web-Interface
+* Configuration of Wifi and MQTT connection via web interface
+* Firmware upload via web interface
 * NTP and time zone synchronisation to set the clock of thermostat
 * Reading of parameters via MQTT: desiredTemperature, actualTemperature, actualFloorTemperature, deviceOn, manualMode, ecoMode, locked
-* Setting of parameters via MQTT: desiredTemperature, deviceOn
-### Still to do
-* Setting of all other parameters
-* Reading and Setting of time schedules
+* Setting of all parameters abive via MQTT
+* Reading and Setting of time schedule
 ## Limitations
 The thermostat is working independent from the Wifi-Module. That means, functionality of the thermostat itself will not and can't be changed. This firmware replaces only the communication part of the thermostat, which is handled by the ESP module.
 I have tested this only with model bac-002-wifi - I assume, it should work with other devices too. The Tuya devices has a serial communication standard (MCU commands) which is only different in parameters. So if your Thermostat has not only a heating relay, for example an additional cooling circuit, it will not work actually. But there should arrive some unknown commands at the MQTT server.
