@@ -1,8 +1,10 @@
 /*
- * V 2.7
- PubSubClient.h - A simple client for MQTT.
+ *
+  V 2.7 PubSubClient.h - A simple client for MQTT.
   Nick O'Leary
   http://knolleary.net
+
+  No changes on PubSubClient library, only class name and MQTT_MAX_PACKET_SIZE increased to 512
 */
 
 #ifndef KAPUBSUBCLIENT_H
