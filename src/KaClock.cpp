@@ -25,6 +25,10 @@ void KaClock::setOnTimeUpdate(THandlerFunction onTimeUpdate) {
 	this->onTimeUpdate = onTimeUpdate;
 }
 
+void KaClock::setOnError(TErrorHandlerFunction onError) {
+	this->onError = onError;
+}
+
 void KaClock::log(String debugMessage) {
 	if (debug) {
 		Serial.println(debugMessage);
@@ -34,6 +38,13 @@ void KaClock::log(String debugMessage) {
 void KaClock::notifyOnTimeUpdate() {
 	if (onTimeUpdate) {
 		onTimeUpdate();
+	}
+}
+
+void KaClock::notifyOnError(String error) {
+	log(error);
+	if (onError) {
+		onError(error);
 	}
 }
 
@@ -57,7 +68,7 @@ void KaClock::loop() {
 				log("NTP time: " + getFormattedTime());
 				notifyOnTimeUpdate();
 			} else {
-				log("NTP sync failed");
+				notifyOnError("NTP sync failed: ");
 			}
 		}
 		//2. Sync time zone
@@ -104,10 +115,10 @@ void KaClock::loop() {
 									+ getFormattedTime());
 					notifyOnTimeUpdate();
 				} else {
-					log("Parsing failed");
+					notifyOnError("Can't parse json of time zone request result: " + payload);
 				}
 			} else {
-				log("Time zone update failed: " + httpCode);
+				notifyOnError("Time zone update failed: " + httpCode);
 			}
 			http.end();   //Close connection
 		}

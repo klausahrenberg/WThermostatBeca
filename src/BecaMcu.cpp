@@ -1,15 +1,13 @@
 #include "BecaMcu.h"
 
-BecaMcu::BecaMcu(KaClock *kClock) {
+BecaMcu::BecaMcu(bool debug, KaClock *kClock) {
+	this->debug = debug;
 	this->kClock = kClock;
-	lastHeartBeat = lastNotify = 0;
-	notifyImmediatly = false;
+	lastHeartBeat = lastNotify = lastScheduleNotify = 0;
 	resetAll();
-	for (int i = 0; i < 7; i++) {
+	for (int i = 0; i < STATE_COMPLETE; i++) {
 		receivedStates[i] = false;
 	}
-	//Serial
-	//Serial.begin(9600);
 }
 
 BecaMcu::~BecaMcu() {
@@ -24,9 +22,12 @@ void BecaMcu::setOnUnknownCommand(THandlerFunction onUnknownCommand) {
 	this->onUnknownCommand = onUnknownCommand;
 }
 
-void BecaMcu::setOnConfigurationRequest(
-		THandlerFunction onConfigurationRequest) {
+void BecaMcu::setOnConfigurationRequest(THandlerFunction onConfigurationRequest) {
 	this->onConfigurationRequest = onConfigurationRequest;
+}
+
+void BecaMcu::setOnSchedulesChange(THandlerFunction onSchedulesChange) {
+	this->onSchedulesChange = onSchedulesChange;
 }
 
 void BecaMcu::setDeviceOn(bool deviceOn) {
@@ -37,7 +38,7 @@ void BecaMcu::setDeviceOn(bool deviceOn) {
 		unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
 		                                    0x01, 0x01, 0x00, 0x01, dt};
 		commandCharsToSerial(11, deviceOnCommand);
-		notify(false);
+		notifyState();
 	}
 }
 
@@ -50,15 +51,52 @@ void BecaMcu::setDesiredTemperature(float desiredTemperature) {
 		                                          0x02, 0x02, 0x00, 0x04,
 		                                          0x00, 0x00, 0x00, dt};
 		commandCharsToSerial(14, setTemperatureCommand);
-		notify(false);
+		notifyState();
 	}
 }
 
-void BecaMcu::notify(bool immediatly) {
-	notifyImmediatly = true;
-	if (immediatly) {
-		lastNotify = 0;
+void BecaMcu::setManualMode(bool manualMode) {
+	if (this->manualMode != manualMode) {
+		this->manualMode = manualMode;
+		//55 AA 00 06 00 05 04 04 00 01 01
+		byte dt = (this->manualMode ? 0x01 : 0x00);
+		unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
+		                                    0x04, 0x04, 0x00, 0x01, dt};
+		commandCharsToSerial(11, deviceOnCommand);
+		notifyState();
 	}
+}
+
+void BecaMcu::setEcoMode(bool ecoMode) {
+	if (this->ecoMode != ecoMode) {
+		this->ecoMode = ecoMode;
+		//55 AA 00 06 00 05 05 01 00 01 01
+		byte dt = (this->ecoMode ? 0x01 : 0x00);
+		unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
+		                                    0x05, 0x01, 0x00, 0x01, dt};
+		commandCharsToSerial(11, deviceOnCommand);
+		notifyState();
+	}
+}
+
+void BecaMcu::setLocked(bool locked) {
+	if (this->locked != locked) {
+		this->locked = locked;
+		//55 AA 00 06 00 05 06 01 00 01 01
+		byte dt = (this->deviceOn ? 0x01 : 0x00);
+		unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
+		                                    0x06, 0x01, 0x00, 0x01, dt};
+		commandCharsToSerial(11, deviceOnCommand);
+		notifyState();
+	}
+}
+
+void BecaMcu::notifyState() {
+	lastNotify = 0;
+}
+
+void BecaMcu::notifySchedules() {
+	lastScheduleNotify = 0;
 }
 
 void BecaMcu::resetAll() {
@@ -105,17 +143,22 @@ void BecaMcu::loop() {
 		lastHeartBeat = now;
 	}
 	//Notify
-	if ((isDeviceStateComplete())
-			&& ((lastNotify == 0) || (now - lastNotify > NOTIFY_INTERVAL)
-					|| ((notifyImmediatly)
-							&& (now - lastNotify > MINIMUM_INTERVAL)))) {
-		notifyImmediatly = false;
-		if (onNotify) {
-			if (onNotify()) {
-				lastNotify = millis();
+	if (isDeviceStateComplete()) {
+		if (((lastNotify == 0) && (now - lastNotify > MINIMUM_INTERVAL)) || (now - lastNotify > NOTIFY_INTERVAL)) {
+			if (onNotify) {
+				if (onNotify()) {
+					lastNotify = now;
+				}
+			} else {
+				lastNotify = now;
 			}
-		} else {
-			lastNotify = millis();
+		}
+		//Notify schedules
+		if ((lastScheduleNotify == 0) && (now - lastScheduleNotify > MINIMUM_INTERVAL)) {
+			if (onSchedulesChange) {
+				onSchedulesChange();
+			}
+			lastScheduleNotify = now;
 		}
 	}
 }
@@ -219,10 +262,18 @@ void BecaMcu::sendActualTimeToBeca() {
 	commandCharsToSerial(14, cancelConfigCommand);
 }
 
+void BecaMcu::log(String debugMessage) {
+	if (debug) {
+		Serial.println(debugMessage);
+	}
+}
+
 void BecaMcu::processSerialCommand() {
 	if (commandLength > -1) {
-		//unknown: 55 aa 01 1c 00 00
-		//tbi Request for time sync from MCU : 55 aa 01 1c 00 00
+		//unknown
+		//55 aa 00 00 00 00
+
+
 		if (receivedCommand[3] == 0x00) {
 			switch (receivedCommand[6]) {
 			case 0x00:
@@ -234,8 +285,12 @@ void BecaMcu::processSerialCommand() {
 			default:
 				notifyUnknownCommand();
 			}
+		} else if (receivedCommand[3] == 0x03) {
+			//ignore, MCU response to wifi state
+			//55 aa 01 03 00 00
 		} else if (receivedCommand[3] == 0x04) {
-			//received: 55 aa 01 04 00 00 (setup initialization)
+			//Setup initialization request
+			//received: 55 aa 01 04 00 00
 			if (onConfigurationRequest) {
 				//send answer: 55 aa 00 03 00 01 00
 				unsigned char configCommand[] = { 0x55, 0xAA, 0x00, 0x03, 0x00,
@@ -311,6 +366,7 @@ void BecaMcu::processSerialCommand() {
 				newValue = (float) receivedCommand[13] / 2.0f;
 				changed = ((changed) || (newValue != actualFloorTemperature));
 				actualFloorTemperature = newValue;
+				receivedStates[7] = true;
 				break;
 			case 0x68:
 				//Unknown permanently sent from MCU
@@ -320,7 +376,7 @@ void BecaMcu::processSerialCommand() {
 				notifyUnknownCommand();
 			}
 			if (changed) {
-				notify(true);
+				notifyState();
 			}
 
 		} else if (receivedCommand[3] == 0x1C) {
@@ -339,24 +395,12 @@ void BecaMcu::notifyUnknownCommand() {
 }
 
 bool BecaMcu::isDeviceStateComplete() {
-	for (int i = 0; i < 7; i++) {
+	for (int i = 0; i < STATE_COMPLETE; i++) {
 		if (receivedStates[i] == false) {
 			return false;
 		}
 	}
 	return true;
-}
-
-void BecaMcu::addSchedules(byte startAddr, JsonObject& json) {
-	for (int i = 0; i < 6; i++) {
-		JsonObject& sch = json.createNestedObject((new String(i))->c_str());
-		String timeStr = String(schedules[startAddr + i * 3 + 0]);
-		timeStr = (timeStr.length() == 1 ? "0" + timeStr : timeStr);
-		timeStr = String(schedules[startAddr + i * 3 + 1]) + ":" + timeStr;
-		sch["time"] = timeStr;
-		sch["desiredTemperature"] = (float) schedules[startAddr + i * 3 + 2]
-				/ 2.0f;
-	}
 }
 
 void BecaMcu::getMqttState(JsonObject& json) {
@@ -367,8 +411,93 @@ void BecaMcu::getMqttState(JsonObject& json) {
 	json["manualMode"] = manualMode;
 	json["ecoMode"] = ecoMode;
 	json["locked"] = locked;
-	//addSchedules(10, json.createNestedObject("workday"));
-	//addSchedules(28, json.createNestedObject("saturday"));
-	//addSchedules(46, json.createNestedObject("sunday"));
 }
+
+void BecaMcu::getMqttSchedules(JsonObject& json, String dayRange) {
+	int startAddr = 0;
+	if (SCHEDULE_SATURDAY.equals(dayRange)) {
+		startAddr = 18;
+	} else if (SCHEDULE_SUNDAY.equals(dayRange)) {
+		startAddr = 36;
+	}
+	JsonObject& jsonDay = json.createNestedObject(dayRange);
+	char timeStr[5];
+	for (int i = 0; i < 6; i++) {
+		JsonObject& sch = jsonDay.createNestedObject((new String(i))->c_str());
+		sprintf(timeStr, "%02d:%02d", schedules[startAddr + i * 3 + 1], schedules[startAddr + i * 3 + 0]);
+		sch["h"] = timeStr;
+		sch["t"] = (float) schedules[startAddr + i * 3 + 2]	/ 2.0f;
+	}
+}
+
+bool BecaMcu::setSchedules(int startAddr, JsonObject& json, String dayRange) {
+	bool changed = false;
+	if (json.containsKey(dayRange)) {
+		JsonObject& jsonDayRange = json[dayRange];
+		for (int i = 0; i < 6; i++) {
+			if (jsonDayRange.containsKey(String(i))) {
+				JsonObject& jsonItem = jsonDayRange[String(i)];
+				if (jsonItem.containsKey(SCHEDULE_HOUR)) {
+					String timeStr = jsonItem[SCHEDULE_HOUR];
+					timeStr = (timeStr.length() == 4 ? "0" + timeStr : timeStr);
+					byte hh = timeStr.substring(0, 2).toInt();
+					byte mm = timeStr.substring(3, 5).toInt();
+					changed = changed || (schedules[startAddr + i * 3 + 1] != hh);
+					schedules[startAddr + i * 3 + 1] = hh;
+					changed = changed || (schedules[startAddr + i * 3 + 0] != mm);
+					schedules[startAddr + i * 3 + 0] = mm;
+				}
+				if (jsonItem.containsKey(SCHEDULE_TEMPERATURE)) {
+					byte tt = (int) ((float) jsonItem[SCHEDULE_TEMPERATURE]) * 2;
+					changed = changed || (schedules[startAddr + i * 3 + 2] != tt);
+					schedules[startAddr + i * 3 + 2] = tt;
+				}
+			}
+		}
+	}
+	return changed;
+}
+
+bool BecaMcu::setSchedules(String payload) {
+	if (isDeviceStateComplete()) {
+		StaticJsonBuffer<1216> jsonBuffer;
+		JsonObject& json = jsonBuffer.parseObject(payload);
+		bool changed = false;
+		if (json.success()) {
+			changed = ((changed) || (setSchedules( 0, json, SCHEDULE_WORKDAY)));
+			changed = ((changed) || (setSchedules(18, json, SCHEDULE_SATURDAY)));
+			changed = ((changed) || (setSchedules(36, json, SCHEDULE_SUNDAY)));
+		}
+		if (changed) {
+			log("Changed schedules from MQTT server, send to mcu");
+			//send the changed array to MCU
+			//per unit |MM HH TT|
+			//55 AA 00 06 00 3A 65 00 00 36|
+			//00 06 28|00 08 1E|1E 0B 1E|1E 0D 1E|00 11 2C|00 16 1E|
+			//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
+			//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
+			unsigned char scheduleCommand[64];
+			scheduleCommand[0] = 0x55;
+			scheduleCommand[1] = 0xaa;
+			scheduleCommand[2] = 0x00;
+			scheduleCommand[3] = 0x06;
+			scheduleCommand[4] = 0x00;
+			scheduleCommand[5] = 0x3a;
+			scheduleCommand[6] = 0x65;
+			scheduleCommand[7] = 0x00;
+			scheduleCommand[8] = 0x00;
+			scheduleCommand[9] = 0x36;
+			for (int i = 0; i < 54; i++) {
+				scheduleCommand[i + 10] = schedules[i];
+			}
+			commandCharsToSerial(64, scheduleCommand);
+			//notify change
+			this->notifySchedules();
+		}
+		return changed;
+	} else {
+		return false;
+	}
+}
+
 
