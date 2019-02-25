@@ -14,8 +14,8 @@ Modifying and flashing of devices is at your own risk. I'm not responsible for b
 * Firmware upload via web interface
 * NTP and time zone synchronisation to set the clock of thermostat
 * Reading of parameters via MQTT: desiredTemperature, actualTemperature, actualFloorTemperature, deviceOn, manualMode, ecoMode, locked
-* Setting of all parameters abive via MQTT
-* Reading and Setting of time schedule
+* Setting of all parameters above via MQTT
+* Reading and setting of time schedules
 ## Limitations
 The thermostat is working independent from the Wifi-Module. That means, functionality of the thermostat itself will not and can't be changed. This firmware replaces only the communication part of the thermostat, which is handled by the ESP module.
 I have tested this only with model bac-002-wifi - I assume, it should work with other devices too. The Tuya devices has a serial communication standard (MCU commands) which is only different in parameters. So if your Thermostat has not only a heating relay, for example an additional cooling circuit, it will not work actually. But there should arrive some unknown commands at the MQTT server.
