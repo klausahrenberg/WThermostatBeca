@@ -9,7 +9,7 @@ class KaClock {
 public:
   typedef std::function<void(void)> THandlerFunction;
   typedef std::function<void(String)> TErrorHandlerFunction;
-  KaClock(bool debug);
+  KaClock(bool debug, String ntpServer);
   virtual ~KaClock();   
   void loop();
   void setOnTimeUpdate(THandlerFunction onTimeUpdate);
@@ -38,6 +38,7 @@ private:
   unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime, dstOffset, rawOffset;
   bool validTime;
   String timeZone;
+  String ntpServer;
   void log(String debugMessage);
   void notifyOnTimeUpdate();
   void notifyOnError(String error);

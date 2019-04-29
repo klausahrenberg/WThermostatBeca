@@ -10,9 +10,6 @@
 #include "KaPubSubClient.h"
 #include <ArduinoJson.h>
 
-#define NETWORK_NOT_CONNECTED 0
-#define NETWORK_CONNECTED 1
-
 const static char HTTP_HEAD[]               PROGMEM = {"<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><title>{v}</title>"};
 const static char HTTP_STYLE[]              PROGMEM = {"<style>.c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family: Open Sans;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>"};
 const static char HTTP_SCRIPT[]             PROGMEM = {"<script>function c(l){document.getElementById('s').value=l.innerText||l.textContent;document.getElementById('p').focus();}</script>"};
@@ -42,15 +39,18 @@ public:
 	bool loop(bool waitForWifiConnection);
 	void setOnNotify(THandlerFunction onNotify);
 	void setOnConfigurationFinished(THandlerFunction  onConfigurationFinished);
-	int getNetworkState();
 	bool publishMqtt(String topic, JsonObject& json);
 	bool publishMqtt(String topic, String payload);
 	void onCallbackMqtt(TCallBackMqttHandler cbmh);
 	void startWebServer();
 	void stopWebServer();
+	void enableWebServer(bool startWebServer);
 	bool isWebServerRunning();
 	bool isUpdateRunning();
 	bool isSoftAP();
+	bool isWifiConnected();
+	bool isMqttConnected();
+	String getDeviceIpAddress();
 private:
 	THandlerFunction onNotify;
 	THandlerFunction onConfigurationFinished;
@@ -86,4 +86,3 @@ private:
 };
 
 #endif
-

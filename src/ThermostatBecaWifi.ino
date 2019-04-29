@@ -3,9 +3,10 @@
 #include "KaClock.h"
 
 #define APPLICATION "Thermostat Beca-Wifi"
-#define VERSION "0.6"
+#define VERSION "0.7"
 #define DEBUG false
 #define JSON_BUFFER_SIZE 768
+#define NTP_SERVER "de.pool.ntp.org"
 
 KaNetwork *network;
 BecaMcu *becaMcu;
@@ -16,12 +17,11 @@ void setup() {
 	//Wifi and Mqtt connection
 	network = new KaNetwork(APPLICATION, VERSION, DEBUG, false);
 	network->setOnNotify([]() {
-		switch (network->getNetworkState()) {
-			case NETWORK_CONNECTED :
+		if (network->isWifiConnected()) {
+
+		}
+		if (network->isMqttConnected()) {
 			becaMcu->queryState();
-			break;
-			case NETWORK_NOT_CONNECTED :
-			break;
 		}
 	});
 	network->setOnConfigurationFinished([]() {
@@ -30,7 +30,7 @@ void setup() {
 	});
 	network->onCallbackMqtt(onMqttCallback);
 	//KaClock - time sync
-	kClock = new KaClock(DEBUG);
+	kClock = new KaClock(DEBUG, NTP_SERVER);
 	kClock->setOnTimeUpdate([]() {
 		becaMcu->sendActualTimeToBeca();
 	});
@@ -44,12 +44,7 @@ void setup() {
 	becaMcu = new BecaMcu(DEBUG, kClock);
 	becaMcu->setOnNotify([]() {
 		//send state of device
-		StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-		JsonObject& json = jsonBuffer.createObject();
-		becaMcu->getMqttState(json);
-		kClock->getMqttState(json);
-		json["firmware"] = VERSION;
-		return network->publishMqtt("state", json);
+		return sendMqttStatus();
 	});
 	becaMcu->setOnSchedulesChange([]() {
 		//Send schedules once at ESP start and at every change
@@ -73,6 +68,17 @@ void loop() {
 		kClock->loop();
 	}
 	delay(50);
+}
+
+bool sendMqttStatus() {
+	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
+	JsonObject& json = jsonBuffer.createObject();
+	becaMcu->getMqttState(json);
+	kClock->getMqttState(json);
+	json["firmware"] = VERSION;
+	json["ip"] = network->getDeviceIpAddress();
+	json["webServerRunning"] = network->isWebServerRunning();
+	return network->publishMqtt("state", json);
 }
 
 /**
@@ -117,6 +123,8 @@ void onMqttCallback(String topic, String payload) {
 		}
 	} else if (topic.equals("mcucommand")) {
 		becaMcu->commandHexStrToSerial(payload);
+	} else if ((topic.equals("state")) && (payload.equals("0"))) {
+			sendMqttStatus();
 	} else if (topic.equals("webServer")) {
 		if (payload.equals("true")) {
 			network->startWebServer();

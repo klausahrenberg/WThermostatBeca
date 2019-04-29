@@ -19,17 +19,14 @@ bool startConfigIfNoSettingsFound) {
 	this->updateRunning = false;
 	this->mqttClient = new KaPubSubClient(/*debug,*/ wifiClient);
 	lastMqttConnect = lastWifiConnect = 0;
-	networkState = NETWORK_NOT_CONNECTED;
 	gotIpEventHandler = WiFi.onStationModeGotIP(
 			[this](const WiFiEventStationModeGotIP& event) {
 				log("Station connected, IP: " + WiFi.localIP());
-				this->networkState = NETWORK_CONNECTED;
 				this->notify();
 			});
 	disconnectedEventHandler = WiFi.onStationModeDisconnected(
 			[this](const WiFiEventStationModeDisconnected& event) {
 				log("Station disconnected");
-				this->networkState = NETWORK_NOT_CONNECTED;
 				this->notify();
 			});
 	mqttClient->setCallback(
@@ -108,9 +105,9 @@ void KaNetwork::saveSettings() {
  */
 bool KaNetwork::loop(bool waitForWifiConnection) {
 	boolean result = true;
+	long now = millis();
 	if (!isWebServerRunning()) {
-		if ((ssid != "") && (mqttServer != "")) {
-			long now = millis();
+		if (ssid != "") {
 			//WiFi connection
 			if ((WiFi.status() != WL_CONNECTED)
 					&& ((lastWifiConnect == 0)
@@ -129,23 +126,22 @@ bool KaNetwork::loop(bool waitForWifiConnection) {
 				//WiFi.waitForConnectResult();
 				lastWifiConnect = now;
 			}
-			//MQTT connection
-			if ((WiFi.status() == WL_CONNECTED) && (!mqttClient->connected())
-					&& ((lastMqttConnect == 0)
-							|| (now - lastMqttConnect > 300000))) {
-				if (mqttReconnect()) {
-					lastMqttConnect = now;
-				}
-			}
 		}
 	} else {
 		if (isSoftAP()) {
 			dnsApServer->processNextRequest();
 		}
 		webServer->handleClient();
-		result = (dnsApServer == nullptr);
+		result = ((!isSoftAP()) && (!isUpdateRunning()));
 	}
-	if (mqttClient->connected()) {
+	//MQTT connection
+	if ((isWifiConnected()) && (mqttServer != "") &&
+	    (!mqttClient->connected()) && ((lastMqttConnect == 0) || (now - lastMqttConnect > 300000))) {
+		if (mqttReconnect()) {
+			lastMqttConnect = now;
+		}
+	}
+	if ((!isUpdateRunning()) && (mqttClient->connected())) {
 		mqttClient->loop();
 	}
 	return result;
@@ -166,19 +162,22 @@ void KaNetwork::notify() {
 	}
 }
 
-int KaNetwork::getNetworkState() {
-	return networkState;
-}
-
 bool KaNetwork::publishMqtt(String topic, JsonObject& json) {
-	char payloadBuffer[MQTT_MAX_PACKET_SIZE];
-	json.printTo(payloadBuffer, sizeof(payloadBuffer));
-	topic = mqttTopic + (topic != "" ? "/" + topic : "");
-	//int mSize = 5 + 2 + topic.length() + strlen(payloadBuffer);
-	if (mqttClient->publish(topic.c_str(), payloadBuffer)) {
-		return true;
+	if (isMqttConnected()) {
+		char payloadBuffer[MQTT_MAX_PACKET_SIZE];
+		json.printTo(payloadBuffer, sizeof(payloadBuffer));
+		topic = mqttTopic + (topic != "" ? "/" + topic : "");
+		//int mSize = 5 + 2 + topic.length() + strlen(payloadBuffer);
+		if (mqttClient->publish(topic.c_str(), payloadBuffer)) {
+			return true;
+		} else {
+			log("Sending MQTT message failed, rc=" + String(mqttClient->state()));
+			return false;
+		}
 	} else {
-		log("Sending MQTT message failed, rc=" + String(mqttClient->state()));
+		if (mqttServer != "") {
+			log("Can't send MQTT. Not connected to server: " + mqttServer);
+		}
 		return false;
 	}
 }
@@ -202,14 +201,12 @@ void KaNetwork::onCallbackMqtt(TCallBackMqttHandler cbmh) {
 void KaNetwork::mqttCallback(char* ptopic, byte* payload, unsigned int length) {
 	//create character buffer with ending null terminator (string)
 	char message_buff[MQTT_MAX_PACKET_SIZE];
-	for (int i = 0; i < length; i++) {
+	for (unsigned int i = 0; i < length; i++) {
 		message_buff[i] = payload[i];
 	}
 	message_buff[length] = '\0';
 	//forward to serial port
-	log(
-			"Received MQTT callback: " + String(ptopic) + "/{"
-					+ String(message_buff) + "}");
+	log("Received MQTT callback: " + String(ptopic) + "/{" + String(message_buff) + "}");
 	String topic = String(ptopic).substring(mqttTopic.length() + 1);
 	if (_mqtt_callback) {
 		_mqtt_callback(topic, String(message_buff));
@@ -224,11 +221,11 @@ bool KaNetwork::mqttReconnect() {
 			mqttUser.c_str(), mqttPassword.c_str())) {
 		log("Connected to MQTT server.");
 		mqttClient->subscribe(String(mqttTopic + "/#").c_str());
+		notify();
 		return true;
 	} else {
-		log(
-				"Connection to MQTT server failed, rc="
-						+ String(mqttClient->state()));
+		log("Connection to MQTT server failed, rc="	+ String(mqttClient->state()));
+		notify();
 		return false;
 	}
 }
@@ -269,6 +266,7 @@ void KaNetwork::startWebServer() {
 				std::bind(&KaNetwork::handleHttpFirmwareUpdateUpload, this));
 		//Start http server
 		webServer->begin();
+		this->notify();
 	}
 }
 
@@ -282,6 +280,18 @@ bool KaNetwork::isUpdateRunning() {
 
 bool KaNetwork::isSoftAP() {
 	return ((isWebServerRunning()) && (dnsApServer != nullptr));
+}
+
+bool KaNetwork::isWifiConnected() {
+	return ((!isSoftAP()) && (!isUpdateRunning()) && (WiFi.status() == WL_CONNECTED));
+}
+
+bool KaNetwork::isMqttConnected() {
+	return mqttClient->connected();
+}
+
+String KaNetwork::getDeviceIpAddress() {
+	return (isSoftAP() ? WiFi.softAPIP().toString() : WiFi.localIP().toString());
 }
 
 void KaNetwork::handleHttpRootRequest() {
@@ -374,7 +384,7 @@ void KaNetwork::handleHttpInfo() {
 		page += ESP.getFlashChipRealSize();
 		page += "</td></tr>";
 		page += "<tr><th>IP address:</th><td>";
-		page += (isSoftAP() ? WiFi.softAPIP().toString() : WiFi.localIP().toString());
+		page += this->getDeviceIpAddress();
 		page += "</td></tr>";
 		page += "<tr><th>MAC address:</th><td>";
 		page += WiFi.macAddress();
@@ -560,6 +570,15 @@ void KaNetwork::stopWebServer() {
 		if (onConfigurationFinished) {
 			onConfigurationFinished();
 		}
+		this->notify();
+	}
+}
+
+void KaNetwork::enableWebServer(bool startWebServer) {
+	if (startWebServer) {
+		this->startWebServer();
+	} else {
+		this->stopWebServer();
 	}
 }
 

@@ -8,8 +8,9 @@
 #include <Time.h>
 #include <TimeLib.h>
 
-KaClock::KaClock(bool debug) {
+KaClock::KaClock(bool debug, String ntpServer) {
 	this->debug = debug;
+	this->ntpServer = ntpServer;
 	lastTry = lastNtpSync = lastTimeZoneSync = ntpTime = 0;
 	validTime = false;
 	rawOffset = 0;
@@ -58,7 +59,6 @@ void KaClock::loop() {
 			&& (WiFi.status() == WL_CONNECTED)) {
 		//1. Sync ntp
 		if ((lastNtpSync == 0) || (now - lastNtpSync > 60000)) {
-			String ntpServer = "de.pool.ntp.org";
 			log("Time via NTP server '" + ntpServer + "'");
 			WiFiUDP ntpUDP;
 			NTPClient ntpClient(ntpUDP, ntpServer.c_str());
@@ -85,7 +85,7 @@ void KaClock::loop() {
 			int httpCode = http.GET();
 			if (httpCode > 0) {
 				String payload = http.getString();
-				StaticJsonBuffer<400> JSONBuffer;
+				StaticJsonBuffer<512> JSONBuffer;
 				JsonObject& parsed = JSONBuffer.parseObject(payload);
 				if (parsed.success()) {
 					//log(payload);
