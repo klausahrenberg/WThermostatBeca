@@ -83,8 +83,8 @@ The state record of the device is send in follwing json structure:
   "dstOffset":0,
   "rawOffset":32400,
   "timeZone":"Asia/[..]",
-  "firmware":"0.7"
-  "ip":"192.168.0.174"
+  "firmware":"0.7",
+  "ip":"192.168.0.174",
   "webServerRunning":false
  }
 ```
