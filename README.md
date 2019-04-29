@@ -60,11 +60,12 @@ Your MQTT broker receive all messages to <YOUR_TOPIC>. The following commands wi
 3. <YOUR_TOPIC>/message can contain 2 strings: 'unknown' for unknown commands received from MCU or 'error' for error messages.
 
 You can send the following commands to the device:
-1. <YOUR_TOPIC>/schedules/0 to request for the schedules. The schedules come back in 3 separate messages for workday, saturday and sunday 
-2. <YOUR_TOPIC>/webService/true|false can be called with an bool to switch the web service on or off
-3. <YOUR_TOPIC>/mcucommand sends directly serial mcu commands to the device. The has to be a string in hexa-form without the checksum buyte at the end, e.g. to set the desired temperature to 24.5C: "55 aa 01 07 00 08 02 02 00 04 00 00 00 31". This command is only for testing of unknown Tuya MCU commands and will not be required for regular work with the device.
-### State - json structure
-The state of the device is send in follwing json structure:
+1. <YOUR_TOPIC>/schedules/0 to request for the schedules. The schedules come back in 3 separate messages for workday, saturday and sunday
+2. <YOUR_TOPIC>/state/0 to request the state record of the device.  
+3. <YOUR_TOPIC>/webService/true|false can be called with an bool to switch the web service on or off
+4. <YOUR_TOPIC>/mcucommand sends directly serial mcu commands to the device. The has to be a string in hexa-form without the checksum buyte at the end, e.g. to set the desired temperature to 24.5C: "55 aa 01 07 00 08 02 02 00 04 00 00 00 31". This command is only for testing of unknown Tuya MCU commands and will not be required for regular work with the device.
+### State record - json structure
+The state record of the device is send in follwing json structure:
 ```json
 {
   "deviceOn":false,
@@ -82,7 +83,9 @@ The state of the device is send in follwing json structure:
   "dstOffset":0,
   "rawOffset":32400,
   "timeZone":"Asia/[..]",
-  "firmware":"0.5"
+  "firmware":"0.7"
+  "ip": "192.168.0.174"
+  "webServerRunning": false
  }
 ```
 You can set the parameters via MQTT with the parameter name and the direct value as payload: <YOUR_TOPIC>/<parameter> and value in payload. e.g.: <YOUR_TOPIC>/desiredTemperature; payload: 22.5
