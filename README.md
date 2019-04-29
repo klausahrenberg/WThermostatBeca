@@ -84,8 +84,8 @@ The state record of the device is send in follwing json structure:
   "rawOffset":32400,
   "timeZone":"Asia/[..]",
   "firmware":"0.7"
-  "ip": "192.168.0.174"
-  "webServerRunning": false
+  "ip":"192.168.0.174"
+  "webServerRunning":false
  }
 ```
 You can set the parameters via MQTT with the parameter name and the direct value as payload: <YOUR_TOPIC>/<parameter> and value in payload. e.g.: <YOUR_TOPIC>/desiredTemperature; payload: 22.5
