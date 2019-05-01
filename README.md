@@ -57,13 +57,15 @@ Write firmware (1MB)
 Your MQTT broker receive all messages to <YOUR_TOPIC>. The following commands will be send from the device:
 1. <YOUR_TOPIC>/state at every change on the device and/or every 5 minutes
 2. <YOUR_TOPIC>/schedules at the start of the device, at every change or request
-3. <YOUR_TOPIC>/message can contain 2 strings: 'unknown' for unknown commands received from MCU or 'error' for error messages.
+3. <YOUR_TOPIC>/mcucommand can contain 2 strings: 'unknown' for unknown commands received from MCU or 'mcu: <0x0.>' for logged messages from MCU, if command 'logMcu' enabled this before (default: disabled)
 
 You can send the following commands to the device:
 1. <YOUR_TOPIC>/schedules/0 to request for the schedules. The schedules come back in 3 separate messages for workday, saturday and sunday
 2. <YOUR_TOPIC>/state/0 to request the state record of the device.  
-3. <YOUR_TOPIC>/webService/true|false can be called with an bool to switch the web service on or off
-4. <YOUR_TOPIC>/mcucommand sends directly serial mcu commands to the device. The has to be a string in hexa-form without the checksum buyte at the end, e.g. to set the desired temperature to 24.5C: "55 aa 01 07 00 08 02 02 00 04 00 00 00 31". This command is only for testing of unknown Tuya MCU commands and will not be required for regular work with the device.
+3. <YOUR_TOPIC>/webServer/true|false can be called with an bool to switch the web service on or off
+4. <YOUR_TOPIC>/mcucommand sends directly serial mcu commands to the device. The has to be a string in hexa-form without the checksum byte at the end, e.g. to set the desired temperature to 24.5C: "55 aa 01 07 00 08 02 02 00 04 00 00 00 31". This command is only for testing of unknown Tuya MCU commands and will not be required for regular work with the device.
+5. <YOUR_TOPIC>/logMcu/true|false enables or disables forwarding of all MCU messages to the MQTT broker. Only for testing.
+
 ### State record - json structure
 The state record of the device is send in follwing json structure:
 ```json
@@ -75,6 +77,8 @@ The state record of the device is send in follwing json structure:
   "manualMode":false,
   "ecoMode":false,
   "locked":false,
+  "fanSpeed":"none",
+  "logMcu":false,
   "clockTime":"2019-02-21 10:40:55",
   "clockTimeRaw":1550745655,
   "validTime":true,
@@ -83,7 +87,7 @@ The state record of the device is send in follwing json structure:
   "dstOffset":0,
   "rawOffset":32400,
   "timeZone":"Asia/[..]",
-  "firmware":"0.7",
+  "firmware":"0.9",
   "ip":"192.168.0.174",
   "webServerRunning":false
  }
