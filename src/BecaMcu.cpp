@@ -87,7 +87,7 @@ void BecaMcu::setLocked(bool locked) {
 	if (this->locked != locked) {
 		this->locked = locked;
 		//55 AA 00 06 00 05 06 01 00 01 01
-		byte dt = (this->deviceOn ? 0x01 : 0x00);
+		byte dt = (this->locked ? 0x01 : 0x00);
 		unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
 		                                    0x06, 0x01, 0x00, 0x01, dt};
 		commandCharsToSerial(11, deviceOnCommand);

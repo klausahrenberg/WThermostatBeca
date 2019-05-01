@@ -66,6 +66,8 @@ public:
     void setFanSpeedFromString(String fanSpeedString);
     void increaseFanSpeed();
     void decreaseFanSpeed();
+    void setLogMcu(bool logMcu);
+    bool isDeviceStateComplete();
 private:
     KaClock *kClock;
     int receiveIndex;
@@ -75,10 +77,8 @@ private:
     void resetAll();
     int getIndex(unsigned char c);
     bool logMcu;
-    void setLogMcu(bool logMcu);
     void notifyMcuCommand(String commmandType);
     void processSerialCommand();
-    bool isDeviceStateComplete();
     bool deviceOn;
     float desiredTemperature;
     float actualTemperature;

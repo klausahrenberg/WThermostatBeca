@@ -3,7 +3,7 @@
 #include "KaClock.h"
 
 #define APPLICATION "Thermostat Beca-Wifi"
-#define VERSION "0.8"
+#define VERSION "0.9"
 #define DEBUG false
 #define JSON_BUFFER_SIZE 768
 #define NTP_SERVER "de.pool.ntp.org"
@@ -22,6 +22,9 @@ void setup() {
 		}
 		if (network->isMqttConnected()) {
 			becaMcu->queryState();
+			if (becaMcu->isDeviceStateComplete()) {
+				sendMqttStatus();
+			}
 		}
 	});
 	network->setOnConfigurationFinished([]() {
@@ -104,18 +107,21 @@ bool sendSchedulesViaMqtt() {
 }
 
 void onMqttCallback(String topic, String payload) {
-	if (topic.equals("desiredTemperature")) {
+	topic.toLowerCase();
+	if (topic.equals("desiredtemperature")) {
 		becaMcu->setDesiredTemperature(payload.toFloat());
-	} else if (topic.equals("deviceOn")) {
+	} else if (topic.equals("deviceon")) {
 		becaMcu->setDeviceOn(payload.equals("true"));
-	} else if (topic.equals("manualMode")) {
+	} else if (topic.equals("manualmode")) {
 		becaMcu->setManualMode(payload.equals("true"));
-	} else if (topic.equals("ecoMode")) {
+	} else if (topic.equals("ecomode")) {
 		becaMcu->setEcoMode(payload.equals("true"));
 	} else if (topic.equals("locked")) {
 		becaMcu->setLocked(payload.equals("true"));
-	} else if (topic.equals("fanSpeed")) {
+	} else if (topic.equals("fanspeed")) {
 		becaMcu->setFanSpeedFromString(payload);
+	} else if (topic.equals("logmcu")) {
+		becaMcu->setLogMcu(payload.equals("true"));
 	} else if (topic.equals("schedules")) {
 		if (payload.equals("0")) {
 			//Schedules request
@@ -127,7 +133,7 @@ void onMqttCallback(String topic, String payload) {
 		becaMcu->commandHexStrToSerial(payload);
 	} else if ((topic.equals("state")) && (payload.equals("0"))) {
 			sendMqttStatus();
-	} else if (topic.equals("webServer")) {
+	} else if ((topic.equals("webserver")) || (topic.equals("webservice"))) {
 		if (payload.equals("true")) {
 			network->startWebServer();
 		} else {
