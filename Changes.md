@@ -2,7 +2,7 @@
 * Fix: logMcu command is now working
 * Fix: webService command is now working: README.md corrected to command 'webServer'. However, now are both words working.
 * Fix: locked command is now working with payload false
-* Fix: changing the webServer command does invoke an state update over mtqq now
+* Fix: changing the webServer command does invoke a state update over mtqq now
 ## Version 0.8
 * Support for fan at some models with property "fanSpeed" wit states "auto"|"low"|"medium"|"high". If no fan is available at thermostat, "fanSpeed" will always stay at "none"
 * With MQTT parameter "logMcu" true|false raw commands from MCU will forwarded to MQTT. By default disabled/false
