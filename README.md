@@ -22,6 +22,17 @@ I have tested this only with model bac-002-wifi - I assume, it should work with 
 ## Installation
 ### 1. Connection to device for flashing
 There are many ways to get the physical connection to ESP module. I soldered the connections on the device for flashing. Maybe there is a more elegant way to do that. It's quite the same, if you try to flash any other Sonoff devices to Tasmota. So get the inspiration for flashing there: https://github.com/arendst/Sonoff-Tasmota/wiki
+
+Following connections were working for me (refer to ESP-12E pinout):
+- Red: ESP-VCC and ESP-EN connected to Programmer-VCC (3.3V) 
+- Black: ESP-GND and ESP-GPIO15 connected to Programmer-GND
+- Green: ESP-RX connected to Programmer-TX
+- Yellow: ESP-TX connected to Programmer-RX
+- Blue right: ESP-GPIO0, must be connected with GND during power up
+- Blue left: ESP-Reset, connect to GND to restart the ESP
+
+![Flashing connection](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/Flashing_Tywe3S_Detail.jpg)
+
 ### 2. Remove the power supply from thermostat during all flashing steps
 Flasing will fail, if the thermostat is still powered during this operation.
 ### 3. Backup the original firmware
@@ -34,10 +45,12 @@ for example:
 ```esptool -p /dev/ttyUSB0 -b 460800 read_flash 0x00000 0x100000 originalFirmware1M.bin```
 
 ### 4. Upload new firmware
+Get the ESP in programming mode first.
 Erase flash:
 
 ```esptool -p /dev/ttyUSB0 erase_flash```
 
+After erasing the flash, get the ESP in programming mode again. 
 Write firmware (1MB)
 
 ```esptool -p /dev/ttyUSB0 write_flash -fs 1MB 0x0 ThermostatBecaWifi.bin```
