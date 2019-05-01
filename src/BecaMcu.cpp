@@ -1,13 +1,17 @@
 #include "BecaMcu.h"
 
-BecaMcu::BecaMcu(bool debug, KaClock *kClock) {
-	this->debug = debug;
+BecaMcu::BecaMcu(KaClock *kClock) {
+	this->logMcu = false;
 	this->kClock = kClock;
+	this->fanSpeed = FAN_NONE;
+	this->actualTemperature = -100;
+	this->actualFloorTemperature = -100;
 	lastHeartBeat = lastNotify = lastScheduleNotify = 0;
 	resetAll();
 	for (int i = 0; i < STATE_COMPLETE; i++) {
 		receivedStates[i] = false;
 	}
+	this->receivedSchedules = false;
 }
 
 BecaMcu::~BecaMcu() {
@@ -18,8 +22,8 @@ void BecaMcu::setOnNotify(THandlerFunction onNotify) {
 	this->onNotify = onNotify;
 }
 
-void BecaMcu::setOnUnknownCommand(THandlerFunction onUnknownCommand) {
-	this->onUnknownCommand = onUnknownCommand;
+void BecaMcu::setOnNotifyCommand(TCommandHandlerFunction onNotifyCommand) {
+	this->onNotifyCommand = onNotifyCommand;
 }
 
 void BecaMcu::setOnConfigurationRequest(THandlerFunction onConfigurationRequest) {
@@ -153,6 +157,8 @@ void BecaMcu::loop() {
 				lastNotify = now;
 			}
 		}
+	}
+	if (receivedSchedules) {
 		//Notify schedules
 		if ((lastScheduleNotify == 0) && (now - lastScheduleNotify > MINIMUM_INTERVAL)) {
 			if (onSchedulesChange) {
@@ -262,12 +268,6 @@ void BecaMcu::sendActualTimeToBeca() {
 	commandCharsToSerial(14, cancelConfigCommand);
 }
 
-void BecaMcu::log(String debugMessage) {
-	if (debug) {
-		Serial.println(debugMessage);
-	}
-}
-
 void BecaMcu::processSerialCommand() {
 	if (commandLength > -1) {
 		//unknown
@@ -313,6 +313,7 @@ void BecaMcu::processSerialCommand() {
 				changed = ((changed) || (newB != deviceOn));
 				deviceOn = newB;
 				receivedStates[0] = true;
+				notifyMcuCommand("0x01");
 				break;
 			case 0x02:
 				//desired Temperature
@@ -321,6 +322,7 @@ void BecaMcu::processSerialCommand() {
 				changed = ((changed) || (newValue != desiredTemperature));
 				desiredTemperature = newValue;
 				receivedStates[1] = true;
+				notifyMcuCommand("0x02");
 				break;
 			case 0x03:
 				//actual Temperature
@@ -328,28 +330,32 @@ void BecaMcu::processSerialCommand() {
 				newValue = (float) receivedCommand[13] / 2.0f;
 				changed = ((changed) || (newValue != actualTemperature));
 				actualTemperature = newValue;
-				receivedStates[2] = true;
+				//receivedStates[2] = true;
+				//notifyMcuCommand("0x03");
 				break;
 			case 0x04:
 				//manualMode
 				newB = (receivedCommand[10] == 0x01);
 				changed = ((changed) || (newB != manualMode));
 				manualMode = newB;
-				receivedStates[3] = true;
+				receivedStates[2] = true;
+				notifyMcuCommand("0x04");
 				break;
 			case 0x05:
 				//ecoMode
 				newB = (receivedCommand[10] == 0x01);
 				changed = ((changed) || (newB != ecoMode));
 				ecoMode = newB;
-				receivedStates[4] = true;
+				receivedStates[3] = true;
+				notifyMcuCommand("0x05");
 				break;
 			case 0x06:
 				//locked
 				newB = (receivedCommand[10] == 0x01);
 				changed = ((changed) || (newB != locked));
 				locked = newB;
-				receivedStates[5] = true;
+				receivedStates[4] = true;
+				notifyMcuCommand("0x06");
 				break;
 			case 0x65:
 				//schedules
@@ -358,7 +364,8 @@ void BecaMcu::processSerialCommand() {
 					changed = ((changed) || (newByte != schedules[i]));
 					schedules[i] = newByte;
 				}
-				receivedStates[6] = true;
+				receivedSchedules = true;
+				notifyMcuCommand("0x65");
 				break;
 			case 0x66:
 				//actualFloorTemperature
@@ -366,7 +373,17 @@ void BecaMcu::processSerialCommand() {
 				newValue = (float) receivedCommand[13] / 2.0f;
 				changed = ((changed) || (newValue != actualFloorTemperature));
 				actualFloorTemperature = newValue;
-				receivedStates[7] = true;
+				//receivedStates[7] = true;
+				//notifyMcuCommand("0x66");
+				break;
+			case 0x67:
+				//fanSpeed
+				//auto   - 55 aa 01 07 00 05 67 04 00 01 00
+				//low    - 55 aa 01 07 00 05 67 04 00 01 03
+				//medium - 55 aa 01 07 00 05 67 04 00 01 02
+				//high   - 55 aa 01 07 00 05 67 04 00 01 01
+				setFanSpeed(receivedCommand[10]);
+				notifyMcuCommand("0x67");
 				break;
 			case 0x68:
 				//Unknown permanently sent from MCU
@@ -389,8 +406,21 @@ void BecaMcu::processSerialCommand() {
 }
 
 void BecaMcu::notifyUnknownCommand() {
-	if (onUnknownCommand) {
-		onUnknownCommand();
+	if (onNotifyCommand) {
+		onNotifyCommand("unknown");
+	}
+}
+
+void BecaMcu::setLogMcu(bool logMcu) {
+	if (this->logMcu != logMcu) {
+		this->logMcu = logMcu;
+		notifyState();
+	}
+}
+
+void BecaMcu::notifyMcuCommand(String commandType) {
+	if ((logMcu) && (onNotifyCommand)) {
+		onNotifyCommand("mcu: " + commandType);
 	}
 }
 
@@ -406,11 +436,17 @@ bool BecaMcu::isDeviceStateComplete() {
 void BecaMcu::getMqttState(JsonObject& json) {
 	json["deviceOn"] = deviceOn;
 	json["desiredTemperature"] = desiredTemperature;
-	json["actualTemperature"] = actualTemperature;
-	json["actualFloorTemperature"] = actualFloorTemperature;
+	if (actualTemperature != -100) {
+		json["actualTemperature"] = actualTemperature;
+	}
+	if (actualFloorTemperature != -100) {
+		json["actualFloorTemperature"] = actualFloorTemperature;
+	}
 	json["manualMode"] = manualMode;
 	json["ecoMode"] = ecoMode;
 	json["locked"] = locked;
+	json["fanSpeed"] = this->getFanSpeedAsString();
+	json["logMcu"] = logMcu;
 }
 
 void BecaMcu::getMqttSchedules(JsonObject& json, String dayRange) {
@@ -459,7 +495,7 @@ bool BecaMcu::setSchedules(int startAddr, JsonObject& json, String dayRange) {
 }
 
 bool BecaMcu::setSchedules(String payload) {
-	if (isDeviceStateComplete()) {
+	if (receivedSchedules) {
 		StaticJsonBuffer<1216> jsonBuffer;
 		JsonObject& json = jsonBuffer.parseObject(payload);
 		bool changed = false;
@@ -469,7 +505,7 @@ bool BecaMcu::setSchedules(String payload) {
 			changed = ((changed) || (setSchedules(36, json, SCHEDULE_SUNDAY)));
 		}
 		if (changed) {
-			log("Changed schedules from MQTT server, send to mcu");
+			//Changed schedules from MQTT server, send to mcu
 			//send the changed array to MCU
 			//per unit |MM HH TT|
 			//55 AA 00 06 00 3A 65 00 00 36|
@@ -500,4 +536,85 @@ bool BecaMcu::setSchedules(String payload) {
 	}
 }
 
+int BecaMcu::getFanSpeed() {
+	return fanSpeed;
+}
+
+String BecaMcu::getFanSpeedAsString() {
+	switch (getFanSpeed()) {
+	case FAN_NONE:
+		return "none";
+	case FAN_AUTO:
+		return "auto";
+	case FAN_LOW:
+		return "low";
+	case FAN_MED:
+		return "medium";
+	case FAN_HIGH:
+		return "high";
+	default:
+		return "unknown";
+	}
+}
+
+void BecaMcu::setFanSpeed(int fanSpeed) {
+	if ((fanSpeed != this->fanSpeed) && ((fanSpeed == FAN_NONE) || (fanSpeed == FAN_AUTO) || (fanSpeed == FAN_LOW) || (fanSpeed == FAN_MED) || (fanSpeed == FAN_HIGH))) {
+		this->fanSpeed = fanSpeed;
+		if (this->fanSpeed != FAN_NONE) {
+			//send to device
+		    //e.g. auto: 55 aa 00 06 00 05 67 04 00 01 00
+			byte dt = (byte) this->fanSpeed;
+			unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
+			                                    0x67, 0x04, 0x00, 0x01, dt};
+			commandCharsToSerial(11, deviceOnCommand);
+		}
+		notifyState();
+	}
+}
+
+void BecaMcu::setFanSpeedFromString(String fanSpeedString) {
+	fanSpeedString.toLowerCase();
+	fanSpeedString.trim();
+	if (fanSpeedString.equals("increase")) {
+		increaseFanSpeed();
+	} else if (fanSpeedString.equals("decrease")) {
+		decreaseFanSpeed();
+	} else {
+		uint8_t fanSpeed = FAN_AUTO;
+		if (fanSpeedString.equals("low")) {
+			fanSpeed = FAN_LOW;
+		} else if (fanSpeedString.equals("medium")) {
+			fanSpeed = FAN_MED;
+		} else if (fanSpeedString.equals("high")) {
+			fanSpeed = FAN_HIGH;
+		} else if (fanSpeedString.equals("auto")) {
+			fanSpeed = FAN_AUTO;
+		}
+		setFanSpeed(fanSpeed);
+	}
+}
+
+void BecaMcu::increaseFanSpeed() {
+	switch (getFanSpeed()) {
+	case FAN_LOW :
+		setFanSpeed(FAN_MED);
+		break;
+	case FAN_MED :
+	case FAN_AUTO :
+		setFanSpeed(FAN_HIGH);
+		break;
+	}
+}
+
+void BecaMcu::decreaseFanSpeed() {
+	switch (getFanSpeed()) {
+	case FAN_MED :
+	case FAN_AUTO :
+		setFanSpeed(FAN_LOW);
+		break;
+	case FAN_HIGH :
+		setFanSpeed(FAN_MED);
+		break;
+	}
+}
 

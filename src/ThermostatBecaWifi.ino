@@ -3,7 +3,7 @@
 #include "KaClock.h"
 
 #define APPLICATION "Thermostat Beca-Wifi"
-#define VERSION "0.7"
+#define VERSION "0.8"
 #define DEBUG false
 #define JSON_BUFFER_SIZE 768
 #define NTP_SERVER "de.pool.ntp.org"
@@ -41,7 +41,7 @@ void setup() {
 		return network->publishMqtt("error", json);
 	});
 	//Communication between ESP and Beca-Mcu
-	becaMcu = new BecaMcu(DEBUG, kClock);
+	becaMcu = new BecaMcu(kClock);
 	becaMcu->setOnNotify([]() {
 		//send state of device
 		return sendMqttStatus();
@@ -50,10 +50,10 @@ void setup() {
 		//Send schedules once at ESP start and at every change
 		return sendSchedulesViaMqtt();
 	});
-	becaMcu->setOnUnknownCommand([]() {
+	becaMcu->setOnNotifyCommand([](String commandType) {
 		StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 		JsonObject& json = jsonBuffer.createObject();
-		json["unknown"] = becaMcu->getCommandAsString();
+		json[commandType] = becaMcu->getCommandAsString();
 		return network->publishMqtt("mcucommand", json);
 	});
 	becaMcu->setOnConfigurationRequest([]() {
@@ -114,6 +114,8 @@ void onMqttCallback(String topic, String payload) {
 		becaMcu->setEcoMode(payload.equals("true"));
 	} else if (topic.equals("locked")) {
 		becaMcu->setLocked(payload.equals("true"));
+	} else if (topic.equals("fanSpeed")) {
+		becaMcu->setFanSpeedFromString(payload);
 	} else if (topic.equals("schedules")) {
 		if (payload.equals("0")) {
 			//Schedules request
