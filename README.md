@@ -1,9 +1,13 @@
 # ThermostatBecaWifi
-Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. It's tested with model bac-002-wifi (BHT-002) and should work with similar thermostats based on Tuya firmware. The model bac-002-wifi has 2 colors and can be purchased via Ali.
+Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The firmware is tested with following devices:
+* BHT-002-GBLW (floor heating)
+* BAC-002-ALW (heater, cooling, ventilation)
+
+Other models will work in some way also, but other functions must be implemented additionally.
 
 ![image of thermostat](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/bac-002-wifi.jpg)
 
-And inside this device looks like this. On the right you can see the ESP8266 module (TYWE3S)
+Compatible devices looks inside like this. On the right you can see the ESP8266 module (TYWE3S)
 
 ![thermostat inside](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/bac-002-wifi-inside.png)
 
@@ -13,12 +17,14 @@ Modifying and flashing of devices is at your own risk. I'm not responsible for b
 * Configuration of Wifi and MQTT connection via web interface
 * Firmware upload via web interface
 * NTP and time zone synchronisation to set the clock of thermostat
-* Reading of parameters via MQTT: desiredTemperature, actualTemperature, actualFloorTemperature, deviceOn, manualMode, ecoMode, locked
+* Reading of parameters via MQTT: desiredTemperature; actualTemperature; deviceOn:true|false; manualMode:true|false; ecoMode:true|false; locked:true|false
+* Only BHT-002-GBLW: actualFloorTemperature (external temperature sensor)
+* Only BAC-002-ALW: fanSpeed:auto|low|medium|high; systemMode:cooling|heating|ventilation
 * Setting of all parameters above via MQTT
 * Reading and setting of time schedules
+* Parameter 'schedulesDayOffset' to correct weekend, which are not starting on Saturday in some regions. The original firmware defines weekday 1-5 as workdays and weekday 6-7 as weekend. If your weekend starts on friday at example, the firmware will send the actual date + 1 day offset to the thermostat, to start the weekend (day 6) one day earlier. This offset can be defined by parameter 'schedulesDayOffset'.
 ## Limitations
-The thermostat is working independent from the Wifi-Module. That means, functionality of the thermostat itself will not and can't be changed. This firmware replaces only the communication part of the thermostat, which is handled by the ESP module.
-I have tested this only with model bac-002-wifi - I assume, it should work with other devices too. The Tuya devices has a serial communication standard (MCU commands) which is only different in parameters. So if your Thermostat has not only a heating relay, for example an additional cooling circuit, it will not work actually. But there should arrive some unknown commands at the MQTT server.
+The thermostat is working independent from the Wifi-Module. That means, functionality of the thermostat itself will not and can't be changed. This firmware replaces only the communication part of the thermostat, which is handled by the ESP module. The firmware will partially work with other devices too. The Tuya devices has a serial communication standard (MCU commands) which is only different in parameters. Unknown commands will be forwarded to the MQTT server.
 ## Installation
 ### 1. Connection to device for flashing
 There are many ways to get the physical connection to ESP module. I soldered the connections on the device for flashing. Maybe there is a more elegant way to do that. It's quite the same, if you try to flash any other Sonoff devices to Tasmota. So get the inspiration for flashing there: https://github.com/arendst/Sonoff-Tasmota/wiki
@@ -86,21 +92,21 @@ The state record of the device is send in follwing json structure:
   "deviceOn":false,
   "desiredTemperature":21.5,
   "actualTemperature":20.5,
-  "actualFloorTemperature":20,
+  "actualFloorTemperature":20, //only BHT-002-GBLW
   "manualMode":false,
   "ecoMode":false,
   "locked":false,
-  "fanSpeed":"none",
-  "logMcu":false,
-  "clockTime":"2019-02-21 10:40:55",
-  "clockTimeRaw":1550745655,
-  "validTime":true,
-  "lastNtpSync": "2019-02-21 10:41:03",
-  "lastTimeZoneSync":"2019-02-21 10:41:04",
-  "dstOffset":0,
-  "rawOffset":32400,
-  "timeZone":"Asia/[..]",
-  "firmware":"0.9",
+  "fanSpeed":"auto|low|medium|high", //only BAC-002-ALW
+  "systemMode":"cooling|heating|ventilation", //only BAC-002-ALW
+  "thermostatModel": "BHT-002-GBLW",
+  "logMcu": false,
+  "schedulesDayOffset": 0,
+  "weekend": false,
+  "clockTime": "2019-05-03 12:04:26",
+  "validTime": true,
+  "timeZone": "Asia/Seoul",
+  "lastNtpSync": "2019-05-03 12:04:30",
+  "firmware": "0.91",  
   "ip":"192.168.0.174",
   "webServerRunning":false
  }
