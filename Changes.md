@@ -1,3 +1,11 @@
+## Version 0.91
+* Property "systemMode" for model BAC-002-ALW added; possible values: "cooling"|"heating"|"ventilation"
+* Property "schedulesDayOffset" added (default: 0); details see description
+* Property "thermostatModel" added; values "BHT-002-GBLW"|"BAC-002-ALW"; only readable. Model will be configered by the firmware based on the results of the MCU at device initialization
+* Property "actualFloorTemperature" only in device state message included at model BHT-002-GBLW
+* Property "fanSpeed" and "systemMode" only in device state message included at model BAC-002-ALW
+* Removed some detail informations about the time sync from standard device state message. Details must be requered with a separate clock command
+* Fix: schedules for model BAC-002-ALW should now read correctly out of the device
 ## Version 0.9
 * Fix: logMcu command is now working
 * Fix: webService command is now working: README.md corrected to command 'webServer'. However, now are both words working.
