@@ -143,29 +143,53 @@ byte KaClock::getWeekDay(unsigned long epochTime) {
 }
 
 byte KaClock::getHours() {
-	return ((getEpochTime() % 86400L) / 3600);
+	return getHours(getEpochTime());
+}
+
+byte KaClock::getHours(unsigned long epochTime) {
+	return ((epochTime % 86400L) / 3600);
 }
 
 byte KaClock::getMinutes() {
-	return ((getEpochTime() % 3600) / 60);
+	return getMinutes(getEpochTime());
+}
+
+byte KaClock::getMinutes(unsigned long epochTime) {
+	return ((epochTime % 3600) / 60);
 }
 
 byte KaClock::getSeconds() {
-	return (getEpochTime() % 60);
+	return getSeconds(getEpochTime());
+}
+
+byte KaClock::getSeconds(unsigned long epochTime) {
+	return (epochTime % 60);
 }
 
 int KaClock::getYear() {
-	return year(getEpochTime());
+	return getYear(getEpochTime());
+}
+
+int KaClock::getYear(unsigned long epochTime) {
+	return year(epochTime);
 }
 
 byte KaClock::getMonth() {
+	return getMonth(getEpochTime());
+}
+
+byte KaClock::getMonth(unsigned long epochTime) {
 	//month from 1 to 12
-	return month(getEpochTime());
+	return month(epochTime);
 }
 
 byte KaClock::getDay() {
+	return getDay(getEpochTime());
+}
+
+byte KaClock::getDay(unsigned long epochTime) {
 	//day from 1 to 31
-	return day(getEpochTime());
+	return day(epochTime);
 }
 
 String KaClock::getTimeZone() {
@@ -217,24 +241,27 @@ long KaClock::getRawOffset() {
 	return rawOffset;
 }
 
-void KaClock::getMqttState(JsonObject& json) {
+void KaClock::getMqttState(JsonObject& json, bool complete) {
 	json["clockTime"] = getFormattedTime();
-	json["clockTimeRaw"] = getEpochTime();
 	json["validTime"] = isValidTime();
-	json["lastNtpSync"] = (
-			lastNtpSync > 0 ?
-					getFormattedTime(
-							ntpTime + rawOffset + dstOffset
-									+ (lastNtpSync / 1000)) :
-					"n.a.");
-	json["lastTimeZoneSync"] = (
-			lastTimeZoneSync > 0 ?
-					getFormattedTime(
-							ntpTime + rawOffset + dstOffset
-									+ (lastTimeZoneSync / 1000)) :
-					"n.a.");
-	json["dstOffset"] = getDstOffset();
-	json["rawOffset"] = getRawOffset();
 	json["timeZone"] = getTimeZone();
+	json["lastNtpSync"] = (
+					lastNtpSync > 0 ?
+							getFormattedTime(
+								ntpTime + rawOffset + dstOffset
+											+ (lastNtpSync / 1000)) :
+										"n.a.");
+	if (complete) {
+		json["clockTimeRaw"] = getEpochTime();
+		json["lastTimeZoneSync"] = (
+				lastTimeZoneSync > 0 ?
+						getFormattedTime(
+								ntpTime + rawOffset + dstOffset
+										+ (lastTimeZoneSync / 1000)) :
+									"n.a.");
+		json["dstOffset"] = getDstOffset();
+		json["rawOffset"] = getRawOffset();
+	}
+
 }
 

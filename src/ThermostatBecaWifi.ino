@@ -3,7 +3,7 @@
 #include "KaClock.h"
 
 #define APPLICATION "Thermostat Beca-Wifi"
-#define VERSION "0.9"
+#define VERSION "0.91"
 #define DEBUG false
 #define JSON_BUFFER_SIZE 768
 #define NTP_SERVER "de.pool.ntp.org"
@@ -77,11 +77,18 @@ bool sendMqttStatus() {
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& json = jsonBuffer.createObject();
 	becaMcu->getMqttState(json);
-	kClock->getMqttState(json);
+	kClock->getMqttState(json, false);
 	json["firmware"] = VERSION;
 	json["ip"] = network->getDeviceIpAddress();
 	json["webServerRunning"] = network->isWebServerRunning();
 	return network->publishMqtt("state", json);
+}
+
+bool sendClockStateViaMqttStatus() {
+	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
+	JsonObject& json = jsonBuffer.createObject();
+	kClock->getMqttState(json, true);
+	return network->publishMqtt("clock", json);
 }
 
 /**
@@ -119,7 +126,13 @@ void onMqttCallback(String topic, String payload) {
 	} else if (topic.equals("locked")) {
 		becaMcu->setLocked(payload.equals("true"));
 	} else if (topic.equals("fanspeed")) {
+		//MODEL_BAC_002_ALW
 		becaMcu->setFanSpeedFromString(payload);
+	} else if (topic.equals("systemmode")) {
+		//MODEL_BAC_002_ALW
+		becaMcu->setSystemModeFromString(payload);
+	} else if (topic.equals("schedulesdayoffset")) {
+		becaMcu->setSchedulesDayOffset(payload.toInt());
 	} else if (topic.equals("logmcu")) {
 		becaMcu->setLogMcu(payload.equals("true"));
 	} else if (topic.equals("schedules")) {
@@ -132,7 +145,9 @@ void onMqttCallback(String topic, String payload) {
 	} else if (topic.equals("mcucommand")) {
 		becaMcu->commandHexStrToSerial(payload);
 	} else if ((topic.equals("state")) && (payload.equals("0"))) {
-			sendMqttStatus();
+		sendMqttStatus();
+	} else if ((topic.equals("clock")) && (payload.equals("0"))) {
+		sendClockStateViaMqttStatus();
 	} else if ((topic.equals("webserver")) || (topic.equals("webservice"))) {
 		if (payload.equals("true")) {
 			network->startWebServer();

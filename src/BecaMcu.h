@@ -10,6 +10,7 @@
 
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
+#include <EEPROM.h>
 #include "ArduinoJson.h"
 #include "KaClock.h"
 
@@ -18,6 +19,9 @@
 #define MINIMUM_INTERVAL 2000
 #define STATE_COMPLETE 5
 
+const String MODEL_BHT_002_GBLW = "BHT-002-GBLW"; //Heater
+const String MODEL_BAC_002_ALW  = "BAC-002-ALW"; //Heater, Cooling, Ventilation
+
 const unsigned char COMMAND_START[] = {0x55, 0xAA};
 const char AR_COMMAND_END = '\n';
 const String SCHEDULE_WORKDAY = "workday";
@@ -25,11 +29,17 @@ const String SCHEDULE_SATURDAY = "saturday";
 const String SCHEDULE_SUNDAY = "sunday";
 const String SCHEDULE_HOUR = "h";
 const String SCHEDULE_TEMPERATURE = "t";
-const int FAN_NONE = -1;
-const int FAN_AUTO = 0;
-const int FAN_LOW  = 3;
-const int FAN_MED  = 2;
-const int FAN_HIGH = 1;
+const byte FAN_SPEED_NONE = 0xFF;
+const byte FAN_SPEED_AUTO = 0x00;
+const byte FAN_SPEED_LOW  = 0x03;
+const byte FAN_SPEED_MED  = 0x02;
+const byte FAN_SPEED_HIGH = 0x01;
+const byte SYSTEM_MODE_NONE        = 0xFF;
+const byte SYSTEM_MODE_COOLING     = 0x01;
+const byte SYSTEM_MODE_HEATING     = 0x02;
+const byte SYSTEM_MODE_VENTILATION = 0x03;
+
+const byte STORED_FLAG = 0x36;
 
 class BecaMcu {
 public:
@@ -60,14 +70,20 @@ public:
     void setEcoMode(bool ecoMode);
     void setLocked(bool locked);
     bool setSchedules(String payload);
-    int getFanSpeed();
+    byte getFanSpeed();
     String getFanSpeedAsString();
-    void setFanSpeed(int fanSpeed);
+    void setFanSpeed(byte fanSpeed);
     void setFanSpeedFromString(String fanSpeedString);
     void increaseFanSpeed();
     void decreaseFanSpeed();
+    byte getSystemMode();
+    String getSystemModeAsString();
+    void setSystemMode(byte systemMode);
+    void setSystemModeFromString(String systemModeString);
     void setLogMcu(bool logMcu);
     bool isDeviceStateComplete();
+    signed char getSchedulesDayOffset();
+    void setSchedulesDayOffset(signed char schedulesDayOffset);
 private:
     KaClock *kClock;
     int receiveIndex;
@@ -77,6 +93,8 @@ private:
     void resetAll();
     int getIndex(unsigned char c);
     bool logMcu;
+    byte getDayOfWeek();
+    bool isWeekend();
     void notifyMcuCommand(String commmandType);
     void processSerialCommand();
     bool deviceOn;
@@ -86,10 +104,13 @@ private:
     bool manualMode;
     bool ecoMode;
     bool locked;
-    int fanSpeed;
+    byte fanSpeed, systemMode;
     byte schedules[54];
     boolean receivedStates[STATE_COMPLETE];
-    boolean receivedSchedules;
+    byte schedulesDataPoint;
+    String thermostatModel;
+    signed char schedulesDayOffset;
+    boolean receivedSchedules();
     bool addSchedules(int startAddr, JsonArray& array);
     void addSchedules(int startAddr, JsonObject& json);
     bool setSchedules(int startAddr, JsonObject& json, String dayRange);
@@ -99,6 +120,8 @@ private:
     void notifyState();
     void notifySchedules();
     void notifyUnknownCommand();
+    void loadSettings();
+    void saveSettings();
 };
 
 
