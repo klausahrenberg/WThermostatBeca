@@ -138,6 +138,6 @@ The schedules can be set/modified with same structure or only parts of it. To se
 ```  
 Only the specified parts of schedules will be changed.
 ### Don't like or it doesn't work?
-Flash the original firmware (see installation). Instead of flashing ```ThermostatBecaWifi.bin```, use your saved ```originalFirmware1M.bin``` to restore your original firmware. Write me a message with your exact model and which parameter was not correct. Maybe your MQTT-server received some messages mcucommand/unknown - this would be also helpful for me. Again: I have tested this only with model bac-002-wifi. If you have another device, don't expect that this is working directly.
+Flash the original firmware (see installation). Write me a message with your exact model and which parameter was not correct. Maybe your MQTT-server received some unknown messages - this would be also helpful for me. Again: I have tested this only with model BHT-002-GBLW. If you have another device, don't expect that this is working directly.
 ### Build this firmware from source
 For build from sources you can use the Arduino-IDE or Sloeber. All sources needed are inside the folder 'src'. You will need some libraries: esp8266, ArduinoJson, DNSServer, EEPROM, NTPClient, TimeLib - It's all available via board and library manager inside of ArduinoIDE
