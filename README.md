@@ -105,8 +105,8 @@ The state record of the device is send in follwing json structure:
   "weekend": false, //true_indicates_that_weekend_schedule_is_running_at_device
   "clockTime": "2019-05-03 12:04:26",
   "validTime": true,
-  "timeZone": "Asia/Seoul",
-  "lastNtpSync": "2019-05-03 12:04:30",
+  "timeZone": "Asia/[...]",
+  "lastNtpSync": "2019-05-03 12:03:30",
   "firmware": "0.91",  
   "ip":"192.168.0.174",
   "webServerRunning":false
