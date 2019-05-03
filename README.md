@@ -81,9 +81,10 @@ Your MQTT broker receive all messages to <YOUR_TOPIC>. The following commands wi
 You can send the following commands to the device:
 1. <YOUR_TOPIC>/schedules/0 to request for the schedules. The schedules come back in 3 separate messages for workday, saturday and sunday
 2. <YOUR_TOPIC>/state/0 to request the state record of the device.  
-3. <YOUR_TOPIC>/webServer/true|false can be called with an bool to switch the web service on or off
-4. <YOUR_TOPIC>/mcucommand sends directly serial mcu commands to the device. The has to be a string in hexa-form without the checksum byte at the end, e.g. to set the desired temperature to 24.5C: "55 aa 01 07 00 08 02 02 00 04 00 00 00 31". This command is only for testing of unknown Tuya MCU commands and will not be required for regular work with the device.
-5. <YOUR_TOPIC>/logMcu/true|false enables or disables forwarding of all MCU messages to the MQTT broker. Only for testing.
+3. <YOUR_TOPIC>/clock/0 to request detail info about time synchronization results.  
+4. <YOUR_TOPIC>/webServer/true|false can be called with an bool to switch the web service on or off
+5. <YOUR_TOPIC>/mcucommand sends directly serial mcu commands to the device. The has to be a string in hexa-form without the checksum byte at the end, e.g. to set the desired temperature to 24.5C: "55 aa 01 07 00 08 02 02 00 04 00 00 00 31". This command is only for testing of unknown Tuya MCU commands and will not be required for regular work with the device.
+6. <YOUR_TOPIC>/logMcu/true|false enables or disables forwarding of all MCU messages to the MQTT broker. Only for testing.
 
 ### State record - json structure
 The state record of the device is send in follwing json structure:
@@ -92,16 +93,16 @@ The state record of the device is send in follwing json structure:
   "deviceOn":false,
   "desiredTemperature":21.5,
   "actualTemperature":20.5,
-  "actualFloorTemperature":20, //only BHT-002-GBLW
+  "actualFloorTemperature":20, //only_BHT-002-GBLW
   "manualMode":false,
   "ecoMode":false,
   "locked":false,
-  "fanSpeed":"auto|low|medium|high", //only BAC-002-ALW
-  "systemMode":"cooling|heating|ventilation", //only BAC-002-ALW
+  "fanSpeed":"auto|low|medium|high", //only_BAC-002-ALW
+  "systemMode":"cooling|heating|ventilation", //only_BAC-002-ALW
   "thermostatModel": "BHT-002-GBLW",
   "logMcu": false,
   "schedulesDayOffset": 0,
-  "weekend": false,
+  "weekend": false, //true_indicates_that_weekend_schedule_is_running_at_device
   "clockTime": "2019-05-03 12:04:26",
   "validTime": true,
   "timeZone": "Asia/Seoul",
