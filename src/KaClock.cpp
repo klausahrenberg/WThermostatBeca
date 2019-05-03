@@ -14,7 +14,7 @@ KaClock::KaClock(bool debug, String ntpServer) {
 	lastTry = lastNtpSync = lastTimeZoneSync = ntpTime = 0;
 	validTime = false;
 	rawOffset = 0;
-	dstOffset = 0;
+	//dstOffset = 0;
 	timeZone = "";
 }
 
@@ -105,7 +105,7 @@ void KaClock::loop() {
 					String utcOffset = parsed["utc_offset"];
 					rawOffset = utcOffset.substring(1, 3).toInt() * 3600
 							+ utcOffset.substring(4, 6).toInt() * 60;
-					dstOffset = (parsed["dst"] == true ? 3600 : 0);
+					//dstOffset = (parsed["dst"] == true ? 3600 : 0);
 					String tz = parsed["timezone"];
 					this->timeZone = tz;
 					lastTimeZoneSync = millis();
@@ -128,7 +128,7 @@ void KaClock::loop() {
 
 unsigned long KaClock::getEpochTime() {
 	return (lastNtpSync > 0 ?
-			ntpTime + rawOffset + dstOffset
+			ntpTime + rawOffset /*+ dstOffset*/
 					+ ((millis() - lastNtpSync) / 1000) :
 			0);
 }
@@ -233,9 +233,9 @@ bool KaClock::isClockSynced() {
 	return ((lastNtpSync > 0) && (lastTimeZoneSync > 0));
 }
 
-long KaClock::getDstOffset() {
+/*long KaClock::getDstOffset() {
 	return dstOffset;
-}
+}*/
 
 long KaClock::getRawOffset() {
 	return rawOffset;
@@ -248,7 +248,7 @@ void KaClock::getMqttState(JsonObject& json, bool complete) {
 	json["lastNtpSync"] = (
 					lastNtpSync > 0 ?
 							getFormattedTime(
-								ntpTime + rawOffset + dstOffset
+								ntpTime + rawOffset /*+ dstOffset*/
 											+ (lastNtpSync / 1000)) :
 										"n.a.");
 	if (complete) {
@@ -256,10 +256,10 @@ void KaClock::getMqttState(JsonObject& json, bool complete) {
 		json["lastTimeZoneSync"] = (
 				lastTimeZoneSync > 0 ?
 						getFormattedTime(
-								ntpTime + rawOffset + dstOffset
+								ntpTime + rawOffset /*+ dstOffset*/
 										+ (lastTimeZoneSync / 1000)) :
 									"n.a.");
-		json["dstOffset"] = getDstOffset();
+		//json["dstOffset"] = getDstOffset();
 		json["rawOffset"] = getRawOffset();
 	}
 

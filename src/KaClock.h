@@ -34,14 +34,14 @@ public:
   String getFormattedTime(unsigned long rawTime);
   bool isValidTime();  
   bool isClockSynced();
-  long getDstOffset();
+  //long getDstOffset();
   long getRawOffset();  
   void getMqttState(JsonObject& json, bool complete);
 private:    
   THandlerFunction onTimeUpdate;
   TErrorHandlerFunction onError;
   bool debug;
-  unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime, dstOffset, rawOffset;
+  unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime, /*dstOffset,*/ rawOffset;
   bool validTime;
   String timeZone;
   String ntpServer;
