@@ -6,6 +6,7 @@
 * Property "fanSpeed" and "systemMode" only in device state message included at model BAC-002-ALW
 * Removed some detail informations about the time sync from standard device state message. Details must be requered with a separate clock command
 * Fix: schedules for model BAC-002-ALW should now read correctly out of the device
+* Fix: wrong clock time zone calculation corrected, if DST was active
 ## Version 0.9
 * Fix: logMcu command is now working
 * Fix: webService command is now working: README.md corrected to command 'webServer'. However, now are both words working.
