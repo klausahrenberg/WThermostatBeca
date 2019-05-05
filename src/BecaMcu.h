@@ -35,9 +35,9 @@ const byte FAN_SPEED_LOW  = 0x03;
 const byte FAN_SPEED_MED  = 0x02;
 const byte FAN_SPEED_HIGH = 0x01;
 const byte SYSTEM_MODE_NONE        = 0xFF;
-const byte SYSTEM_MODE_COOLING     = 0x01;
-const byte SYSTEM_MODE_HEATING     = 0x02;
-const byte SYSTEM_MODE_VENTILATION = 0x03;
+const byte SYSTEM_MODE_COOLING     = 0x00;
+const byte SYSTEM_MODE_HEATING     = 0x01;
+const byte SYSTEM_MODE_VENTILATION = 0x02;
 
 const byte STORED_FLAG = 0x36;
 
