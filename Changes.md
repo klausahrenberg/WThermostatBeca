@@ -1,3 +1,5 @@
+## Version 0.92
+* Fix: Property "systemMode" corrected
 ## Version 0.91
 * Property "systemMode" for model BAC-002-ALW added; possible values: "cooling"|"heating"|"ventilation"
 * Property "schedulesDayOffset" added (default: 0); details see description
