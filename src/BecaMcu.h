@@ -1,10 +1,3 @@
-/* 
- * File:   SerialManager.h
- * Author: klausahrenberg
- *
- * Created on 15. February 2019
- */
-
 #ifndef BECAMCU_H
 #define	BECAMCU_H
 
