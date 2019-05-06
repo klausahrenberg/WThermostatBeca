@@ -1,3 +1,6 @@
+## Version 0.93
+* Fix: Property "systemMode": Changing of cooling mode at the device should trigger an mqtt message now.
+* Fix: Property "schedules": Changing of schedules at device should trigger mqtt messages now.
 ## Version 0.92
 * Fix: Property "systemMode" corrected
 ## Version 0.91
