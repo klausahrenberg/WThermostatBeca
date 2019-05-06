@@ -319,6 +319,7 @@ void BecaMcu::processSerialCommand() {
 
 		} else if (receivedCommand[3] == 0x07) {
 			bool changed = false;
+			bool schedulesChanged = false;
 			bool newB;
 			float newValue;
 			byte newByte;
@@ -403,13 +404,13 @@ void BecaMcu::processSerialCommand() {
 					//00 07 28 00 08 1E 1E 0B 1E 1E 0D 1E 00 11 2C 00 16 1E
 					//00 06 28 00 08 28 1E 0B 28 1E 0D 28 00 11 28 00 16 1E
 					//00 06 28 00 08 28 1E 0B 28 1E 0D 28 00 11 28 00 16 1E
-					this->thermostatModel = (receivedCommand[6] == 0x65 ? MODEL_BHT_002_GBLW : MODEL_BAC_002_ALW);
+					this->schedulesDataPoint = receivedCommand[6];
+					this->thermostatModel = (this->schedulesDataPoint == 0x65 ? MODEL_BHT_002_GBLW : MODEL_BAC_002_ALW);
 					for (int i = 0; i < 54; i++) {
 						newByte = receivedCommand[i + 10];
-						changed = ((changed) || (newByte != schedules[i]));
+						schedulesChanged = ((schedulesChanged) || (newByte != schedules[i]));
 						schedules[i] = newByte;
 					}
-					schedulesDataPoint = receivedCommand[6];
 					notifyMcuCommand(this->thermostatModel == MODEL_BHT_002_GBLW ? "schedules_x65" : "schedules_x68");
 					knownCommand = true;
 				} else if (receivedCommand[5] == 0x05) {
@@ -433,8 +434,8 @@ void BecaMcu::processSerialCommand() {
 					//heating:     55 AA 00 06 00 05 66 04 00 01 01
 					//ventilation: 55 AA 00 06 00 05 66 04 00 01 02
 					this->thermostatModel = MODEL_BAC_002_ALW;
-					changed = ((changed) || (newB != receivedCommand[10]));
-					systemMode = receivedCommand[10];
+					changed = ((changed) || (receivedCommand[10] != this->systemMode));
+					this->systemMode = receivedCommand[10];
 					notifyMcuCommand("systemMode_x66");
 					knownCommand = true;
 				}
@@ -456,6 +457,8 @@ void BecaMcu::processSerialCommand() {
 				notifyUnknownCommand();
 			} else if (changed) {
 				notifyState();
+			} else if (schedulesChanged) {
+				notifySchedules();
 			}
 
 		} else if (receivedCommand[3] == 0x1C) {
