@@ -555,7 +555,7 @@ bool BecaMcu::setSchedules(int startAddr, JsonObject& json, String dayRange) {
 					schedules[startAddr + i * 3 + 0] = mm;
 				}
 				if (jsonItem.containsKey(SCHEDULE_TEMPERATURE)) {
-					byte tt = (int) ((float) jsonItem[SCHEDULE_TEMPERATURE]) * 2;
+					byte tt = (int) ((float) jsonItem[SCHEDULE_TEMPERATURE] * 2);
 					changed = changed || (schedules[startAddr + i * 3 + 2] != tt);
 					schedules[startAddr + i * 3 + 2] = tt;
 				}
