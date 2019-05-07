@@ -1,3 +1,5 @@
+## Version 0.94
+* Fix: Schedule tempereture can now set in 0.5 steps
 ## Version 0.93
 * Fix: Property "systemMode": Changing of cooling mode at the device should trigger an mqtt message now.
 * Fix: Property "schedules": Changing of schedules at device should trigger mqtt messages now.
