@@ -3,7 +3,7 @@
 #include "KaClock.h"
 
 #define APPLICATION "Thermostat Beca-Wifi"
-#define VERSION "0.94"
+#define VERSION "0.95"
 #define DEBUG false
 #define JSON_BUFFER_SIZE 768
 #define NTP_SERVER "de.pool.ntp.org"

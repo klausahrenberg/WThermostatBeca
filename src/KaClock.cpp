@@ -85,22 +85,42 @@ void KaClock::loop() {
 			int httpCode = http.GET();
 			if (httpCode > 0) {
 				String payload = http.getString();
-				StaticJsonBuffer<512> JSONBuffer;
+				StaticJsonBuffer<1024> JSONBuffer;
 				JsonObject& parsed = JSONBuffer.parseObject(payload);
 				if (parsed.success()) {
 					//log(payload);
 					/*
-					 * {"week_number":"08",
+					 * {
+					 *  "week_number":19,
 					 *  "utc_offset":"+09:00",
-					 *  "unixtime":"1550654131",
+					 *  "utc_datetime":"2019-05-07T23:32:15.214725+00:00",
+					 *  "unixtime":1557271935,
 					 *  "timezone":"Asia/Seoul",
+					 *  "raw_offset":32400,
 					 *  "dst_until":null,
+					 *  "dst_offset":0,
 					 *  "dst_from":null,
 					 *  "dst":false,
-					 *  "day_of_year":51,
+					 *  "day_of_year":128,
 					 *  "day_of_week":3,
-					 *  "datetime":"2019-02-20T18:15:31.300495+09:00",
+					 *  "datetime":"2019-05-08T08:32:15.214725+09:00",
 					 *  "abbreviation":"KST"}
+					 */
+					/*
+					 * {"week_number":19,
+					 *  "utc_offset":"+02:00",
+					 *  "utc_datetime":"2019-05-07T23:37:41.963463+00:00",
+					 *  "unixtime":1557272261,
+					 *  "timezone":"Europe/Berlin",
+					 *  "raw_offset":7200,
+					 *  "dst_until":"2019-10-27T01:00:00+00:00",
+					 *  "dst_offset":3600,
+					 *  "dst_from":"2019-03-31T01:00:00+00:00",
+					 *  "dst":true,
+					 *  "day_of_year":128,
+					 *  "day_of_week":3,
+					 *  "datetime":"2019-05-08T01:37:41.963463+02:00",
+					 *  "abbreviation":"CEST"}
 					 */
 					String utcOffset = parsed["utc_offset"];
 					rawOffset = utcOffset.substring(1, 3).toInt() * 3600
