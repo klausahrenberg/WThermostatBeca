@@ -1,3 +1,5 @@
+## Version 0.95
+* Fix: Buffer for time zone sync increased again to 1024. Length of "http://worldtimeapi.org/api/ip" response had increased because of new parameters
 ## Version 0.94
 * Fix: Schedule temperature can now set in 0.5 steps
 ## Version 0.93
