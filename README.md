@@ -2,6 +2,8 @@
 Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The firmware is tested with following devices:
 * BHT-002-GBLW (floor heating)
 * BAC-002-ALW (heater, cooling, ventilation)
+* BHT-6000
+* BHT-002-GCLW (Water/Gas Boiler)
 
 Other models will work in some way also, but other functions must be implemented additionally.
 
