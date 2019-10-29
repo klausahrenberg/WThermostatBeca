@@ -19,7 +19,7 @@ const static char HTTP_BUTTON_FIRMWARE[]    PROGMEM = {"<form action=\"/firmware
 const static char HTTP_BUTTON_INFO[]        PROGMEM = {"<form action=\"/info\" method=\"get\"><button>Info</button></form><br>"};
 const static char HTTP_BUTTON_RESET[]       PROGMEM = {"<form action=\"/reset\" method=\"post\"><button>Reset</button></form>"};
 const static char HTTP_FORM_WIFI_PARAM[]    PROGMEM = {"<form method='get' action='saveConfiguration'>SSID:<br><input id='s' name='s' length=32 placeholder='WLAN name (only 2G)' value='{s}'><br/>Wifi Password:<br><input id='p' name='p' length=64 type='password' placeholder='' value='{p}'><br/>"};
-const static char HTTP_FORM_MQTT_PARAM[]    PROGMEM = {"<br>MQTT Server:<br><input id='ms' name='ms' length=32 placeholder='node' value='{ms}'><br/>Topic:<br><input id='mt' name='mt' length=64 placeholder='home/room/thing' value='{mt}'><br/>MQTT user:<br><input id='mu' name='mu' length=32 placeholder='' value='{mu}'><br/>MQTT password:<br><input id='mp' name='mp' length=64 type='password' placeholder=''  value='{mp}'><br/>"};
+const static char HTTP_FORM_MQTT_PARAM[]    PROGMEM = {"<br>MQTT Server:<br><input id='ms' name='ms' length=32 placeholder='node' value='{ms}'><br/><br>MQTT Port:<br><input id='mpo' name='mpo' length=32 placeholder='1883' value='{mpo}'><br/>Topic:<br><input id='mt' name='mt' length=64 placeholder='home/room/thing' value='{mt}'><br/>MQTT user:<br><input id='mu' name='mu' length=32 placeholder='' value='{mu}'><br/>MQTT password:<br><input id='mp' name='mp' length=64 type='password' placeholder=''  value='{mp}'><br/>"};
 const static char HTTP_FORM_END[]           PROGMEM = {"<br/><button type='submit'>Save configuration</button></form>"};
 const static char HTTP_SAVED[]              PROGMEM = {"<div>{v}<br/>Try reboot ESP.<br />If connect fails, start configuration again.</div><br><form action=\"/\" method=\"get\"><button>Back to configuration</button></form>"};
 const static char HTTP_END[]                PROGMEM = {"</div></body></html>"};
@@ -63,6 +63,7 @@ private:
 	String applicationName, firmwareVersion;
 	String ssid, password, mqttTopic;
 	String mqttServer;
+	String mqttPort;
 	String mqttUser;
 	String mqttPassword;
 	String firmwareUpdateError;

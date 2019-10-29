@@ -62,6 +62,14 @@ void BecaMcu::setDesiredTemperature(float desiredTemperature) {
 	}
 }
 
+float BecaMcu::getActualTemperature() {
+	return this->actualTemperature;
+}
+
+float BecaMcu::getActualFloorTemperature() {
+	return this->actualFloorTemperature;
+}
+
 void BecaMcu::setManualMode(bool manualMode) {
 	if (this->manualMode != manualMode) {
 		this->manualMode = manualMode;
@@ -213,7 +221,7 @@ void BecaMcu::commandHexStrToSerial(String command) {
 	command.toLowerCase();
 	int chkSum = 0;
 	if ((command.length() > 1) && (command.length() % 2 == 0)) {
-		for (int i = 0; i < (command.length() / 2); i++) {
+		for (unsigned int i = 0; i < (command.length() / 2); i++) {
 			unsigned char chValue = getIndex(command.charAt(i * 2)) * 0x10
 					+ getIndex(command.charAt(i * 2 + 1));
 			chkSum += chValue;
@@ -228,7 +236,7 @@ void BecaMcu::commandCharsToSerial(unsigned int length,
 		unsigned char* command) {
 	int chkSum = 0;
 	if (length > 2) {
-		for (int i = 0; i < length; i++) {
+		for (unsigned int i = 0; i < length; i++) {
 			unsigned char chValue = command[i];
 			chkSum += chValue;
 			Serial.print((char) chValue);
@@ -760,8 +768,8 @@ void BecaMcu::setSchedulesDayOffset(signed char schedulesDayOffset) {
 
 void BecaMcu::loadSettings() {
 	EEPROM.begin(512);
-	if (EEPROM.read(295) == STORED_FLAG) {
-		this->schedulesDayOffset = EEPROM.read(296);
+	if (EEPROM.read(300) == STORED_FLAG) {
+		this->schedulesDayOffset = EEPROM.read(301);
 	} else {
 		this->schedulesDayOffset = 0;
 	}
@@ -770,8 +778,8 @@ void BecaMcu::loadSettings() {
 
 void BecaMcu::saveSettings() {
 	EEPROM.begin(512);
-	EEPROM.write(296, this->schedulesDayOffset);
-	EEPROM.write(295, STORED_FLAG);
+	EEPROM.write(301, this->schedulesDayOffset);
+	EEPROM.write(300, STORED_FLAG);
 	EEPROM.commit();
 	EEPROM.end();
 }

@@ -1,3 +1,7 @@
+## Version 0.97
+* add actualTemperatur and actualFloorTemperatur single send
+## Version 0.96
+* add mqttPort
 ## Version 0.95
 * Fix: Buffer for time zone sync increased again to 1024. Length of "http://worldtimeapi.org/api/ip" response had increased because of new parameters
 ## Version 0.94

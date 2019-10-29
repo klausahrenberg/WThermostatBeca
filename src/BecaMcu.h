@@ -59,6 +59,8 @@ public:
     void setOnSchedulesChange(THandlerFunction onSchedulesChange);
     void setDeviceOn(bool deviceOn);
     void setDesiredTemperature(float desiredTemperature);
+    float getActualTemperature();
+    float getActualFloorTemperature();
     void setManualMode(bool manualMode);
     void setEcoMode(bool ecoMode);
     void setLocked(bool locked);

@@ -34,7 +34,7 @@ bool startConfigIfNoSettingsFound) {
 				this->mqttCallback(topic, payload, length);
 			});
 	if (loadSettings()) {
-		mqttClient->setServer(mqttServer.c_str(), 1883);
+		mqttClient->setServer(mqttServer.c_str(), atoi(mqttPort.c_str()));
 	} else if (startConfigIfNoSettingsFound) {
 		this->startWebServer();
 	}
@@ -75,9 +75,10 @@ bool KaNetwork::loadSettings() {
 		this->ssid = readString(1, 33);
 		this->password = readString(34, 65);
 		this->mqttServer = readString(99, 33);
-		this->mqttTopic = readString(132, 65);
-		this->mqttUser = readString(197, 33);
-		this->mqttPassword = readString(230, 65);
+		this->mqttPort = readString(132, 5);
+		this->mqttTopic = readString(137, 65);
+		this->mqttUser = readString(202, 33);
+		this->mqttPassword = readString(235, 65);
 		log("Settings loaded successfully. SSID '" + ssid + "'; MQTT server '" + mqttServer + "'");
 	} else {
 		log("No stored settings found");
@@ -91,9 +92,10 @@ void KaNetwork::saveSettings() {
 	writeString(1, 33, this->ssid);
 	writeString(34, 65, this->password);
 	writeString(99, 33, this->mqttServer);
-	writeString(132, 65, this->mqttTopic);
-	writeString(197, 33, this->mqttUser);
-	writeString(230, 65, this->mqttPassword);
+	writeString(132, 5, this->mqttPort);
+	writeString(137, 65, this->mqttTopic);
+	writeString(202, 33, this->mqttUser);
+	writeString(235, 65, this->mqttPassword);
 	//settingsStored 0x25
 	EEPROM.write(0, STORED_FLAG);
 	EEPROM.commit();
@@ -328,6 +330,7 @@ void KaNetwork::handleHttpWifi() {
 		page.replace("{s}", this->ssid);
 		page.replace("{p}", this->password);
 		page.replace("{ms}", this->mqttServer);
+		page.replace("{mpo}", this->mqttPort);
 		page.replace("{mt}", this->mqttTopic);
 		page.replace("{mu}", this->mqttUser);
 		page.replace("{mp}", this->mqttPassword);
@@ -342,6 +345,7 @@ void KaNetwork::handleHttpSaveConfiguration() {
 		this->ssid = webServer->arg("s");
 		this->password = webServer->arg("p");
 		this->mqttServer = webServer->arg("ms");
+		this->mqttPort = webServer->arg("mpo");
 		this->mqttTopic = webServer->arg("mt");
 		this->mqttUser = webServer->arg("mu");
 		this->mqttPassword = webServer->arg("mp");

@@ -3,7 +3,7 @@
 #include "KaClock.h"
 
 #define APPLICATION "Thermostat Beca-Wifi"
-#define VERSION "0.95"
+#define VERSION "0.97"
 #define DEBUG false
 #define JSON_BUFFER_SIZE 768
 #define NTP_SERVER "de.pool.ntp.org"
@@ -21,9 +21,10 @@ void setup() {
 
 		}
 		if (network->isMqttConnected()) {
+
 			becaMcu->queryState();
 			if (becaMcu->isDeviceStateComplete()) {
-				sendMqttStatus();
+				sendMqttStatus();			
 			}
 		}
 	});
@@ -73,7 +74,17 @@ void loop() {
 	delay(50);
 }
 
+bool sendMqttActualTemperatur() {
+	return network->publishMqtt("actualTemperature", String(becaMcu->getActualTemperature()));
+}
+
+bool sendMqttActualFloorTemperatur() {
+	return network->publishMqtt("actualFloorTemperature", String(becaMcu->getActualFloorTemperature()));
+}
+
 bool sendMqttStatus() {
+	sendMqttActualTemperatur();
+	sendMqttActualFloorTemperatur();
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& json = jsonBuffer.createObject();
 	becaMcu->getMqttState(json);
@@ -145,7 +156,7 @@ void onMqttCallback(String topic, String payload) {
 	} else if (topic.equals("mcucommand")) {
 		becaMcu->commandHexStrToSerial(payload);
 	} else if ((topic.equals("state")) && (payload.equals("0"))) {
-		sendMqttStatus();
+		sendMqttActualTemperatur();
 	} else if ((topic.equals("clock")) && (payload.equals("0"))) {
 		sendClockStateViaMqttStatus();
 	} else if ((topic.equals("webserver")) || (topic.equals("webservice"))) {
