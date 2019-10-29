@@ -61,6 +61,10 @@ public:
     void setDesiredTemperature(float desiredTemperature);
     float getActualTemperature();
     float getActualFloorTemperature();
+    float getDesiredTemperature();
+    bool getManualMode();
+	bool getEcoMode();
+	bool getLocked();
     void setManualMode(bool manualMode);
     void setEcoMode(bool ecoMode);
     void setLocked(bool locked);

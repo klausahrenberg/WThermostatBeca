@@ -5,6 +5,9 @@ BecaMcu::BecaMcu(KaClock *kClock) {
 	this->kClock = kClock;
 	this->fanSpeed = FAN_SPEED_NONE;
 	this->systemMode = SYSTEM_MODE_NONE;
+	this->manualMode = true;
+	this->ecoMode = false;
+	this->locked = false;
 	this->actualTemperature = -100;
 	this->actualFloorTemperature = -100;
 	this->thermostatModel = MODEL_BHT_002_GBLW;
@@ -68,6 +71,22 @@ float BecaMcu::getActualTemperature() {
 
 float BecaMcu::getActualFloorTemperature() {
 	return this->actualFloorTemperature;
+}
+
+float BecaMcu::getDesiredTemperature() {
+	return this->desiredTemperature;
+}
+
+bool BecaMcu::getManualMode() {
+	return this->manualMode;
+}
+
+bool BecaMcu::getEcoMode() {
+	return this->ecoMode;
+}
+
+bool BecaMcu::getLocked() {
+	return this->locked;
 }
 
 void BecaMcu::setManualMode(bool manualMode) {
@@ -491,9 +510,22 @@ void BecaMcu::setLogMcu(bool logMcu) {
 	}
 }
 
-void BecaMcu::notifyMcuCommand(String commandType) {
-	if ((logMcu) && (onNotifyCommand)) {
-		onNotifyCommand("mcu: " + commandType);
+void BecaMcu::notifyMcuCommand(String commandType) {	
+	if  (onNotifyCommand) {
+		if (logMcu) onNotifyCommand("mcu: " + commandType);
+		if (commandType == "actualTemperature_x03") {
+			onNotifyCommand("actualTemperature");
+		} else if (commandType == "actualFloorTemperature_x03") {
+			onNotifyCommand("actualFloorTemperature");
+		} else if (commandType == "desiredTemperature_x02") {
+			onNotifyCommand("desiredTemperature");
+		} else if (commandType == "manualMode_x04") {
+			onNotifyCommand("manualMode");	
+		} else if (commandType == "ecoMode_x05") {
+			onNotifyCommand("ecoMode");		
+		} else if (commandType == "locked_x06") {
+			onNotifyCommand("locked");
+		}	
 	}
 }
 

@@ -55,10 +55,24 @@ void setup() {
 		return sendSchedulesViaMqtt();
 	});
 	becaMcu->setOnNotifyCommand([](String commandType) {
-		StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-		JsonObject& json = jsonBuffer.createObject();
-		json[commandType] = becaMcu->getCommandAsString();
-		return network->publishMqtt("mcucommand", json);
+		if (commandType == "actualTemperature") {
+			return network->publishMqtt("actualTemperature", String(becaMcu->getActualTemperature()));
+		} else if (commandType == "actualFloorTemperature") {
+			return network->publishMqtt("actualFloorTemperature", String(becaMcu->getActualFloorTemperature()));
+		} else if (commandType == "desiredTemperature") {
+			return network->publishMqtt("desiredTemperature", String(becaMcu->getDesiredTemperature()));
+		} else if (commandType == "manualMode") {
+			return network->publishMqtt("manualMode", String(becaMcu->getManualMode()));
+		} else if (commandType == "ecoMode") {
+			return network->publishMqtt("ecoMode", String(becaMcu->getEcoMode()));
+		} else if (commandType == "locked") {
+			return network->publishMqtt("locked", String(becaMcu->getLocked()));
+		} else {
+			StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
+			JsonObject& json = jsonBuffer.createObject();
+			json[commandType] = becaMcu->getCommandAsString();
+			return network->publishMqtt("mcucommand", json);
+		}
 	});
 	becaMcu->setOnConfigurationRequest([]() {
 		network->startWebServer();
@@ -74,17 +88,7 @@ void loop() {
 	delay(50);
 }
 
-bool sendMqttActualTemperatur() {
-	return network->publishMqtt("actualTemperature", String(becaMcu->getActualTemperature()));
-}
-
-bool sendMqttActualFloorTemperatur() {
-	return network->publishMqtt("actualFloorTemperature", String(becaMcu->getActualFloorTemperature()));
-}
-
 bool sendMqttStatus() {
-	sendMqttActualTemperatur();
-	sendMqttActualFloorTemperatur();
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& json = jsonBuffer.createObject();
 	becaMcu->getMqttState(json);
@@ -156,7 +160,7 @@ void onMqttCallback(String topic, String payload) {
 	} else if (topic.equals("mcucommand")) {
 		becaMcu->commandHexStrToSerial(payload);
 	} else if ((topic.equals("state")) && (payload.equals("0"))) {
-		sendMqttActualTemperatur();
+		sendMqttStatus();
 	} else if ((topic.equals("clock")) && (payload.equals("0"))) {
 		sendClockStateViaMqttStatus();
 	} else if ((topic.equals("webserver")) || (topic.equals("webservice"))) {
