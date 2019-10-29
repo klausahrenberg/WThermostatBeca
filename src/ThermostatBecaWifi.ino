@@ -3,7 +3,7 @@
 #include "KaClock.h"
 
 #define APPLICATION "Thermostat Beca-Wifi"
-#define VERSION "0.97"
+#define VERSION "0.98"
 #define DEBUG false
 #define JSON_BUFFER_SIZE 768
 #define NTP_SERVER "de.pool.ntp.org"
@@ -62,11 +62,13 @@ void setup() {
 		} else if (commandType == "desiredTemperature") {
 			return network->publishMqtt("desiredTemperature", String(becaMcu->getDesiredTemperature()));
 		} else if (commandType == "manualMode") {
-			return network->publishMqtt("manualMode", String(becaMcu->getManualMode()));
+			return network->publishMqtt("manualMode", (becaMcu->getManualMode()) ? "true" : "false");
 		} else if (commandType == "ecoMode") {
-			return network->publishMqtt("ecoMode", String(becaMcu->getEcoMode()));
+			return network->publishMqtt("ecoMode", (becaMcu->getEcoMode()) ? "true" : "false");
 		} else if (commandType == "locked") {
-			return network->publishMqtt("locked", String(becaMcu->getLocked()));
+			return network->publishMqtt("locked", (becaMcu->getLocked()) ? "true" : "false");
+		} else if (commandType == "deviceOn") {
+			return network->publishMqtt("deviceOn", (becaMcu->getDeviceOn()) ? "true" : "false");	
 		} else {
 			StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 			JsonObject& json = jsonBuffer.createObject();

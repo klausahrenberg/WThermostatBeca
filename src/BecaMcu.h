@@ -65,6 +65,7 @@ public:
     bool getManualMode();
 	bool getEcoMode();
 	bool getLocked();
+    bool getDeviceOn();
     void setManualMode(bool manualMode);
     void setEcoMode(bool ecoMode);
     void setLocked(bool locked);

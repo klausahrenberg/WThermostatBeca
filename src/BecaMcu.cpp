@@ -8,6 +8,7 @@ BecaMcu::BecaMcu(KaClock *kClock) {
 	this->manualMode = true;
 	this->ecoMode = false;
 	this->locked = false;
+	this->deviceOn = true;
 	this->actualTemperature = -100;
 	this->actualFloorTemperature = -100;
 	this->thermostatModel = MODEL_BHT_002_GBLW;
@@ -87,6 +88,10 @@ bool BecaMcu::getEcoMode() {
 
 bool BecaMcu::getLocked() {
 	return this->locked;
+}
+
+bool BecaMcu::getDeviceOn() {
+	return this->deviceOn;
 }
 
 void BecaMcu::setManualMode(bool manualMode) {
@@ -525,6 +530,8 @@ void BecaMcu::notifyMcuCommand(String commandType) {
 			onNotifyCommand("ecoMode");		
 		} else if (commandType == "locked_x06") {
 			onNotifyCommand("locked");
+		} else if (commandType == "deviceOn_x01") {
+			onNotifyCommand("deviceOn");
 		}	
 	}
 }

@@ -269,6 +269,7 @@ void KaNetwork::startWebServer() {
 		//Start http server
 		webServer->begin();
 		this->notify();
+		publishMqtt("webserver", (1) ? "true" : "false");
 	}
 }
 
@@ -575,6 +576,7 @@ void KaNetwork::stopWebServer() {
 			onConfigurationFinished();
 		}
 		this->notify();
+		publishMqtt("webserver", (0) ? "true" : "false");
 	}
 }
 
