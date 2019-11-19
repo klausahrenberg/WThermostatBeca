@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "WNetwork.h"
+#include "../../WAdapter/Wadapter/WNetwork.h"
 #include "WBecaDevice.h"
 #include "WClock.h"
 

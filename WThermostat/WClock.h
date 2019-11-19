@@ -9,7 +9,7 @@
 #include <WiFiUdp.h>
 #include <Time.h>
 #include <TimeLib.h>
-#include "WNetwork.h"
+#include "../../WAdapter/Wadapter/WNetwork.h"
 
 class WClock {
 public:

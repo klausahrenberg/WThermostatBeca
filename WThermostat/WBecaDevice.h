@@ -4,7 +4,7 @@
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <EEPROM.h>
-#include "WDevice.h"
+#include "../../WAdapter/Wadapter/WDevice.h"
 #include "ArduinoJson.h"
 #include "WClock.h"
 
