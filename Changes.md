@@ -1,3 +1,12 @@
+##Ideas 
+* optional support for second relay (via IO and/or mqtt and/or http)
+
+## Version 0.96 (not released yet)
+* Supports Mozilla Webthings, properties like temperature, desiredTemperature, On/Off, manualMode are available in a fancy web interface which can control the device outside your home network also. MQTT still supports more properties.
+* Device configuration via Web-Interface added for things like: Model, NTP-Server, Timezone API, Weekday offset
+* Heating relay status supported. To make this work, a hardware modification is needed: 2x10kOhm resistors have to be soldered to IO 5 of the ESP. For detailed description with pictures, see here: https://github.com/klausahrenberg/ThermostatBecaWifi/issues/17#issuecomment-552078026
+* Supports ArduinoJson 6.x version now
+* Fix: Automatic reconnection after loss of network should work now
 ## Version 0.95
 * Fix: Buffer for time zone sync increased again to 1024. Length of "http://worldtimeapi.org/api/ip" response had increased because of new parameters
 ## Version 0.94
