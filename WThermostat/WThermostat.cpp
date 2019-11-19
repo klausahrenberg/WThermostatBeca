@@ -4,7 +4,7 @@
 #include "WClock.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "0.76"
+#define VERSION "0.77"
 #define DEBUG false
 #define NTP_SERVER "de.pool.ntp.org"
 
