@@ -1,4 +1,4 @@
-##Ideas 
+## Ideas 
 * optional support for second relay (via IO and/or mqtt and/or http)
 
 ## Version 0.96 (not released yet)
