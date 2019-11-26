@@ -4,49 +4,88 @@
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
-#include <ArduinoJson.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <Time.h>
 #include <TimeLib.h>
+#include "../../WAdapter/Wadapter/WDevice.h"
 #include "../../WAdapter/Wadapter/WNetwork.h"
 
-class WClock {
+//#define DEFAULT_NTP_SERVER "de.pool.ntp.org"
+const static String DEFAULT_NTP_SERVER = "pool.ntp.org";
+const static String DEFAULT_TIME_ZONE_SERVER = "http://worldtimeapi.org/api/ip";
+
+class WClock: public WDevice {
 public:
 	typedef std::function<void(void)> THandlerFunction;
 	typedef std::function<void(String)> TErrorHandlerFunction;
 
-	WClock(bool debug, WNetwork *network, String ntpServer) {
-		this->debug = debug;
-		this->network = network;
-		this->ntpServer = ntpServer;
+
+
+	//WClock(bool debug, WNetwork *network) {
+	WClock(WNetwork* network, String applicationName)
+		: WDevice(network, "clock", "clock", DEVICE_TYPE_TEXT_DISPLAY) {
+		this->visibility = MQTT;
+		this->ntpServer = network->getSettings()->registerString("ntpServer", 32, DEFAULT_NTP_SERVER);
+		this->ntpServer->setReadOnly(true);
+		this->ntpServer->setString(DEFAULT_NTP_SERVER);
+		this->addProperty(ntpServer);
+		this->timeZoneServer = network->getSettings()->registerString("timeZoneServer", 64, DEFAULT_TIME_ZONE_SERVER);
+		this->timeZoneServer->setReadOnly(true);
+		this->timeZoneServer->setString(DEFAULT_TIME_ZONE_SERVER);
+		//this->ntpServer->setVisibility(MQTT);
+		this->addProperty(timeZoneServer);
+		this->epochTime = new WLongProperty("epochTime");
+		this->epochTime->setReadOnly(true);
+		this->epochTime->setOnValueRequest([this](WProperty* p) {
+			p->setLong(getEpochTime());
+		});
+		this->addProperty(epochTime);
+		this->epochTimeFormatted = new WStringProperty("epochTimeFormatted", "epochTimeFormatted", "", 32);
+		this->epochTimeFormatted->setReadOnly(true);
+		this->epochTimeFormatted->setOnValueRequest([this](WProperty* p) {
+			p->setString(getFormattedTime());
+		});
+		this->addProperty(epochTimeFormatted);
+		this->validTime = new WOnOffProperty("validTime", "validTime", "");
+		this->validTime->setBoolean(false);
+		this->validTime->setReadOnly(true);
+		this->addProperty(validTime);
+		this->timeZone = new WStringProperty("timezone", "timeZone", "", 32);
+		this->timeZone->setReadOnly(true);
+		this->addProperty(timeZone);
+		this->rawOffset = new WIntegerProperty("raw_offset", "rawOffset", "");
+		this->rawOffset->setInteger(0);
+		this->rawOffset->setReadOnly(true);
+		this->addProperty(rawOffset);
+		this->dstOffset = new WIntegerProperty("dst_offset", "dstOffset", "");
+		this->dstOffset->setInteger(0);
+		this->dstOffset->setReadOnly(true);
+		this->addProperty(dstOffset);
 		lastTry = lastNtpSync = lastTimeZoneSync = ntpTime = 0;
-		validTime = false;
-		rawOffset = 0;
-		//dstOffset = 0;
-		timeZone = "";
 	}
 
-	void loop() {
-		unsigned long now = millis();
+	void loop(unsigned long now) {
 		//Invalid after 3 hours
-		validTime = ((lastNtpSync > 0) && (lastTimeZoneSync > 0)
-				&& (now - lastTry < (3 * 60 * 60000)));
+		validTime->setBoolean((lastNtpSync > 0) && (lastTimeZoneSync > 0) && (now - lastTry < (3 * 60 * 60000)));
 
-		if (((!validTime) && ((lastTry == 0) || (now - lastTry > 60000)))
+		if (((!isValidTime()) && ((lastTry == 0) || (now - lastTry > 60000)))
 				&& (WiFi.status() == WL_CONNECTED)) {
 			//1. Sync ntp
 			if ((lastNtpSync == 0) || (now - lastNtpSync > 60000)) {
-				log("Time via NTP server '" + ntpServer + "'");
+				//network->log("Time via NTP server '" + ntpServer->getString() + "'");
+				network->log(ntpServer->getString());
 				WiFiUDP ntpUDP;
-				NTPClient ntpClient(ntpUDP, ntpServer.c_str());
+				NTPClient ntpClient(ntpUDP, ntpServer->c_str());
+				//ntpClient.begin();
+				//delay(500);
 				if (ntpClient.update()) {
 					lastNtpSync = millis();
 					ntpTime = ntpClient.getEpochTime();
-					log("NTP time: " + getFormattedTime());
+					network->log("NTP time: " + getFormattedTime());
 					notifyOnTimeUpdate();
 				} else {
-					notifyOnError("NTP sync failed: ");
+					notifyOnError("NTP sync failed: " + getFormattedTime());
 				}
 			}
 			//2. Sync time zone
@@ -54,64 +93,74 @@ public:
 					&& ((lastTimeZoneSync == 0)
 							|| (now - lastTimeZoneSync > 60000)))
 					&& (WiFi.status() == WL_CONNECTED)) {
-				String request = "http://worldtimeapi.org/api/ip";
-				log("Time zone update via '" + request + "'");
+				String request = timeZoneServer->getString();
+				network->log("Time zone update via '" + request + "'");
 				HTTPClient http;
-				http.begin(request); //, gMapsCrt);
+				http.begin(request);
 				int httpCode = http.GET();
 				if (httpCode > 0) {
-					String payload = http.getString();
-					DynamicJsonDocument *jsonDocument = network->getJsonDocument();
-					auto error = deserializeJson(*jsonDocument, payload);
-					if (error) {
-						notifyOnError("Can't parse json of time zone request result: " + payload);
-					} else {
-						//log(payload);
-						/*
-						 * {
-						 *  "week_number":19,
-						 *  "utc_offset":"+09:00",
-						 *  "utc_datetime":"2019-05-07T23:32:15.214725+00:00",
-						 *  "unixtime":1557271935,
-						 *  "timezone":"Asia/Seoul",
-						 *  "raw_offset":32400,
-						 *  "dst_until":null,
-						 *  "dst_offset":0,
-						 *  "dst_from":null,
-						 *  "dst":false,
-						 *  "day_of_year":128,
-						 *  "day_of_week":3,
-						 *  "datetime":"2019-05-08T08:32:15.214725+09:00",
-						 *  "abbreviation":"KST"}
-						 */
-						/*
-						 * {"week_number":19,
-						 *  "utc_offset":"+02:00",
-						 *  "utc_datetime":"2019-05-07T23:37:41.963463+00:00",
-						 *  "unixtime":1557272261,
-						 *  "timezone":"Europe/Berlin",
-						 *  "raw_offset":7200,
-						 *  "dst_until":"2019-10-27T01:00:00+00:00",
-						 *  "dst_offset":3600,
-						 *  "dst_from":"2019-03-31T01:00:00+00:00",
-						 *  "dst":true,
-						 *  "day_of_year":128,
-						 *  "day_of_week":3,
-						 *  "datetime":"2019-05-08T01:37:41.963463+02:00",
-						 *  "abbreviation":"CEST"}
-						 */
-						JsonObject json = jsonDocument->as<JsonObject>();
+					WJsonParser* parser = new WJsonParser();
+					this->timeZone->setReadOnly(false);
+					this->rawOffset->setReadOnly(false);
+					this->dstOffset->setReadOnly(false);
+					WProperty* property = parser->parse(this, http.getString().c_str());
+					this->timeZone->setReadOnly(true);
+					this->rawOffset->setReadOnly(true);
+					this->dstOffset->setReadOnly(true);
+					if (property != nullptr) {
+						lastTimeZoneSync = millis();
+						validTime->setBoolean(true);
+						network->log("Time zone evaluated. Current local time: " + getFormattedTime());
+						notifyOnTimeUpdate();
+						//success
+						/*JsonObject json = jsonDoc->as<JsonObject>();
 						String utcOffset = json["utc_offset"];
 						rawOffset = utcOffset.substring(1, 3).toInt() * 3600
-								+ utcOffset.substring(4, 6).toInt() * 60;
+										+ utcOffset.substring(4, 6).toInt() * 60;
 						//dstOffset = (parsed["dst"] == true ? 3600 : 0);
 						String tz = json["timezone"];
+						jsonDoc->clear();
 						this->timeZone = tz;
 						lastTimeZoneSync = millis();
 						validTime = true;
-						log("Time zone evaluated. Current local time: " + getFormattedTime());
+						network->log("Time zone evaluated. Current local time: " + getFormattedTime());
 						notifyOnTimeUpdate();
+						*/
+						/*
+												 * {
+												 *  "week_number":19,
+												 *  "utc_offset":"+09:00",
+												 *  "utc_datetime":"2019-05-07T23:32:15.214725+00:00",
+												 *  "unixtime":1557271935,
+												 *  "timezone":"Asia/Seoul",
+												 *  "raw_offset":32400,
+												 *  "dst_until":null,
+												 *  "dst_offset":0,
+												 *  "dst_from":null,
+												 *  "dst":false,
+												 *  "day_of_year":128,
+												 *  "day_of_week":3,
+												 *  "datetime":"2019-05-08T08:32:15.214725+09:00",
+												 *  "abbreviation":"KST"}
+												 */
+												/*
+												 * {"week_number":19,
+												 *  "utc_offset":"+02:00",
+												 *  "utc_datetime":"2019-05-07T23:37:41.963463+00:00",
+												 *  "unixtime":1557272261,
+												 *  "timezone":"Europe/Berlin",
+												 *  "raw_offset":7200,
+												 *  "dst_until":"2019-10-27T01:00:00+00:00",
+												 *  "dst_offset":3600,
+												 *  "dst_from":"2019-03-31T01:00:00+00:00",
+												 *  "dst":true,
+												 *  "day_of_year":128,
+												 *  "day_of_week":3,
+												 *  "datetime":"2019-05-08T01:37:41.963463+02:00",
+												 *  "abbreviation":"CEST"}
+												 */
 					}
+
 				} else {
 					notifyOnError("Time zone update failed: " + httpCode);
 				}
@@ -130,7 +179,7 @@ public:
 	}
 
 	unsigned long getEpochTime() {
-		return (lastNtpSync > 0 ? ntpTime + rawOffset /*+ dstOffset*/
+		return (lastNtpSync > 0 ? ntpTime + getRawOffset() + getDstOffset()
 		+ ((millis() - lastNtpSync) / 1000) :
 									0);
 	}
@@ -194,12 +243,6 @@ public:
 		return day(epochTime);
 	}
 
-	String getTimeZone() {
-		//timeZone set during local time sync to e.g. "Europe/Berlin";
-		//could be empty
-		return timeZone;
-	}
-
 	String getFormattedTime() {
 		return getFormattedTime(getEpochTime());
 	}
@@ -230,7 +273,7 @@ public:
 	}
 
 	bool isValidTime() {
-		return validTime;
+		return validTime->getBoolean();
 	}
 
 	bool isClockSynced() {
@@ -238,44 +281,49 @@ public:
 	}
 
 	long getRawOffset() {
-		return rawOffset;
+		return rawOffset->getInteger();
 	}
 
-	void getMqttState(JsonObject &json, bool complete) {
+	long getDstOffset() {
+		return dstOffset->getInteger();
+	}
+
+	/*void getMqttState(JsonObject &json, bool complete) {
 		json["clockTime"] = getFormattedTime();
 		json["validTime"] = isValidTime();
 		json["timeZone"] = getTimeZone();
 		json["lastNtpSync"] = (
-				lastNtpSync > 0 ? getFormattedTime(ntpTime + rawOffset /*+ dstOffset*/
+				lastNtpSync > 0 ? getFormattedTime(ntpTime + rawOffset + dstOffset
 				+ (lastNtpSync / 1000)) :
 									"n.a.");
 		if (complete) {
 			json["clockTimeRaw"] = getEpochTime();
 			json["lastTimeZoneSync"] = (
-					lastTimeZoneSync > 0 ? getFormattedTime(ntpTime + rawOffset /*+ dstOffset*/
+					lastTimeZoneSync > 0 ? getFormattedTime(ntpTime + rawOffset + dstOffset
 					+ (lastTimeZoneSync / 1000)) :
 											"n.a.");
 			//json["dstOffset"] = getDstOffset();
 			json["rawOffset"] = getRawOffset();
 		}
 
-	}
+	}*/
+
+	/*String getNtpServer() {
+    	return ntpServer->getString();
+    }*/
 
 private:
 	THandlerFunction onTimeUpdate;
 	TErrorHandlerFunction onError;
-	bool debug;
-	WNetwork *network;
-	unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime, rawOffset;
-	bool validTime;
-	String timeZone;
-	String ntpServer;
-
-	void log(String debugMessage) {
-		if (debug) {
-			Serial.println(debugMessage);
-		}
-	}
+	unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime;
+	WProperty* epochTime;
+	WProperty* epochTimeFormatted;
+	WProperty* validTime;
+	WProperty* ntpServer;
+	WProperty* timeZoneServer;
+	WProperty* timeZone;
+	WProperty* rawOffset;
+	WProperty* dstOffset;
 
 	void notifyOnTimeUpdate() {
 		if (onTimeUpdate) {
@@ -284,7 +332,7 @@ private:
 	}
 
 	void notifyOnError(String error) {
-		log(error);
+		network->log(error);
 		if (onError) {
 			onError(error);
 		}

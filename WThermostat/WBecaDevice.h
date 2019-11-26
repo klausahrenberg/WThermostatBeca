@@ -5,14 +5,13 @@
 #include <ESP8266WiFi.h>
 #include <EEPROM.h>
 #include "../../WAdapter/Wadapter/WDevice.h"
-#include "ArduinoJson.h"
 #include "WClock.h"
 
 const static char HTTP_CONFIG_PAGE[]         PROGMEM = R"=====(
 <form method='get' action='saveDeviceConfiguration_{di}'>
         	<div>
         		<select name="tm">        		
-					<option value="0" {0}>Floor heating (BHT-002-GBLW)</option>
+					<option value="0" {0}>Floor status (BHT-002-GBLW)</option>
                     <option value="1" {1}>Heating, Cooling, Ventilation (BAC-002-ALW)</option>					
 				</select>
         	</div>
@@ -54,23 +53,23 @@ public:
     typedef std::function<bool()> THandlerFunction;
     typedef std::function<bool(String)> TCommandHandlerFunction;
 
-    WBecaDevice(boolean debug, String applicationName, WSettings* settings, WClock *clock)
-    	: WDevice(debug, "thermostat", applicationName, DEVICE_TYPE_TEMPERATURE_SENSOR) {
+    WBecaDevice(WNetwork* network, boolean debug, String applicationName, WSettings* settings, WClock* wClock)
+    	: WDevice(network, "thermostat", "thermostat", DEVICE_TYPE_THERMOSTAT) {
     	this->logMcu = false;
     	this->receivingDataFromMcu = false;
     	this->settings = settings;
 		this->providingConfigPage = true;
-    	this->clock = clock;
+    	this->wClock = wClock;
     	this->fanSpeed = FAN_SPEED_NONE;
     	this->systemMode = SYSTEM_MODE_NONE;
     	this->actualTemperature = new WTemperatureProperty("temperature", "Actual", "");
     	this->actualTemperature->setReadOnly(true);
     	this->addProperty(actualTemperature);
-    	this->desiredTemperature = new WLevelProperty("desiredTemperature", "Set", "", 12.0, 28.0);
-    	this->desiredTemperature->setMultipleOf(0.5);
-    	this->desiredTemperature->setOnChange(std::bind(&WBecaDevice::desiredTemperatureToMcu, this, std::placeholders::_1));
-    	this->desiredTemperature->setDouble(23);
-    	this->addProperty(desiredTemperature);
+    	this->targetTemperature = new WTargetTemperatureProperty("targetTemperature", "Target", "");//, 12.0, 28.0);
+    	this->targetTemperature->setMultipleOf(0.5);
+    	this->targetTemperature->setOnChange(std::bind(&WBecaDevice::desiredTemperatureToMcu, this, std::placeholders::_1));
+    	this->targetTemperature->setDouble(23);
+    	this->addProperty(targetTemperature);
     	this->deviceOn = new WOnOffProperty("deviceOn", "Power", "");
     	this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
     	this->addProperty(deviceOn);
@@ -79,22 +78,21 @@ public:
     	this->addProperty(manualMode);
     	this->ecoMode = new WOnOffProperty("ecoMode", "Eco", "");
     	this->ecoMode->setOnChange(std::bind(&WBecaDevice::ecoModeToMcu, this, std::placeholders::_1));
-    	this->ecoMode->setSupportingWebthing(false);
+    	this->ecoMode->setVisibility(MQTT);
     	this->addProperty(ecoMode);
     	this->locked = new WOnOffProperty("locked", "Lock", "");
     	this->locked->setOnChange(std::bind(&WBecaDevice::lockedToMcu, this, std::placeholders::_1));
-    	this->locked->setSupportingWebthing(false);
+    	this->locked->setVisibility(MQTT);
     	this->addProperty(locked);
-    	this->heating = new WOnOffProperty("heating", "Heat", "");
-    	this->heating->setReadOnly(true);
-    	this->addProperty(heating);
+    	this->status = new WHeatingCoolingProperty("status", "Status", "");
+    	this->addProperty(status);
     	pinMode(5, INPUT);
     	this->actualFloorTemperature = nullptr;
     	this->thermostatModel = settings->registerByte("thermostatModel", MODEL_BHT_002_GBLW);
     	if (getThermostatModel() == MODEL_BHT_002_GBLW) {
     		this->actualFloorTemperature = new WTemperatureProperty("floorTemperature", "Floor", "");
     		this->actualFloorTemperature->setReadOnly(true);
-    		this->actualFloorTemperature->setSupportingWebthing(false);
+    		this->actualFloorTemperature->setVisibility(MQTT);
     		this->addProperty(actualFloorTemperature);
     	}
 
@@ -108,7 +106,7 @@ public:
     }
 
     virtual String getConfigPage() {
-    	log("Beca thermostat config page");
+    	network->log("Beca thermostat config page");
     	String page = FPSTR(HTTP_CONFIG_PAGE);
     	page.replace("{di}", getId());
     	for (int i = 0; i < COUNT_DEVICE_MODELS; i++) {
@@ -120,15 +118,17 @@ public:
     	return page;
     }
 
-    void saveConfigPage(AsyncWebServerRequest *request) {
-    	log("save config page");
-    	this->thermostatModel->setByte(request->arg("tm").toInt());
+    void saveConfigPage() {
+    	network->log("save config page");
+    	//ToDo
+    	//this->thermostatModel->setByte(webServer->arg("tm").toInt());
     	//this->deviceMode->setByte(request->arg("dm").toInt());
     }
 
     void loop(unsigned long now) {
-    	if (heating != nullptr) {
-    		this->heating->setBoolean(digitalRead(5));
+    	if (status != nullptr) {
+    		bool st = digitalRead(5);
+    		this->status->setString(st ? VALUE_HEATING : VALUE_OFF);
     	}
     	while (Serial.available() > 0) {
     		receiveIndex++;
@@ -249,14 +249,14 @@ public:
     	//HEX: 55 AA 00 1C 00 08 01 13 02 0F 10 04 12 05
     	//DEC:                   01 19 02 20 17 51 44 03
     	//HEX: 55 AA 00 1C 00 08 01 13 02 14 11 33 2C 03
-    	unsigned long epochTime = clock->getEpochTime();
+    	unsigned long epochTime = wClock->getEpochTime();
     	epochTime = epochTime + (schedulesDayOffset * 86400);
-    	byte year = clock->getYear(epochTime) % 100;
-    	byte month = clock->getMonth(epochTime);
-    	byte dayOfMonth = clock->getDay(epochTime);
-    	byte hours = clock->getHours(epochTime) ;
-    	byte minutes = clock->getMinutes(epochTime);
-    	byte seconds = clock->getSeconds(epochTime);
+    	byte year = wClock->getYear(epochTime) % 100;
+    	byte month = wClock->getMonth(epochTime);
+    	byte dayOfMonth = wClock->getDay(epochTime);
+    	byte hours = wClock->getHours(epochTime) ;
+    	byte minutes = wClock->getMinutes(epochTime);
+    	byte seconds = wClock->getSeconds(epochTime);
     	byte dayOfWeek = getDayOfWeek();
     	unsigned char cancelConfigCommand[] = { 0x55, 0xaa, 0x00, 0x1c, 0x00, 0x08,
     											0x01, year, month, dayOfMonth,
@@ -286,7 +286,8 @@ public:
     	json["weekend"] = isWeekend();
     }*/
 
-    void getMqttSchedules(JsonObject json, String dayRange) {
+    /*ToDo
+     * void getMqttSchedules(JsonObject json, String dayRange) {
     	int startAddr = 0;
     	if (SCHEDULE_SATURDAY.equals(dayRange)) {
     		startAddr = 18;
@@ -301,7 +302,7 @@ public:
     		sch["h"] = timeStr;
     		sch["t"] = (float) schedules[startAddr + i * 3 + 2]	/ 2.0f;
     	}
-    }
+    }*/
 
     void setOnNotifyCommand(TCommandHandlerFunction onNotifyCommand) {
     	this->onNotifyCommand = onNotifyCommand;
@@ -321,7 +322,7 @@ public:
 
     void setDesiredTemperature(float desiredTemperature) {
     	if (((int) (desiredTemperature * 10) % 5) == 0) {
-    		this->desiredTemperature->setDouble(desiredTemperature);
+    		this->targetTemperature->setDouble(desiredTemperature);
     	}
     }
 
@@ -337,7 +338,8 @@ public:
     	this->locked->setBoolean(locked);
     }
 
-    bool setSchedules(String payload) {
+    /*ToDo
+     * bool setSchedules(String payload) {
     	if (receivedSchedules()) {
     		DynamicJsonDocument jsonBuffer(1216);
     		DeserializationError error = deserializeJson(jsonBuffer, payload);
@@ -380,7 +382,7 @@ public:
     	} else {
     		return false;
     	}
-    }
+    }*/
 
     byte getFanSpeed() {
     	return fanSpeed;
@@ -475,7 +477,7 @@ public:
     	case SYSTEM_MODE_COOLING:
     		return "cooling";
     	case SYSTEM_MODE_HEATING:
-    		return "heating";
+    		return "status";
     	case SYSTEM_MODE_VENTILATION:
     		return "ventilation";
     	default:
@@ -508,7 +510,7 @@ public:
     	byte systemMode = SYSTEM_MODE_NONE;
     	if (systemModeString.equals("cooling")) {
     		systemMode = SYSTEM_MODE_COOLING;
-    	} else if (systemModeString.equals("heating")) {
+    	} else if (systemModeString.equals("status")) {
     		systemMode = SYSTEM_MODE_HEATING;
     	} else if (systemModeString.equals("ventilation")) {
     		systemMode = SYSTEM_MODE_VENTILATION;
@@ -553,7 +555,7 @@ protected:
 
 private:
     WSettings* settings;
-    WClock *clock;
+    WClock *wClock;
     int receiveIndex;
     int commandLength;
     long lastHeartBeat;
@@ -561,8 +563,8 @@ private:
     bool logMcu;
     boolean receivingDataFromMcu;
     WProperty* deviceOn;
-    WProperty* heating;
-    WProperty* desiredTemperature;
+    WProperty* status;
+    WProperty* targetTemperature;
     WProperty* actualTemperature;
     WProperty* actualFloorTemperature;
     WProperty* manualMode;
@@ -573,6 +575,7 @@ private:
     boolean receivedStates[STATE_COMPLETE];
     byte schedulesDataPoint;
     WProperty* thermostatModel;
+    WProperty* ntpServer;
     signed char schedulesDayOffset;
     THandlerFunction onConfigurationRequest, onSchedulesChange;
     TCommandHandlerFunction onNotifyCommand;
@@ -592,9 +595,9 @@ private:
     }
 
     byte getDayOfWeek() {
-    	unsigned long epochTime = clock->getEpochTime();
+    	unsigned long epochTime = wClock->getEpochTime();
     	epochTime = epochTime + (schedulesDayOffset * 86400);
-    	byte dayOfWeek = clock->getWeekDay(epochTime);
+    	byte dayOfWeek = wClock->getWeekDay(epochTime);
     	//make sunday a seven
     	dayOfWeek = (dayOfWeek ==0 ? 7 : dayOfWeek);
     	return dayOfWeek;
@@ -625,8 +628,8 @@ private:
     				//55 aa 01 00 00 01 01
     				//55 aa 01 00 00 01 00
     				break;
-    			default:
-    				notifyUnknownCommand();
+    			//default:
+    				//notifyUnknownCommand();
     			}
     		} else if (receivedCommand[3] == 0x03) {
     			//ignore, MCU response to wifi state
@@ -669,8 +672,8 @@ private:
     					//desired Temperature
     					//e.g. 24.5C: 55 aa 01 07 00 08 02 02 00 04 00 00 00 31
     					newValue = (float) receivedCommand[13] / 2.0f;
-    					changed = ((changed) || (!desiredTemperature->equalsDouble(newValue)));
-    					desiredTemperature->setDouble(newValue);
+    					changed = ((changed) || (!targetTemperature->equalsDouble(newValue)));
+    					targetTemperature->setDouble(newValue);
     					receivedStates[1] = true;
     					notifyMcuCommand("desiredTemperature_x02");
     					knownCommand = true;
@@ -730,7 +733,7 @@ private:
     					//00 06 28 00 08 28 1E 0B 28 1E 0D 28 00 11 28 00 16 1E
     					//00 06 28 00 08 28 1E 0B 28 1E 0D 28 00 11 28 00 16 1E
     					this->schedulesDataPoint = receivedCommand[6];
-    					this->thermostatModel->setByte(this->schedulesDataPoint == 0x65 ? MODEL_BHT_002_GBLW : MODEL_BAC_002_ALW);
+    					//this->thermostatModel->setByte(this->schedulesDataPoint == 0x65 ? MODEL_BHT_002_GBLW : MODEL_BAC_002_ALW);
     					for (int i = 0; i < 54; i++) {
     						newByte = receivedCommand[i + 10];
     						schedulesChanged = ((schedulesChanged) || (newByte != schedules[i]));
@@ -760,7 +763,7 @@ private:
     					//cooling:     55 AA 00 06 00 05 66 04 00 01 00
     					//heating:     55 AA 00 06 00 05 66 04 00 01 01
     					//ventilation: 55 AA 00 06 00 05 66 04 00 01 02
-    					this->thermostatModel->setByte(MODEL_BAC_002_ALW);
+    					//this->thermostatModel->setByte(MODEL_BAC_002_ALW);
     					changed = ((changed) || (receivedCommand[10] != this->systemMode));
     					this->systemMode = receivedCommand[10];
     					notifyMcuCommand("systemMode_x66");
@@ -811,9 +814,9 @@ private:
 
     void desiredTemperatureToMcu(WProperty* property) {
     	if (!this->receivingDataFromMcu) {
-    	    log("Set desired Temperature to " + String(this->desiredTemperature->getDouble()));
+    		network->log("Set desired Temperature to " + String(this->targetTemperature->getDouble()));
     	    //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
-    	    byte dt = (byte) (this->desiredTemperature->getDouble() * 2);
+    	    byte dt = (byte) (this->targetTemperature->getDouble() * 2);
     	    unsigned char setTemperatureCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x08,
     	    		0x02, 0x02, 0x00, 0x04,
 					0x00, 0x00, 0x00, dt};
@@ -858,7 +861,8 @@ private:
     	return (this->schedulesDataPoint != 0x00);
     }
 
-    bool addSchedules(int startAddr, JsonArray& array);
+    /*ToDo
+     * bool addSchedules(int startAddr, JsonArray& array);
     void addSchedules(int startAddr, JsonObject& json);
 
     bool setSchedules(int startAddr, JsonDocument json, String dayRange) {
@@ -887,7 +891,7 @@ private:
        		}
        	}
        	return changed;
-    }
+    }*/
 
     void notifyState() {
     	lastNotify = 0;
@@ -909,21 +913,24 @@ private:
     }
 
     void loadSettings() {
-    	EEPROM.begin(512);
+    	/*ToDo
+    	 * EEPROM.begin(512);
     	if (EEPROM.read(295) == STORED_FLAG_BECA) {
     		this->schedulesDayOffset = EEPROM.read(296);
     	} else {
     		this->schedulesDayOffset = 0;
     	}
-    	EEPROM.end();
+    	EEPROM.end();*/
     }
 
     void saveSettings() {
-    	EEPROM.begin(512);
+    	/*ToDo
+    	    	 * EEPROM.begin(512);
     	EEPROM.write(296, this->schedulesDayOffset);
     	EEPROM.write(295, STORED_FLAG_BECA);
     	EEPROM.commit();
     	EEPROM.end();
+    	*/
     }
 
 };

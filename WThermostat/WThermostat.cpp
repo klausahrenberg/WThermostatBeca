@@ -4,9 +4,9 @@
 #include "WClock.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "0.77"
+#define VERSION "0.11"
 #define DEBUG false
-#define NTP_SERVER "de.pool.ntp.org"
+
 
 WNetwork* network;
 WBecaDevice* becaDevice;
@@ -15,7 +15,7 @@ WClock* wClock;
 void setup() {
 	Serial.begin(9600);
 	//Wifi and Mqtt connection
-	network = new WNetwork(DEBUG, APPLICATION, VERSION, true, NO_LED, 1100);
+	network = new WNetwork(DEBUG, APPLICATION, VERSION, true, NO_LED);
 	network->setOnNotify([]() {
 		if (network->isWifiConnected()) {
 
@@ -32,18 +32,16 @@ void setup() {
 		becaDevice->cancelConfiguration();
 	});
 	//KaClock - time sync
-	wClock = new WClock(DEBUG, network, NTP_SERVER);
+	wClock = new WClock(network, APPLICATION);
+	network->addDevice(wClock);
 	wClock->setOnTimeUpdate([]() {
 		becaDevice->sendActualTimeToBeca();
 	});
 	wClock->setOnError([](String error) {
-		DynamicJsonDocument* jsonDocument = network->getJsonDocument();
-		JsonObject json = jsonDocument->to<JsonObject>();
-		json["message"] = error;
-		return network->publishMqtt("error", json);
+		return network->publishMqtt("error", "message", error);
 	});
 	//Communication between ESP and Beca-Mcu
-	becaDevice = new WBecaDevice(DEBUG, APPLICATION, network->getSettings(), wClock);
+	becaDevice = new WBecaDevice(network, DEBUG, APPLICATION, network->getSettings(), wClock);
 	network->addDevice(becaDevice);
 
 	becaDevice->setOnSchedulesChange([]() {
@@ -51,10 +49,7 @@ void setup() {
 		return true;// sendSchedulesViaMqtt();
 	});
 	becaDevice->setOnNotifyCommand([](String commandType) {
-		DynamicJsonDocument* jsonDocument = network->getJsonDocument();
-		JsonObject json = jsonDocument->to<JsonObject>();
-		json[commandType] = becaDevice->getCommandAsString();
-		return network->publishMqtt("mcucommand", json);
+		return network->publishMqtt("mcucommand", commandType, becaDevice->getCommandAsString());
 	});
 	becaDevice->setOnConfigurationRequest([]() {
 		network->startWebServer();
@@ -63,9 +58,7 @@ void setup() {
 }
 
 void loop() {
-	unsigned long now = millis();
-	wClock->loop();
-	network->loop(now);
+	network->loop(millis());
 	delay(50);
 }
 
