@@ -25,7 +25,6 @@ const static char HTTP_CONFIG_PAGE[]         PROGMEM = R"=====(
 #define MODEL_BHT_002_GBLW 0
 #define MODEL_BAC_002_ALW 1
 #define HEARTBEAT_INTERVAL 10000
-#define NOTIFY_INTERVAL 300000 //notify at least every 5 minutes
 #define MINIMUM_INTERVAL 2000
 #define STATE_COMPLETE 5
 
@@ -51,46 +50,45 @@ const byte STORED_FLAG_BECA = 0x36;
 class WBecaDevice: public WDevice {
 public:
     typedef std::function<bool()> THandlerFunction;
-    typedef std::function<bool(String)> TCommandHandlerFunction;
+    typedef std::function<bool(const char*)> TCommandHandlerFunction;
 
-    WBecaDevice(WNetwork* network, boolean debug, String applicationName, WSettings* settings, WClock* wClock)
+    WBecaDevice(WNetwork* network, WClock* wClock)
     	: WDevice(network, "thermostat", "thermostat", DEVICE_TYPE_THERMOSTAT) {
     	this->logMcu = false;
     	this->receivingDataFromMcu = false;
-    	this->settings = settings;
 		this->providingConfigPage = true;
     	this->wClock = wClock;
     	this->fanSpeed = FAN_SPEED_NONE;
     	this->systemMode = SYSTEM_MODE_NONE;
-    	this->actualTemperature = new WTemperatureProperty("temperature", "Actual", "");
+    	this->actualTemperature = new WTemperatureProperty("temperature", "Actual");
     	this->actualTemperature->setReadOnly(true);
     	this->addProperty(actualTemperature);
-    	this->targetTemperature = new WTargetTemperatureProperty("targetTemperature", "Target", "");//, 12.0, 28.0);
+    	this->targetTemperature = new WTargetTemperatureProperty("targetTemperature", "Target");//, 12.0, 28.0);
     	this->targetTemperature->setMultipleOf(0.5);
     	this->targetTemperature->setOnChange(std::bind(&WBecaDevice::desiredTemperatureToMcu, this, std::placeholders::_1));
     	this->targetTemperature->setDouble(23);
     	this->addProperty(targetTemperature);
-    	this->deviceOn = new WOnOffProperty("deviceOn", "Power", "");
+    	this->deviceOn = new WOnOffProperty("deviceOn", "Power");
     	this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
     	this->addProperty(deviceOn);
-    	this->manualMode = new WOnOffProperty("manualMode", "Manual", "");
+    	this->manualMode = new WOnOffProperty("manualMode", "Manual");
     	this->manualMode->setOnChange(std::bind(&WBecaDevice::manualModeToMcu, this, std::placeholders::_1));
     	this->addProperty(manualMode);
-    	this->ecoMode = new WOnOffProperty("ecoMode", "Eco", "");
+    	this->ecoMode = new WOnOffProperty("ecoMode", "Eco");
     	this->ecoMode->setOnChange(std::bind(&WBecaDevice::ecoModeToMcu, this, std::placeholders::_1));
     	this->ecoMode->setVisibility(MQTT);
     	this->addProperty(ecoMode);
-    	this->locked = new WOnOffProperty("locked", "Lock", "");
+    	this->locked = new WOnOffProperty("locked", "Lock");
     	this->locked->setOnChange(std::bind(&WBecaDevice::lockedToMcu, this, std::placeholders::_1));
     	this->locked->setVisibility(MQTT);
     	this->addProperty(locked);
-    	this->status = new WHeatingCoolingProperty("status", "Status", "");
+    	this->status = new WHeatingCoolingProperty("status", "Status");
     	this->addProperty(status);
     	pinMode(5, INPUT);
     	this->actualFloorTemperature = nullptr;
-    	this->thermostatModel = settings->registerByte("thermostatModel", MODEL_BHT_002_GBLW);
+    	this->thermostatModel = network->getSettings()->registerByte("thermostatModel", MODEL_BHT_002_GBLW);
     	if (getThermostatModel() == MODEL_BHT_002_GBLW) {
-    		this->actualFloorTemperature = new WTemperatureProperty("floorTemperature", "Floor", "");
+    		this->actualFloorTemperature = new WTemperatureProperty("floorTemperature", "Floor");
     		this->actualFloorTemperature->setReadOnly(true);
     		this->actualFloorTemperature->setVisibility(MQTT);
     		this->addProperty(actualFloorTemperature);
@@ -106,7 +104,7 @@ public:
     }
 
     virtual String getConfigPage() {
-    	network->log("Beca thermostat config page");
+    	network->log()->notice(F("Beca thermostat config page"));
     	String page = FPSTR(HTTP_CONFIG_PAGE);
     	page.replace("{di}", getId());
     	for (int i = 0; i < COUNT_DEVICE_MODELS; i++) {
@@ -119,7 +117,7 @@ public:
     }
 
     void saveConfigPage() {
-    	network->log("save config page");
+    	network->log()->notice(F("save Beca config page"));
     	//ToDo
     	//this->thermostatModel->setByte(webServer->arg("tm").toInt());
     	//this->deviceMode->setByte(request->arg("dm").toInt());
@@ -554,7 +552,6 @@ protected:
     }
 
 private:
-    WSettings* settings;
     WClock *wClock;
     int receiveIndex;
     int commandLength;
@@ -608,9 +605,9 @@ private:
     	return ((dayOfWeek == 6) || (dayOfWeek == 7));
     }
 
-    void notifyMcuCommand(String commandType) {
+    void notifyMcuCommand(const char* commandType) {
     	if ((logMcu) && (onNotifyCommand)) {
-    		onNotifyCommand("mcu: " + commandType);
+    		onNotifyCommand(commandType);
     	}
     }
 
@@ -814,7 +811,7 @@ private:
 
     void desiredTemperatureToMcu(WProperty* property) {
     	if (!this->receivingDataFromMcu) {
-    		network->log("Set desired Temperature to " + String(this->targetTemperature->getDouble()));
+    		network->log()->notice(F("Set desired Temperature to %D"), this->targetTemperature->getDouble());
     	    //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
     	    byte dt = (byte) (this->targetTemperature->getDouble() * 2);
     	    unsigned char setTemperatureCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x08,

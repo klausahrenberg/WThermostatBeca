@@ -4,8 +4,8 @@
 #include "WClock.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "0.11"
-#define DEBUG false
+#define VERSION "0.36"
+#define DEBUG true
 
 
 WNetwork* network;
@@ -37,19 +37,19 @@ void setup() {
 	wClock->setOnTimeUpdate([]() {
 		becaDevice->sendActualTimeToBeca();
 	});
-	wClock->setOnError([](String error) {
+	wClock->setOnError([](const char* error) {
 		return network->publishMqtt("error", "message", error);
 	});
 	//Communication between ESP and Beca-Mcu
-	becaDevice = new WBecaDevice(network, DEBUG, APPLICATION, network->getSettings(), wClock);
+	becaDevice = new WBecaDevice(network, wClock);
 	network->addDevice(becaDevice);
 
 	becaDevice->setOnSchedulesChange([]() {
 		//Send schedules once at ESP start and at every change
 		return true;// sendSchedulesViaMqtt();
 	});
-	becaDevice->setOnNotifyCommand([](String commandType) {
-		return network->publishMqtt("mcucommand", commandType, becaDevice->getCommandAsString());
+	becaDevice->setOnNotifyCommand([](const char* commandType) {
+		return network->publishMqtt("mcucommand", commandType, becaDevice->getCommandAsString().c_str());
 	});
 	becaDevice->setOnConfigurationRequest([]() {
 		network->startWebServer();

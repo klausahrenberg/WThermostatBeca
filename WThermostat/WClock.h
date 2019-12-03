@@ -12,13 +12,13 @@
 #include "../../WAdapter/Wadapter/WNetwork.h"
 
 //#define DEFAULT_NTP_SERVER "de.pool.ntp.org"
-const static String DEFAULT_NTP_SERVER = "pool.ntp.org";
-const static String DEFAULT_TIME_ZONE_SERVER = "http://worldtimeapi.org/api/ip";
+const static char* DEFAULT_NTP_SERVER = "pool.ntp.org";
+const static char* DEFAULT_TIME_ZONE_SERVER = "http://worldtimeapi.org/api/ip";
 
 class WClock: public WDevice {
 public:
 	typedef std::function<void(void)> THandlerFunction;
-	typedef std::function<void(String)> TErrorHandlerFunction;
+	typedef std::function<void(const char*)> TErrorHandlerFunction;
 
 
 
@@ -29,10 +29,12 @@ public:
 		this->ntpServer = network->getSettings()->registerString("ntpServer", 32, DEFAULT_NTP_SERVER);
 		this->ntpServer->setReadOnly(true);
 		this->ntpServer->setString(DEFAULT_NTP_SERVER);
+		this->ntpServer->setVisibility(MQTT);
 		this->addProperty(ntpServer);
 		this->timeZoneServer = network->getSettings()->registerString("timeZoneServer", 64, DEFAULT_TIME_ZONE_SERVER);
 		this->timeZoneServer->setReadOnly(true);
 		this->timeZoneServer->setString(DEFAULT_TIME_ZONE_SERVER);
+		this->timeZoneServer->setVisibility(MQTT);
 		//this->ntpServer->setVisibility(MQTT);
 		this->addProperty(timeZoneServer);
 		this->epochTime = new WLongProperty("epochTime");
@@ -41,24 +43,24 @@ public:
 			p->setLong(getEpochTime());
 		});
 		this->addProperty(epochTime);
-		this->epochTimeFormatted = new WStringProperty("epochTimeFormatted", "epochTimeFormatted", "", 32);
+		this->epochTimeFormatted = new WStringProperty("epochTimeFormatted", "epochTimeFormatted", 32);
 		this->epochTimeFormatted->setReadOnly(true);
 		this->epochTimeFormatted->setOnValueRequest([this](WProperty* p) {
-			p->setString(getFormattedTime());
+			p->setString(getFormattedTime().c_str());
 		});
 		this->addProperty(epochTimeFormatted);
-		this->validTime = new WOnOffProperty("validTime", "validTime", "");
+		this->validTime = new WOnOffProperty("validTime", "validTime");
 		this->validTime->setBoolean(false);
 		this->validTime->setReadOnly(true);
 		this->addProperty(validTime);
-		this->timeZone = new WStringProperty("timezone", "timeZone", "", 32);
+		this->timeZone = new WStringProperty("timezone", "timeZone", 32);
 		this->timeZone->setReadOnly(true);
 		this->addProperty(timeZone);
-		this->rawOffset = new WIntegerProperty("raw_offset", "rawOffset", "");
+		this->rawOffset = new WIntegerProperty("raw_offset", "rawOffset");
 		this->rawOffset->setInteger(0);
 		this->rawOffset->setReadOnly(true);
 		this->addProperty(rawOffset);
-		this->dstOffset = new WIntegerProperty("dst_offset", "dstOffset", "");
+		this->dstOffset = new WIntegerProperty("dst_offset", "dstOffset");
 		this->dstOffset->setInteger(0);
 		this->dstOffset->setReadOnly(true);
 		this->addProperty(dstOffset);
@@ -73,8 +75,7 @@ public:
 				&& (WiFi.status() == WL_CONNECTED)) {
 			//1. Sync ntp
 			if ((lastNtpSync == 0) || (now - lastNtpSync > 60000)) {
-				//network->log("Time via NTP server '" + ntpServer->getString() + "'");
-				network->log(ntpServer->getString());
+				network->log()->notice(F("Time via NTP server '%s'"), ntpServer->c_str());
 				WiFiUDP ntpUDP;
 				NTPClient ntpClient(ntpUDP, ntpServer->c_str());
 				//ntpClient.begin();
@@ -82,10 +83,11 @@ public:
 				if (ntpClient.update()) {
 					lastNtpSync = millis();
 					ntpTime = ntpClient.getEpochTime();
-					network->log("NTP time: " + getFormattedTime());
+					network->log()->notice(F("NTP time: %s"), getFormattedTime().c_str());
 					notifyOnTimeUpdate();
 				} else {
-					notifyOnError("NTP sync failed: " + getFormattedTime());
+					String error = "NTP sync failed: " + getFormattedTime();
+					notifyOnError(error.c_str());
 				}
 			}
 			//2. Sync time zone
@@ -93,24 +95,24 @@ public:
 					&& ((lastTimeZoneSync == 0)
 							|| (now - lastTimeZoneSync > 60000)))
 					&& (WiFi.status() == WL_CONNECTED)) {
-				String request = timeZoneServer->getString();
-				network->log("Time zone update via '" + request + "'");
+				String request = timeZoneServer->c_str();
+				network->log()->notice(F("Time zone update via '%s'"), request.c_str());
 				HTTPClient http;
 				http.begin(request);
 				int httpCode = http.GET();
 				if (httpCode > 0) {
-					WJsonParser* parser = new WJsonParser();
+					WJsonParser parser;
 					this->timeZone->setReadOnly(false);
 					this->rawOffset->setReadOnly(false);
 					this->dstOffset->setReadOnly(false);
-					WProperty* property = parser->parse(this, http.getString().c_str());
+					WProperty* property = parser.parse(this, http.getString().c_str());
 					this->timeZone->setReadOnly(true);
 					this->rawOffset->setReadOnly(true);
 					this->dstOffset->setReadOnly(true);
 					if (property != nullptr) {
 						lastTimeZoneSync = millis();
 						validTime->setBoolean(true);
-						network->log("Time zone evaluated. Current local time: " + getFormattedTime());
+						network->log()->notice(F("Time zone evaluated. Current local time: %s"), getFormattedTime().c_str());
 						notifyOnTimeUpdate();
 						//success
 						/*JsonObject json = jsonDoc->as<JsonObject>();
@@ -331,8 +333,8 @@ private:
 		}
 	}
 
-	void notifyOnError(String error) {
-		network->log(error);
+	void notifyOnError(const char* error) {
+		network->log()->notice(error);
 		if (onError) {
 			onError(error);
 		}
