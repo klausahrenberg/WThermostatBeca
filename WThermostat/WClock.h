@@ -11,7 +11,6 @@
 #include "../../WAdapter/Wadapter/WDevice.h"
 #include "../../WAdapter/Wadapter/WNetwork.h"
 
-//#define DEFAULT_NTP_SERVER "de.pool.ntp.org"
 const static char* DEFAULT_NTP_SERVER = "pool.ntp.org";
 const static char* DEFAULT_TIME_ZONE_SERVER = "http://worldtimeapi.org/api/ip";
 
@@ -43,11 +42,9 @@ public:
 			p->setLong(getEpochTime());
 		});
 		this->addProperty(epochTime);
-		this->epochTimeFormatted = new WStringProperty("epochTimeFormatted", "epochTimeFormatted", 32);
+		this->epochTimeFormatted = new WStringProperty("epochTimeFormatted", "epochTimeFormatted", 19);
 		this->epochTimeFormatted->setReadOnly(true);
-		this->epochTimeFormatted->setOnValueRequest([this](WProperty* p) {
-			p->setString(getFormattedTime().c_str());
-		});
+		this->epochTimeFormatted->setOnValueRequest([this](WProperty* p) {updateFormattedTime();});
 		this->addProperty(epochTimeFormatted);
 		this->validTime = new WOnOffProperty("validTime", "validTime");
 		this->validTime->setBoolean(false);
@@ -83,11 +80,10 @@ public:
 				if (ntpClient.update()) {
 					lastNtpSync = millis();
 					ntpTime = ntpClient.getEpochTime();
-					network->log()->notice(F("NTP time: %s"), getFormattedTime().c_str());
+					network->log()->notice(F("NTP time synced: %s"), epochTimeFormatted->c_str());
 					notifyOnTimeUpdate();
 				} else {
-					String error = "NTP sync failed: " + getFormattedTime();
-					notifyOnError(error.c_str());
+					notifyOnError("NTP sync failed. ");
 				}
 			}
 			//2. Sync time zone
@@ -112,24 +108,9 @@ public:
 					if (property != nullptr) {
 						lastTimeZoneSync = millis();
 						validTime->setBoolean(true);
-						network->log()->notice(F("Time zone evaluated. Current local time: %s"), getFormattedTime().c_str());
+						network->log()->notice(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
 						notifyOnTimeUpdate();
-						//success
-						/*JsonObject json = jsonDoc->as<JsonObject>();
-						String utcOffset = json["utc_offset"];
-						rawOffset = utcOffset.substring(1, 3).toInt() * 3600
-										+ utcOffset.substring(4, 6).toInt() * 60;
-						//dstOffset = (parsed["dst"] == true ? 3600 : 0);
-						String tz = json["timezone"];
-						jsonDoc->clear();
-						this->timeZone = tz;
-						lastTimeZoneSync = millis();
-						validTime = true;
-						network->log("Time zone evaluated. Current local time: " + getFormattedTime());
-						notifyOnTimeUpdate();
-						*/
-						/*
-												 * {
+												 /* {
 												 *  "week_number":19,
 												 *  "utc_offset":"+09:00",
 												 *  "utc_datetime":"2019-05-07T23:32:15.214725+00:00",
@@ -245,33 +226,50 @@ public:
 		return day(epochTime);
 	}
 
-	String getFormattedTime() {
-		return getFormattedTime(getEpochTime());
+	void updateFormattedTime() {
+		updateFormattedTimeImpl(getEpochTime());
 	}
 
-	String getFormattedTime(unsigned long rawTime) {
-		uint16_t _year = year(rawTime);
-		String yearStr = String(_year);
-
+	void updateFormattedTimeImpl(unsigned long rawTime) {
+		WStringStream* stream = new WStringStream(19);
+		char buffer[5];
+		//year
+		int _year = year(rawTime);
+		itoa(_year, buffer, 10);
+		stream->print(buffer);
+		stream->print("-");
+		//month
 		uint8_t _month = month(rawTime);
-		String monthStr = _month < 10 ? "0" + String(_month) : String(_month);
-
+		if (_month < 10) stream->print("0");
+		itoa(_month, buffer, 10);
+		stream->print(buffer);
+		stream->print("-");
+		//month
 		uint8_t _day = day(rawTime);
-		String dayStr = _day < 10 ? "0" + String(_day) : String(_day);
+		if (_day < 10) stream->print("0");
+		itoa(_day, buffer, 10);
+		stream->print(buffer);
+		stream->print(" ");
+		//hours
+		unsigned long _hours = (rawTime % 86400L) / 3600;
+		if (_hours < 10) stream->print("0");
+		itoa(_hours, buffer, 10);
+		stream->print(buffer);
+		stream->print(":");
+		//minutes
+		unsigned long _minutes = (rawTime % 3600) / 60;
+		if (_minutes < 10) stream->print("0");
+		itoa(_minutes, buffer, 10);
+		stream->print(buffer);
+		stream->print(":");
+		//seconds
+		unsigned long _seconds = rawTime % 60;
+		if (_seconds < 10) stream->print("0");
+		itoa(_seconds, buffer, 10);
+		stream->print(buffer);
 
-		unsigned long hours = (rawTime % 86400L) / 3600;
-		String hoursStr = hours < 10 ? "0" + String(hours) : String(hours);
-
-		unsigned long minutes = (rawTime % 3600) / 60;
-		String minuteStr =
-				minutes < 10 ? "0" + String(minutes) : String(minutes);
-
-		unsigned long seconds = rawTime % 60;
-		String secondStr =
-				seconds < 10 ? "0" + String(seconds) : String(seconds);
-
-		return yearStr + "-" + monthStr + "-" + dayStr + " " + hoursStr + ":"
-				+ minuteStr + ":" + secondStr;
+		epochTimeFormatted->setString(stream->c_str());
+		delete stream;
 	}
 
 	bool isValidTime() {
@@ -290,29 +288,18 @@ public:
 		return dstOffset->getInteger();
 	}
 
-	/*void getMqttState(JsonObject &json, bool complete) {
-		json["clockTime"] = getFormattedTime();
-		json["validTime"] = isValidTime();
-		json["timeZone"] = getTimeZone();
-		json["lastNtpSync"] = (
-				lastNtpSync > 0 ? getFormattedTime(ntpTime + rawOffset + dstOffset
-				+ (lastNtpSync / 1000)) :
-									"n.a.");
-		if (complete) {
-			json["clockTimeRaw"] = getEpochTime();
-			json["lastTimeZoneSync"] = (
-					lastTimeZoneSync > 0 ? getFormattedTime(ntpTime + rawOffset + dstOffset
-					+ (lastTimeZoneSync / 1000)) :
-											"n.a.");
-			//json["dstOffset"] = getDstOffset();
-			json["rawOffset"] = getRawOffset();
-		}
+	void printConfigPage(WStringStream* page) {
+    	network->log()->notice(F("Clock config page"));
+    	page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "NTP server:", "ntp", "32", ntpServer->c_str());
+    	page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "Time zone request:", "tz", "64", timeZoneServer->c_str());
+    	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
+	}
 
-	}*/
-
-	/*String getNtpServer() {
-    	return ntpServer->getString();
-    }*/
+	void saveConfigPage(ESP8266WebServer* webServer) {
+		network->log()->notice(F("Save clock config page"));
+		this->ntpServer->setString(webServer->arg("ntp").c_str());
+		this->timeZoneServer->setString(webServer->arg("tz").c_str());
+	}
 
 private:
 	THandlerFunction onTimeUpdate;

@@ -7,19 +7,28 @@
 #include "../../WAdapter/Wadapter/WDevice.h"
 #include "WClock.h"
 
-const static char HTTP_CONFIG_PAGE[]         PROGMEM = R"=====(
-<form method='get' action='saveDeviceConfiguration_{di}'>
-        	<div>
-        		<select name="tm">        		
-					<option value="0" {0}>Floor status (BHT-002-GBLW)</option>
-                    <option value="1" {1}>Heating, Cooling, Ventilation (BAC-002-ALW)</option>					
-				</select>
-        	</div>
-		<div>
-			<button type='submit'>Save configuration</button>
-		</div>
-</form>
+const static char HTTP_CONFIG_COMBOBOX_BEGIN[]         PROGMEM = R"=====(
+        <div>
+			%s<br>
+        	<select name="%s">
 )=====";
+const static char HTTP_CONFIG_PAGE_ITEM[]         PROGMEM = R"=====(        		
+				<option value="%s" %s>%s</option>                  
+)=====";
+const static char HTTP_CONFIG_COMBOBOX_END[]         PROGMEM = R"=====(					
+			</select>
+        </div>
+)=====";
+const static char HTTP_CONFIG_CHECKBOX_RELAY[]         PROGMEM = R"=====(					
+		<div>
+			<label>
+				<input type="checkbox" name="rs" value="true" %s>Relay at GPIO 5
+			</label>			
+			<br>
+			<small>* Hardware modification is needed at Thermostat to make this work.</small>
+		</div>
+)=====";
+
 
 #define COUNT_DEVICE_MODELS 2
 #define MODEL_BHT_002_GBLW 0
@@ -27,6 +36,7 @@ const static char HTTP_CONFIG_PAGE[]         PROGMEM = R"=====(
 #define HEARTBEAT_INTERVAL 10000
 #define MINIMUM_INTERVAL 2000
 #define STATE_COMPLETE 5
+#define PIN_HEATING_RELAY 5
 
 const unsigned char COMMAND_START[] = {0x55, 0xAA};
 const char AR_COMMAND_END = '\n';
@@ -71,9 +81,9 @@ public:
     	this->deviceOn = new WOnOffProperty("deviceOn", "Power");
     	this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
     	this->addProperty(deviceOn);
-    	this->manualMode = new WOnOffProperty("manualMode", "Manual");
-    	this->manualMode->setOnChange(std::bind(&WBecaDevice::manualModeToMcu, this, std::placeholders::_1));
-    	this->addProperty(manualMode);
+    	this->schedulesMode = new WThermostatModeProperty("schedulesMode", "Mode");
+    	this->schedulesMode->setOnChange(std::bind(&WBecaDevice::schedulesModeToMcu, this, std::placeholders::_1));
+    	this->addProperty(schedulesMode);
     	this->ecoMode = new WOnOffProperty("ecoMode", "Eco");
     	this->ecoMode->setOnChange(std::bind(&WBecaDevice::ecoModeToMcu, this, std::placeholders::_1));
     	this->ecoMode->setVisibility(MQTT);
@@ -82,9 +92,7 @@ public:
     	this->locked->setOnChange(std::bind(&WBecaDevice::lockedToMcu, this, std::placeholders::_1));
     	this->locked->setVisibility(MQTT);
     	this->addProperty(locked);
-    	this->status = new WHeatingCoolingProperty("status", "Status");
-    	this->addProperty(status);
-    	pinMode(5, INPUT);
+    	//Model
     	this->actualFloorTemperature = nullptr;
     	this->thermostatModel = network->getSettings()->registerByte("thermostatModel", MODEL_BHT_002_GBLW);
     	if (getThermostatModel() == MODEL_BHT_002_GBLW) {
@@ -93,9 +101,18 @@ public:
     		this->actualFloorTemperature->setVisibility(MQTT);
     		this->addProperty(actualFloorTemperature);
     	}
+    	//Heating Relay and Status property
+    	this->status = nullptr;
+    	this->supportingHeatingRelay = network->getSettings()->registerBoolean("supportingHeatingRelay", true);
+    	if (isSupportingHeatingRelay()) {
+    		this->status = new WHeatingCoolingProperty("status", "Status");
+    		this->addProperty(status);
+    		pinMode(PIN_HEATING_RELAY, INPUT);
+    	}
+    	//schedulesDayOffset
+    	this->schedulesDayOffset = network->getSettings()->registerByte("schedulesDayOffset", 0);
 
     	lastHeartBeat = lastNotify = lastScheduleNotify = 0;
-    	this->loadSettings();
     	resetAll();
     	for (int i = 0; i < STATE_COMPLETE; i++) {
     		receivedStates[i] = false;
@@ -103,29 +120,40 @@ public:
     	this->schedulesDataPoint = 0x00;
     }
 
-    virtual String getConfigPage() {
+    virtual void printConfigPage(WStringStream* page) {
     	network->log()->notice(F("Beca thermostat config page"));
-    	String page = FPSTR(HTTP_CONFIG_PAGE);
-    	page.replace("{di}", getId());
-    	for (int i = 0; i < COUNT_DEVICE_MODELS; i++) {
-    		page.replace("{" + String(i) + "}", (getThermostatModel() == i ? "selected" : ""));
-    	}
-    	/*for (int i = 0; i < COUNT_DEVICE_MODES; i++) {
-    		page.replace("{m" + String(i) + "}", (getDeviceMode() == i ? "selected" : ""));
-    	}*/
-    	return page;
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
+    	//ComboBox with model selection
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_COMBOBOX_BEGIN), "Thermostat model:", "tm");
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "0", (getThermostatModel() == 0 ? "selected" : ""), "Floor heating (BHT-002-GBLW)");
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "1", (getThermostatModel() == 1 ? "selected" : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
+    	page->print(FPSTR(HTTP_CONFIG_COMBOBOX_END));
+    	//Checkbox with support for relay
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_CHECKBOX_RELAY), (this->isSupportingHeatingRelay() ? "checked" : ""));
+    	//ComboBox with weekday
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_COMBOBOX_BEGIN), "Workday schedules:", "ws");
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "0", (getSchedulesDayOffset() == 0 ? "selected" : ""), "Workday (1-5): Mon-Fri; Weekend (6 - 7): Sat-Sun");
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "1", (getSchedulesDayOffset() == 1 ? "selected" : ""), "Workday (1-5): Sun-Thu; Weekend (6 - 7): Fri-Sat");
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "2", (getSchedulesDayOffset() == 2 ? "selected" : ""), "Workday (1-5): Sat-Wed; Weekend (6 - 7): Thu-Fri");
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "3", (getSchedulesDayOffset() == 3 ? "selected" : ""), "Workday (1-5): Fri-Tue; Weekend (6 - 7): Wed-Thu");
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "4", (getSchedulesDayOffset() == 4 ? "selected" : ""), "Workday (1-5): Thu-Mon; Weekend (6 - 7): Tue-Wed");
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "5", (getSchedulesDayOffset() == 5 ? "selected" : ""), "Workday (1-5): Wed-Sun; Weekend (6 - 7): Mon-Tue");
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "6", (getSchedulesDayOffset() == 6 ? "selected" : ""), "Workday (1-5): Tue-Sat; Weekend (6 - 7): Sun-Mon");
+    	page->print(FPSTR(HTTP_CONFIG_COMBOBOX_END));
+
+    	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
     }
 
-    void saveConfigPage() {
-    	network->log()->notice(F("save Beca config page"));
-    	//ToDo
-    	//this->thermostatModel->setByte(webServer->arg("tm").toInt());
-    	//this->deviceMode->setByte(request->arg("dm").toInt());
+    void saveConfigPage(ESP8266WebServer* webServer) {
+        network->log()->notice(F("Save Beca config page"));
+        this->thermostatModel->setByte(webServer->arg("tm").toInt());
+        this->schedulesDayOffset->setByte(webServer->arg("ws").toInt());
+        this->supportingHeatingRelay->setBoolean(webServer->arg("rs") == "true");
     }
 
     void loop(unsigned long now) {
-    	if (status != nullptr) {
-    		bool st = digitalRead(5);
+    	if ((isSupportingHeatingRelay()) && (status != nullptr)) {
+    		bool st = digitalRead(PIN_HEATING_RELAY);
     		this->status->setString(st ? VALUE_HEATING : VALUE_OFF);
     	}
     	while (Serial.available() > 0) {
@@ -248,7 +276,7 @@ public:
     	//DEC:                   01 19 02 20 17 51 44 03
     	//HEX: 55 AA 00 1C 00 08 01 13 02 14 11 33 2C 03
     	unsigned long epochTime = wClock->getEpochTime();
-    	epochTime = epochTime + (schedulesDayOffset * 86400);
+    	epochTime = epochTime + (getSchedulesDayOffset() * 86400);
     	byte year = wClock->getYear(epochTime) % 100;
     	byte month = wClock->getMonth(epochTime);
     	byte dayOfMonth = wClock->getDay(epochTime);
@@ -261,28 +289,6 @@ public:
     											hours, minutes, seconds, dayOfWeek};
     	commandCharsToSerial(14, cancelConfigCommand);
     }
-
-    /*void getMqttState(JsonObject& json) {
-    	json["deviceOn"] = deviceOn;
-    	json["desiredTemperature"] = desiredTemperature;
-    	if (!actualTemperature->isNull()) {
-    		json["actualTemperature"] = actualTemperature->getDouble();
-    	}
-    	if ((actualFloorTemperature != nullptr) && (!actualFloorTemperature->isNull())) {
-    		json["actualFloorTemperature"] = actualFloorTemperature->getDouble();
-    	}
-    	json["manualMode"] = manualMode;
-    	json["ecoMode"] = ecoMode;
-    	json["locked"] = locked;
-    	if (getThermostatModel() == MODEL_BAC_002_ALW) {
-    		json["fanSpeed"] = this->getFanSpeedAsString();
-    		json["systemMode"] = this->getSystemModeAsString();
-    	}
-    	json["thermostatModel"] = this->thermostatModel;
-    	json["logMcu"] = logMcu;
-    	json["schedulesDayOffset"] = schedulesDayOffset;
-    	json["weekend"] = isWeekend();
-    }*/
 
     /*ToDo
      * void getMqttSchedules(JsonObject json, String dayRange) {
@@ -322,18 +328,6 @@ public:
     	if (((int) (desiredTemperature * 10) % 5) == 0) {
     		this->targetTemperature->setDouble(desiredTemperature);
     	}
-    }
-
-    void setManualMode(bool manualMode) {
-    	this->manualMode->setBoolean(manualMode);
-    }
-
-    void setEcoMode(bool ecoMode) {
-    	this->ecoMode->setBoolean(ecoMode);
-    }
-
-    void setLocked(bool locked) {
-    	this->locked->setBoolean(locked);
     }
 
     /*ToDo
@@ -524,6 +518,9 @@ public:
     }
 
     bool isDeviceStateComplete() {
+    	if (network->isDebug()) {
+    		return true;
+    	}
     	for (int i = 0; i < STATE_COMPLETE; i++) {
     		if (receivedStates[i] == false) {
     			return false;
@@ -532,23 +529,18 @@ public:
     	return true;
     }
 
-    signed char getSchedulesDayOffset() {
-    	return schedulesDayOffset;
-    }
-
-    void setSchedulesDayOffset(signed char schedulesDayOffset) {
-    	if (this->schedulesDayOffset != schedulesDayOffset) {
-    		this->schedulesDayOffset = schedulesDayOffset;
-    		saveSettings();
-    		this->sendActualTimeToBeca();
-    		notifyState();
-    	}
+    byte getSchedulesDayOffset() {
+    	return schedulesDayOffset->getByte();
     }
 
 protected:
 
     byte getThermostatModel() {
     	return this->thermostatModel->getByte();
+    }
+
+    bool isSupportingHeatingRelay() {
+        return this->supportingHeatingRelay->getBoolean();
     }
 
 private:
@@ -564,7 +556,7 @@ private:
     WProperty* targetTemperature;
     WProperty* actualTemperature;
     WProperty* actualFloorTemperature;
-    WProperty* manualMode;
+    WProperty* schedulesMode;
     WProperty* ecoMode;
     WProperty* locked;
     byte fanSpeed, systemMode;
@@ -572,8 +564,9 @@ private:
     boolean receivedStates[STATE_COMPLETE];
     byte schedulesDataPoint;
     WProperty* thermostatModel;
+    WProperty *supportingHeatingRelay;
     WProperty* ntpServer;
-    signed char schedulesDayOffset;
+    WProperty* schedulesDayOffset;
     THandlerFunction onConfigurationRequest, onSchedulesChange;
     TCommandHandlerFunction onNotifyCommand;
     unsigned long lastNotify, lastScheduleNotify;
@@ -593,7 +586,7 @@ private:
 
     byte getDayOfWeek() {
     	unsigned long epochTime = wClock->getEpochTime();
-    	epochTime = epochTime + (schedulesDayOffset * 86400);
+    	epochTime = epochTime + (getSchedulesDayOffset() * 86400);
     	byte dayOfWeek = wClock->getWeekDay(epochTime);
     	//make sunday a seven
     	dayOfWeek = (dayOfWeek ==0 ? 7 : dayOfWeek);
@@ -690,10 +683,10 @@ private:
     				break;
     			case 0x04:
     				if (commandLength == 0x05) {
-    					//manualMode
+    					//manualMode?
     					newB = (receivedCommand[10] == 0x01);
-    					changed = ((changed) || (newB != manualMode->getBoolean()));
-    					manualMode->setBoolean(newB);
+    					changed = ((changed) || ((newB) && (!schedulesMode->equalsString(THERMOSTAT_MODE_OFF))) || ((!newB) && (!schedulesMode->equalsString(THERMOSTAT_MODE_AUTO))));
+    					schedulesMode->setString(newB ? THERMOSTAT_MODE_OFF : THERMOSTAT_MODE_AUTO);
     					receivedStates[2] = true;
     					notifyMcuCommand("manualMode_x04");
     					knownCommand = true;
@@ -821,10 +814,10 @@ private:
     	}
     }
 
-    void manualModeToMcu(WProperty* property) {
+    void schedulesModeToMcu(WProperty* property) {
     	if (!this->receivingDataFromMcu) {
         	//55 AA 00 06 00 05 04 04 00 01 01
-        	byte dt = (this->manualMode->getBoolean() ? 0x01 : 0x00);
+        	byte dt = (schedulesMode->equalsString(THERMOSTAT_MODE_OFF) ? 0x01 : 0x00);
         	unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
         	                                    0x04, 0x04, 0x00, 0x01, dt};
         	commandCharsToSerial(11, deviceOnCommand);
@@ -907,27 +900,6 @@ private:
     	if (onNotifyCommand) {
     		onNotifyCommand("unknown");
     	}
-    }
-
-    void loadSettings() {
-    	/*ToDo
-    	 * EEPROM.begin(512);
-    	if (EEPROM.read(295) == STORED_FLAG_BECA) {
-    		this->schedulesDayOffset = EEPROM.read(296);
-    	} else {
-    		this->schedulesDayOffset = 0;
-    	}
-    	EEPROM.end();*/
-    }
-
-    void saveSettings() {
-    	/*ToDo
-    	    	 * EEPROM.begin(512);
-    	EEPROM.write(296, this->schedulesDayOffset);
-    	EEPROM.write(295, STORED_FLAG_BECA);
-    	EEPROM.commit();
-    	EEPROM.end();
-    	*/
     }
 
 };
