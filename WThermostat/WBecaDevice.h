@@ -106,7 +106,7 @@ public:
     	if (getThermostatModel() == MODEL_BHT_002_GBLW) {
     		this->actualFloorTemperature = new WTemperatureProperty("floorTemperature", "Floor");
     		this->actualFloorTemperature->setReadOnly(true);
-    		this->actualFloorTemperature->setVisibility(ALL);
+    		this->actualFloorTemperature->setVisibility(MQTT);
     		this->addProperty(actualFloorTemperature);
     	} else if (getThermostatModel() == MODEL_BAC_002_ALW) {
     		this->systemMode = new WProperty("systemMode", "System Mode", STRING);
