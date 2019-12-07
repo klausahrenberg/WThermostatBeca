@@ -36,7 +36,8 @@ const static char HTTP_CONFIG_CHECKBOX_RELAY[]         PROGMEM = R"=====(
 #define HEARTBEAT_INTERVAL 10000
 #define MINIMUM_INTERVAL 2000
 #define STATE_COMPLETE 5
-#define PIN_HEATING_RELAY 5
+#define PIN_STATE_HEATING_RELAY 5
+#define PIN_STATE_COOLING_RELAY 4
 
 const unsigned char COMMAND_START[] = {0x55, 0xAA};
 const char AR_COMMAND_END = '\n';
@@ -45,15 +46,20 @@ const String SCHEDULE_SATURDAY = "saturday";
 const String SCHEDULE_SUNDAY = "sunday";
 const String SCHEDULE_HOUR = "h";
 const String SCHEDULE_TEMPERATURE = "t";
-const byte FAN_SPEED_NONE = 0xFF;
-const byte FAN_SPEED_AUTO = 0x00;
-const byte FAN_SPEED_LOW  = 0x03;
-const byte FAN_SPEED_MED  = 0x02;
-const byte FAN_SPEED_HIGH = 0x01;
-const byte SYSTEM_MODE_NONE        = 0xFF;
-const byte SYSTEM_MODE_COOLING     = 0x00;
-const byte SYSTEM_MODE_HEATING     = 0x01;
-const byte SYSTEM_MODE_VENTILATION = 0x02;
+const char* SCHEDULES_MODE_OFF = "off";
+const char* SCHEDULES_MODE_AUTO = "auto";
+const char* SYSTEM_MODE_NONE = "none";
+const char* SYSTEM_MODE_COOL = "cool";
+const char* SYSTEM_MODE_HEAT = "heat";
+const char* SYSTEM_MODE_FAN = "fan_only";
+const char* STATE_OFF = "off";
+const char* STATE_HEATING = "heating";
+const char* STATE_COOLING = "cooling";
+const char* FAN_MODE_NONE = "none";
+const char* FAN_MODE_AUTO = "auto";
+const char* FAN_MODE_LOW  = "low";
+const char* FAN_MODE_MEDIUM  = "medium";
+const char* FAN_MODE_HIGH = "high";
 
 const byte STORED_FLAG_BECA = 0x36;
 
@@ -68,8 +74,7 @@ public:
     	this->receivingDataFromMcu = false;
 		this->providingConfigPage = true;
     	this->wClock = wClock;
-    	this->fanSpeed = FAN_SPEED_NONE;
-    	this->systemMode = SYSTEM_MODE_NONE;
+    	this->systemMode = nullptr;
     	this->actualTemperature = new WTemperatureProperty("temperature", "Actual");
     	this->actualTemperature->setReadOnly(true);
     	this->addProperty(actualTemperature);
@@ -81,7 +86,10 @@ public:
     	this->deviceOn = new WOnOffProperty("deviceOn", "Power");
     	this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
     	this->addProperty(deviceOn);
-    	this->schedulesMode = new WThermostatModeProperty("schedulesMode", "Mode");
+    	this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING);
+    	this->schedulesMode->setAtType("ThermostatModeProperty");
+    	this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
+    	this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
     	this->schedulesMode->setOnChange(std::bind(&WBecaDevice::schedulesModeToMcu, this, std::placeholders::_1));
     	this->addProperty(schedulesMode);
     	this->ecoMode = new WOnOffProperty("ecoMode", "Eco");
@@ -98,17 +106,42 @@ public:
     	if (getThermostatModel() == MODEL_BHT_002_GBLW) {
     		this->actualFloorTemperature = new WTemperatureProperty("floorTemperature", "Floor");
     		this->actualFloorTemperature->setReadOnly(true);
-    		this->actualFloorTemperature->setVisibility(MQTT);
+    		this->actualFloorTemperature->setVisibility(ALL);
     		this->addProperty(actualFloorTemperature);
+    	} else if (getThermostatModel() == MODEL_BAC_002_ALW) {
+    		this->systemMode = new WProperty("systemMode", "System Mode", STRING);
+        	this->systemMode->setAtType("ThermostatModeProperty");
+        	this->systemMode->addEnumString(SYSTEM_MODE_NONE);
+        	this->systemMode->addEnumString(SYSTEM_MODE_COOL);
+        	this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
+        	this->systemMode->addEnumString(SYSTEM_MODE_FAN);
+        	this->systemMode->setString(SYSTEM_MODE_NONE);
+        	this->addProperty(systemMode);
+    		this->fanMode = new WProperty("fanMode", "Fan", STRING);
+        	this->fanMode->setAtType("FanModeProperty");
+        	this->fanMode->addEnumString(FAN_MODE_NONE);
+        	this->fanMode->addEnumString(FAN_MODE_LOW);
+        	this->fanMode->addEnumString(FAN_MODE_MEDIUM);
+        	this->fanMode->addEnumString(FAN_MODE_HIGH);
+        	this->fanMode->setString(FAN_MODE_NONE);
+        	this->addProperty(fanMode);
     	}
-    	//Heating Relay and Status property
-    	this->status = nullptr;
+    	//Heating Relay and State property
+    	this->state = nullptr;
     	this->supportingHeatingRelay = network->getSettings()->registerBoolean("supportingHeatingRelay", true);
-    	if (isSupportingHeatingRelay()) {
-    		this->status = new WHeatingCoolingProperty("status", "Status");
-    		this->addProperty(status);
-    		pinMode(PIN_HEATING_RELAY, INPUT);
+    	this->supportingCoolingRelay = network->getSettings()->registerBoolean("supportingCoolingRelay", false);
+    	if (isSupportingHeatingRelay()) pinMode(PIN_STATE_HEATING_RELAY, INPUT);
+    	if (isSupportingCoolingRelay()) pinMode(PIN_STATE_COOLING_RELAY, INPUT);
+    	if ((isSupportingHeatingRelay()) || (isSupportingCoolingRelay())) {
+    		this->state = new WProperty("state", "State", STRING);
+    		this->state->setAtType("HeatingCoolingProperty");
+    		this->state->setReadOnly(true);
+    		this->state->addEnumString(STATE_OFF);
+    		this->state->addEnumString(STATE_HEATING);
+    		this->state->addEnumString(STATE_COOLING);
+    		this->addProperty(state);
     	}
+
     	//schedulesDayOffset
     	this->schedulesDayOffset = network->getSettings()->registerByte("schedulesDayOffset", 0);
 
@@ -152,9 +185,16 @@ public:
     }
 
     void loop(unsigned long now) {
-    	if ((isSupportingHeatingRelay()) && (status != nullptr)) {
-    		bool st = digitalRead(PIN_HEATING_RELAY);
-    		this->status->setString(st ? VALUE_HEATING : VALUE_OFF);
+    	if (state != nullptr) {
+    		bool heating = false;
+    		bool cooling = false;
+    		if ((isSupportingHeatingRelay()) && (state != nullptr)) {
+    			heating = digitalRead(PIN_STATE_HEATING_RELAY);
+    		}
+    		if ((isSupportingCoolingRelay()) && (state != nullptr)) {
+    			cooling = digitalRead(PIN_STATE_COOLING_RELAY);
+    		}
+    		this->state->setString(heating ? STATE_HEATING : (cooling ? STATE_COOLING : STATE_OFF));
     	}
     	while (Serial.available() > 0) {
     		receiveIndex++;
@@ -376,138 +416,77 @@ public:
     	}
     }*/
 
-    byte getFanSpeed() {
-    	return fanSpeed;
+    String getFanMode() {
+        return (fanMode != nullptr ? fanMode->c_str() : FAN_MODE_NONE);
     }
 
-    String getFanSpeedAsString() {
-    	switch (getFanSpeed()) {
-    	case FAN_SPEED_AUTO:
-    		return "auto";
-    	case FAN_SPEED_LOW:
-    		return "low";
-    	case FAN_SPEED_MED:
-    		return "medium";
-    	case FAN_SPEED_HIGH:
-    		return "high";
-    	default:
-    		//FAN_SPEED_NONE
-    		return "none";
+    byte getFanModeAsByte() {
+    	if (fanMode != nullptr) {
+    	   	if (fanMode->equalsString(FAN_MODE_AUTO)) {
+    	   		return 0x00;
+    	   	} else if (fanMode->equalsString(FAN_MODE_HIGH)) {
+    	   		return 0x01;
+    	   	} else if (fanMode->equalsString(FAN_MODE_MEDIUM)) {
+    	   		return 0x02;
+    	   	} else if (fanMode->equalsString(FAN_MODE_LOW)) {
+    	   		return 0x03;
+    	   	} else {
+    	   		return 0xFF;
+    	   	}
+    	} else {
+    		return 0xFF;
     	}
     }
 
-    void setFanSpeed(byte fanSpeed) {
-    	if ((getThermostatModel() == MODEL_BAC_002_ALW) && (fanSpeed != this->fanSpeed) &&
-    		((fanSpeed == FAN_SPEED_NONE) || (fanSpeed == FAN_SPEED_AUTO) || (fanSpeed == FAN_SPEED_LOW) || (fanSpeed == FAN_SPEED_MED) || (fanSpeed == FAN_SPEED_HIGH))) {
-    		this->fanSpeed = fanSpeed;
-    		if (this->fanSpeed != FAN_SPEED_NONE) {
+    void fanModeToMcu() {
+    	if ((fanMode != nullptr) && (!this->receivingDataFromMcu)) {
+    		byte dt = this->getFanModeAsByte();
+    		if (dt != 0xFF) {
     			//send to device
     		    //auto:   55 aa 00 06 00 05 67 04 00 01 00
     			//low:    55 aa 00 06 00 05 67 04 00 01 03
     			//medium: 55 aa 00 06 00 05 67 04 00 01 02
     			//high:   55 aa 00 06 00 05 67 04 00 01 01
     			unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
-    			                                    0x67, 0x04, 0x00, 0x01, fanSpeed};
+    			                                    0x67, 0x04, 0x00, 0x01, dt};
     			commandCharsToSerial(11, deviceOnCommand);
     		}
-    		notifyState();
     	}
     }
 
-    void setFanSpeedFromString(String fanSpeedString) {
-    	fanSpeedString.toLowerCase();
-    	fanSpeedString.trim();
-    	if (fanSpeedString.equals("increase")) {
-    		increaseFanSpeed();
-    	} else if (fanSpeedString.equals("decrease")) {
-    		decreaseFanSpeed();
-    	} else {
-    		byte fanSpeed = FAN_SPEED_NONE;
-    		if (fanSpeedString.equals("low")) {
-    			fanSpeed = FAN_SPEED_LOW;
-    		} else if (fanSpeedString.equals("medium")) {
-    			fanSpeed = FAN_SPEED_MED;
-    		} else if (fanSpeedString.equals("high")) {
-    			fanSpeed = FAN_SPEED_HIGH;
-    		} else if (fanSpeedString.equals("auto")) {
-    			fanSpeed = FAN_SPEED_AUTO;
+    String getSystemMode() {
+    	return (systemMode != nullptr ? systemMode->c_str() : SYSTEM_MODE_NONE);
+    }
+
+    byte getSystemModeAsByte() {
+    	if (systemMode != nullptr) {
+    		if (systemMode->equalsString(SYSTEM_MODE_COOL)) {
+    			return 0x00;
+    		} else if (systemMode->equalsString(SYSTEM_MODE_HEAT)) {
+    			return 0x01;
+    		} else if (systemMode->equalsString(SYSTEM_MODE_FAN)) {
+    			return 0x02;
+    		} else {
+    			return 0xFF;
     		}
-    		setFanSpeed(fanSpeed);
+    	} else {
+    		return 0xFF;
     	}
     }
 
-    void increaseFanSpeed() {
-    	switch (getFanSpeed()) {
-    	case FAN_SPEED_LOW :
-    		setFanSpeed(FAN_SPEED_MED);
-    		break;
-    	case FAN_SPEED_MED :
-    	case FAN_SPEED_AUTO :
-    		setFanSpeed(FAN_SPEED_HIGH);
-    		break;
-    	}
-    }
-
-    void decreaseFanSpeed() {
-    	switch (getFanSpeed()) {
-    	case FAN_SPEED_MED :
-    	case FAN_SPEED_AUTO :
-    		setFanSpeed(FAN_SPEED_LOW);
-    		break;
-    	case FAN_SPEED_HIGH :
-    		setFanSpeed(FAN_SPEED_MED);
-    		break;
-    	}
-    }
-
-    byte getSystemMode() {
-    	return systemMode;
-    }
-
-    String getSystemModeAsString() {
-    	switch (getSystemMode()) {
-    	case SYSTEM_MODE_COOLING:
-    		return "cooling";
-    	case SYSTEM_MODE_HEATING:
-    		return "status";
-    	case SYSTEM_MODE_VENTILATION:
-    		return "ventilation";
-    	default:
-    		//SYSTEM_MODE_NONE
-    		return "none";
-    	}
-    }
-
-    void setSystemMode(byte systemMode) {
-    	if ((getThermostatModel() == MODEL_BAC_002_ALW) && (systemMode != this->systemMode) &&
-    	    ((systemMode == SYSTEM_MODE_NONE) || (systemMode == SYSTEM_MODE_COOLING) || (systemMode == SYSTEM_MODE_HEATING) || (systemMode == SYSTEM_MODE_VENTILATION))) {
-    		this->systemMode = systemMode;
-    		if (this->systemMode != SYSTEM_MODE_NONE) {
+    void systemModeToMcu() {
+    	if ((systemMode != nullptr) && (!this->receivingDataFromMcu)) {
+    		byte dt = this->getSystemModeAsByte();
+    		if (dt != 0xFF) {
     			//send to device
     			//cooling:     55 AA 00 06 00 05 66 04 00 01 00
-    		    //heating:     55 AA 00 06 00 05 66 04 00 01 01
+    			//heating:     55 AA 00 06 00 05 66 04 00 01 01
     			//ventilation: 55 AA 00 06 00 05 66 04 00 01 02
     			unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
-    				                                0x66, 0x04, 0x00, 0x01, systemMode};
+    												0x66, 0x04, 0x00, 0x01, dt};
     			commandCharsToSerial(11, deviceOnCommand);
     		}
-    		notifyState();
     	}
-    }
-
-    void setSystemModeFromString(String systemModeString) {
-    	systemModeString.toLowerCase();
-    	systemModeString.trim();
-
-    	byte systemMode = SYSTEM_MODE_NONE;
-    	if (systemModeString.equals("cooling")) {
-    		systemMode = SYSTEM_MODE_COOLING;
-    	} else if (systemModeString.equals("status")) {
-    		systemMode = SYSTEM_MODE_HEATING;
-    	} else if (systemModeString.equals("ventilation")) {
-    		systemMode = SYSTEM_MODE_VENTILATION;
-    	}
-    	setSystemMode(systemMode);
     }
 
     void setLogMcu(bool logMcu) {
@@ -543,6 +522,10 @@ protected:
         return this->supportingHeatingRelay->getBoolean();
     }
 
+    bool isSupportingCoolingRelay() {
+        return this->supportingCoolingRelay->getBoolean();
+    }
+
 private:
     WClock *wClock;
     int receiveIndex;
@@ -552,19 +535,21 @@ private:
     bool logMcu;
     boolean receivingDataFromMcu;
     WProperty* deviceOn;
-    WProperty* status;
+    WProperty* state;
     WProperty* targetTemperature;
     WProperty* actualTemperature;
     WProperty* actualFloorTemperature;
     WProperty* schedulesMode;
+    WProperty* systemMode;
+    WProperty* fanMode;
     WProperty* ecoMode;
     WProperty* locked;
-    byte fanSpeed, systemMode;
     byte schedules[54];
     boolean receivedStates[STATE_COMPLETE];
     byte schedulesDataPoint;
     WProperty* thermostatModel;
     WProperty *supportingHeatingRelay;
+    WProperty *supportingCoolingRelay;
     WProperty* ntpServer;
     WProperty* schedulesDayOffset;
     THandlerFunction onConfigurationRequest, onSchedulesChange;
@@ -685,8 +670,8 @@ private:
     				if (commandLength == 0x05) {
     					//manualMode?
     					newB = (receivedCommand[10] == 0x01);
-    					changed = ((changed) || ((newB) && (!schedulesMode->equalsString(THERMOSTAT_MODE_OFF))) || ((!newB) && (!schedulesMode->equalsString(THERMOSTAT_MODE_AUTO))));
-    					schedulesMode->setString(newB ? THERMOSTAT_MODE_OFF : THERMOSTAT_MODE_AUTO);
+    					changed = ((changed) || ((newB) && (!schedulesMode->equalsString(SCHEDULES_MODE_OFF))) || ((!newB) && (!schedulesMode->equalsString(SCHEDULES_MODE_AUTO))));
+    					schedulesMode->setString(newB ? SCHEDULES_MODE_OFF : SCHEDULES_MODE_AUTO);
     					receivedStates[2] = true;
     					notifyMcuCommand("manualMode_x04");
     					knownCommand = true;
@@ -754,8 +739,20 @@ private:
     					//heating:     55 AA 00 06 00 05 66 04 00 01 01
     					//ventilation: 55 AA 00 06 00 05 66 04 00 01 02
     					//this->thermostatModel->setByte(MODEL_BAC_002_ALW);
-    					changed = ((changed) || (receivedCommand[10] != this->systemMode));
-    					this->systemMode = receivedCommand[10];
+    					changed = ((changed) || (receivedCommand[10] != this->getSystemModeAsByte()));
+    					if (systemMode != nullptr) {
+    						switch (receivedCommand[10]) {
+    						case 0x00 :
+    							systemMode->setString(SYSTEM_MODE_COOL);
+    							break;
+    						case 0x01 :
+    							systemMode->setString(SYSTEM_MODE_HEAT);
+    							break;
+    						case 0x02 :
+    							systemMode->setString(SYSTEM_MODE_FAN);
+    							break;
+    						}
+    					}
     					notifyMcuCommand("systemMode_x66");
     					knownCommand = true;
     				}
@@ -767,7 +764,23 @@ private:
     					//low    - 55 aa 01 07 00 05 67 04 00 01 03
     					//medium - 55 aa 01 07 00 05 67 04 00 01 02
     					//high   - 55 aa 01 07 00 05 67 04 00 01 01
-    					setFanSpeed(receivedCommand[10]);
+    					changed = ((changed) || (receivedCommand[10] != this->getFanModeAsByte()));
+    					if (fanMode != nullptr) {
+    						switch (receivedCommand[10]) {
+    						case 0x00 :
+    							fanMode->setString(FAN_MODE_AUTO);
+    							break;
+    						case 0x03 :
+    							fanMode->setString(FAN_MODE_LOW);
+    							break;
+    						case 0x02 :
+    							fanMode->setString(FAN_MODE_MEDIUM);
+    							break;
+    						case 0x01 :
+    							fanMode->setString(FAN_MODE_HIGH);
+    							break;
+    						}
+    					}
     					notifyMcuCommand("fanSpeed_x67");
     					knownCommand = true;
     				}
@@ -817,11 +830,10 @@ private:
     void schedulesModeToMcu(WProperty* property) {
     	if (!this->receivingDataFromMcu) {
         	//55 AA 00 06 00 05 04 04 00 01 01
-        	byte dt = (schedulesMode->equalsString(THERMOSTAT_MODE_OFF) ? 0x01 : 0x00);
+        	byte dt = (schedulesMode->equalsString(SCHEDULES_MODE_OFF) ? 0x01 : 0x00);
         	unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
         	                                    0x04, 0x04, 0x00, 0x01, dt};
         	commandCharsToSerial(11, deviceOnCommand);
-        	//notifyState();
         }
     }
 
