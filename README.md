@@ -8,8 +8,7 @@ Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The
 Other models will work in some way also, but other functions must be implemented additionally.
 
 ## Releases:
-* Version 0.95: stable
-* Version 0.96.xx: This version is not compatible with 0.95 and just for testing at the moment.
+* Version 0.96: This version is not compatible with 0.95 and MQTT integration is different. Tons of new features, e.g., Mozilla Webthings. Give it a try, get started here: https://github.com/klausahrenberg/WThermostatBeca/blob/master/Configuration.md
 
 ![image of thermostat](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/bac-002-wifi.jpg)
 
