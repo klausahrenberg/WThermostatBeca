@@ -4,7 +4,7 @@
 #include "WClock.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "0.96.03"
+#define VERSION "0.96"
 #define DEBUG false
 
 WNetwork* network;
@@ -61,31 +61,3 @@ void loop() {
 	delay(50);
 }
 
-/*bool sendClockStateViaMqttStatus() {
-	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-	JsonObject& json = jsonBuffer.createObject();
-	kClock->getMqttState(json, true);
-	return network->publishMqtt("clock", json);
-}*/
-
-/**
- * Sends the schedule in 3 messages because of maximum message length
- */
-/*
-bool sendSchedulesViaMqtt() {
-	boolean result = true;
-	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-	JsonObject& json = jsonBuffer.createObject();
-	becaDevice->getMqttSchedules(json, SCHEDULE_WORKDAY);
-	result = result && network->publishMqtt("schedules", json);
-	jsonBuffer.clear();
-	JsonObject& json2 = jsonBuffer.createObject();
-	becaDevice->getMqttSchedules(json2, SCHEDULE_SATURDAY);
-	result = result && network->publishMqtt("schedules", json2);
-	jsonBuffer.clear();
-	JsonObject& json3 = jsonBuffer.createObject();
-	becaDevice->getMqttSchedules(json3, SCHEDULE_SUNDAY);
-	result = result && network->publishMqtt("schedules", json3);
-	jsonBuffer.clear();
-	return result;
-}*/

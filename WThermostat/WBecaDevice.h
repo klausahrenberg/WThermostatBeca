@@ -7,18 +7,6 @@
 #include "../../WAdapter/Wadapter/WDevice.h"
 #include "WClock.h"
 
-const static char HTTP_CONFIG_COMBOBOX_BEGIN[]         PROGMEM = R"=====(
-        <div>
-			%s<br>
-        	<select name="%s">
-)=====";
-const static char HTTP_CONFIG_PAGE_ITEM[]         PROGMEM = R"=====(        		
-				<option value="%s" %s>%s</option>                  
-)=====";
-const static char HTTP_CONFIG_COMBOBOX_END[]         PROGMEM = R"=====(					
-			</select>
-        </div>
-)=====";
 const static char HTTP_CONFIG_CHECKBOX_RELAY[]         PROGMEM = R"=====(					
 		<div>
 			<label>
@@ -41,11 +29,7 @@ const static char HTTP_CONFIG_CHECKBOX_RELAY[]         PROGMEM = R"=====(
 
 const unsigned char COMMAND_START[] = {0x55, 0xAA};
 const char AR_COMMAND_END = '\n';
-const String SCHEDULE_WORKDAY = "workday";
-const String SCHEDULE_SATURDAY = "saturday";
-const String SCHEDULE_SUNDAY = "sunday";
-const String SCHEDULE_HOUR = "h";
-const String SCHEDULE_TEMPERATURE = "t";
+const String SCHEDULES = "schedules";
 const char* SCHEDULES_MODE_OFF = "off";
 const char* SCHEDULES_MODE_AUTO = "auto";
 const char* SYSTEM_MODE_NONE = "none";
@@ -72,6 +56,8 @@ public:
     	: WDevice(network, "thermostat", "thermostat", DEVICE_TYPE_THERMOSTAT) {
     	this->logMcu = false;
     	this->receivingDataFromMcu = false;
+    	this->lastSchedulesWaitForResponse = false;
+    	this->schedulesChanged = false;
 		this->providingConfigPage = true;
     	this->wClock = wClock;
     	this->systemMode = nullptr;
@@ -102,7 +88,7 @@ public:
     	this->addProperty(locked);
     	//Model
     	this->actualFloorTemperature = nullptr;
-    	this->thermostatModel = network->getSettings()->registerByte("thermostatModel", MODEL_BHT_002_GBLW);
+    	this->thermostatModel = network->getSettings()->setByte("thermostatModel", MODEL_BHT_002_GBLW);
     	if (getThermostatModel() == MODEL_BHT_002_GBLW) {
     		this->actualFloorTemperature = new WTemperatureProperty("floorTemperature", "Floor");
     		this->actualFloorTemperature->setReadOnly(true);
@@ -128,8 +114,8 @@ public:
     	}
     	//Heating Relay and State property
     	this->state = nullptr;
-    	this->supportingHeatingRelay = network->getSettings()->registerBoolean("supportingHeatingRelay", true);
-    	this->supportingCoolingRelay = network->getSettings()->registerBoolean("supportingCoolingRelay", false);
+    	this->supportingHeatingRelay = network->getSettings()->setBoolean("supportingHeatingRelay", true);
+    	this->supportingCoolingRelay = network->getSettings()->setBoolean("supportingCoolingRelay", false);
     	if (isSupportingHeatingRelay()) pinMode(PIN_STATE_HEATING_RELAY, INPUT);
     	if (isSupportingCoolingRelay()) pinMode(PIN_STATE_COOLING_RELAY, INPUT);
     	if ((isSupportingHeatingRelay()) || (isSupportingCoolingRelay())) {
@@ -143,7 +129,7 @@ public:
     	}
 
     	//schedulesDayOffset
-    	this->schedulesDayOffset = network->getSettings()->registerByte("schedulesDayOffset", 0);
+    	this->schedulesDayOffset = network->getSettings()->setByte("schedulesDayOffset", 0);
 
     	lastHeartBeat = lastNotify = lastScheduleNotify = 0;
     	resetAll();
@@ -157,22 +143,22 @@ public:
     	network->log()->notice(F("Beca thermostat config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
     	//ComboBox with model selection
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_COMBOBOX_BEGIN), "Thermostat model:", "tm");
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "0", (getThermostatModel() == 0 ? "selected" : ""), "Floor heating (BHT-002-GBLW)");
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "1", (getThermostatModel() == 1 ? "selected" : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
-    	page->print(FPSTR(HTTP_CONFIG_COMBOBOX_END));
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Thermostat model:", "tm");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "0", (getThermostatModel() == 0 ? "selected" : ""), "Floor heating (BHT-002-GBLW)");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getThermostatModel() == 1 ? "selected" : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
+    	page->print(FPSTR(HTTP_COMBOBOX_END));
     	//Checkbox with support for relay
     	page->printAndReplace(FPSTR(HTTP_CONFIG_CHECKBOX_RELAY), (this->isSupportingHeatingRelay() ? "checked" : ""));
     	//ComboBox with weekday
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_COMBOBOX_BEGIN), "Workday schedules:", "ws");
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "0", (getSchedulesDayOffset() == 0 ? "selected" : ""), "Workday (1-5): Mon-Fri; Weekend (6 - 7): Sat-Sun");
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "1", (getSchedulesDayOffset() == 1 ? "selected" : ""), "Workday (1-5): Sun-Thu; Weekend (6 - 7): Fri-Sat");
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "2", (getSchedulesDayOffset() == 2 ? "selected" : ""), "Workday (1-5): Sat-Wed; Weekend (6 - 7): Thu-Fri");
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "3", (getSchedulesDayOffset() == 3 ? "selected" : ""), "Workday (1-5): Fri-Tue; Weekend (6 - 7): Wed-Thu");
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "4", (getSchedulesDayOffset() == 4 ? "selected" : ""), "Workday (1-5): Thu-Mon; Weekend (6 - 7): Tue-Wed");
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "5", (getSchedulesDayOffset() == 5 ? "selected" : ""), "Workday (1-5): Wed-Sun; Weekend (6 - 7): Mon-Tue");
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_ITEM), "6", (getSchedulesDayOffset() == 6 ? "selected" : ""), "Workday (1-5): Tue-Sat; Weekend (6 - 7): Sun-Mon");
-    	page->print(FPSTR(HTTP_CONFIG_COMBOBOX_END));
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Workday schedules:", "ws");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "0", (getSchedulesDayOffset() == 0 ? "selected" : ""), "Workday (1-5): Mon-Fri; Weekend (6 - 7): Sat-Sun");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getSchedulesDayOffset() == 1 ? "selected" : ""), "Workday (1-5): Sun-Thu; Weekend (6 - 7): Fri-Sat");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "2", (getSchedulesDayOffset() == 2 ? "selected" : ""), "Workday (1-5): Sat-Wed; Weekend (6 - 7): Thu-Fri");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "3", (getSchedulesDayOffset() == 3 ? "selected" : ""), "Workday (1-5): Fri-Tue; Weekend (6 - 7): Wed-Thu");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "4", (getSchedulesDayOffset() == 4 ? "selected" : ""), "Workday (1-5): Thu-Mon; Weekend (6 - 7): Tue-Wed");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "5", (getSchedulesDayOffset() == 5 ? "selected" : ""), "Workday (1-5): Wed-Sun; Weekend (6 - 7): Mon-Tue");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "6", (getSchedulesDayOffset() == 6 ? "selected" : ""), "Workday (1-5): Tue-Sat; Weekend (6 - 7): Sun-Mon");
+    	page->print(FPSTR(HTTP_COMBOBOX_END));
 
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
     }
@@ -330,23 +316,117 @@ public:
     	commandCharsToSerial(14, cancelConfigCommand);
     }
 
-    /*ToDo
-     * void getMqttSchedules(JsonObject json, String dayRange) {
-    	int startAddr = 0;
-    	if (SCHEDULE_SATURDAY.equals(dayRange)) {
-    		startAddr = 18;
-    	} else if (SCHEDULE_SUNDAY.equals(dayRange)) {
-    		startAddr = 36;
+    void bindWebServerCalls(ESP8266WebServer* webServer) {
+    	String deviceBase("/things/");
+    	deviceBase.concat(getId());
+    	deviceBase.concat("/");
+    	deviceBase.concat(SCHEDULES);
+    	webServer->on(deviceBase.c_str(), HTTP_GET, std::bind(&WBecaDevice::sendSchedules, this, webServer));
+    }
+
+    void handleUnknownMqttCallback(String completeTopic, String partialTopic, char *payload, unsigned int length) {
+    	if (partialTopic.startsWith(SCHEDULES)) {
+    		partialTopic = partialTopic.substring(SCHEDULES.length() + 1);
+    		if (partialTopic.equals("")) {
+    			if (!lastSchedulesWaitForResponse) {
+    				if (length == 0) {
+    					//Send actual schedules
+    					network->log()->notice(F("Empty payload for schedules -> send schedules..."));
+    					WStringStream* response = network->getResponseStream();
+    					WJson json(response);
+    		    		json.beginObject();
+    		    		this->toJsonSchedules(&json,  0, 'w');// SCHEDULE_WORKDAY);
+    		    		this->toJsonSchedules(&json, 18, 'a');// SCHEDULE_SATURDAY);
+    		    		this->toJsonSchedules(&json, 36, 'u');// SCHEDULE_SUNDAY);
+    		    		json.endObject();
+    		    		network->publishMqtt(completeTopic.c_str(), response);
+    		    		lastSchedulesWaitForResponse = true;
+    				} else {
+    					//Set schedules
+    					network->log()->notice(F("Payload for schedules -> set schedules..."));
+    					WJsonParser* parser = new WJsonParser();
+    					schedulesChanged = false;
+    					parser->parse(payload, std::bind(&WBecaDevice::processSchedulesKeyValue, this,
+										std::placeholders::_1, std::placeholders::_2));
+    					delete parser;
+    					if (schedulesChanged) {
+    						network->log()->notice(F("Some schedules changed. Write to MCU..."));
+    						this->schedulesToMcu();
+    					}
+    				}
+    			} else {
+    				lastSchedulesWaitForResponse = false;
+    			}
+    		} else {
+    			//There are still some more topics after properties
+    			network->log()->notice(F("Longer topic for schedules -> not supported yet..."));
+
+    		}
     	}
-    	JsonObject jsonDay = json.createNestedObject(dayRange);
-    	char timeStr[5];
+    }
+
+    void processSchedulesKeyValue(const char* key, const char* value) {
+    	network->log()->notice(F("Process key '%s', value '%s'"), key, value);
+    	if (strlen(key) == 3) {
+    		byte startAddr = 255;
+    		byte i = (key[2] == '1' ? 0 : (key[2] == '2' ? 1 : (key[2] == '3' ? 2 : (key[2] == '4' ? 3 : (key[3] == '5' ? 4 : (key[2] == '6' ? 5 : 255))))));
+    		if (key[0] == 'w') {
+    			startAddr = 0;
+    		} else if (key[0] == 'a') {
+    			startAddr = 18;
+    		} else if (key[0] == 'u') {
+    			startAddr = 36;
+    		}
+    		if ((startAddr != 255) && (i != 255)) {
+    			if (key[1] == 'h') {
+    				//hour
+    				String timeStr = String(value);
+    				timeStr = (timeStr.length() == 4 ? "0" + timeStr : timeStr);
+    				byte hh = timeStr.substring(0, 2).toInt();
+    				byte mm = timeStr.substring(3, 5).toInt();
+    				schedulesChanged = schedulesChanged || (schedules[startAddr + i * 3 + 1] != hh);
+    				schedules[startAddr + i * 3 + 1] = hh;
+    				schedulesChanged = schedulesChanged || (schedules[startAddr + i * 3 + 0] != mm);
+    				schedules[startAddr + i * 3 + 0] = mm;
+    			} else if (key[1] == 't') {
+    				//temperature
+    				byte tt = (int) (atof(value) * 2);
+    				schedulesChanged = schedulesChanged || (schedules[startAddr + i * 3 + 2] != tt);
+    				schedules[startAddr + i * 3 + 2] = tt;
+    			}
+    		}
+    	}
+    }
+
+    void sendSchedules(ESP8266WebServer* webServer) {
+    	WStringStream* response = network->getResponseStream();
+    	WJson json(response);
+    	json.beginObject();
+    	this->toJsonSchedules(&json,  0, 'w');// SCHEDULE_WORKDAY);
+    	this->toJsonSchedules(&json, 18, 'a');// SCHEDULE_SATURDAY);
+    	this->toJsonSchedules(&json, 36, 'u');// SCHEDULE_SUNDAY);
+    	json.endObject();
+    	webServer->send(200, APPLICATION_JSON, response->c_str());
+    }
+
+    virtual void toJsonSchedules(WJson* json, byte startAddr, char dayChar) {
+    	const char digits[] = "123456";
+    	char timeStr[6];
+    	timeStr[5] = '\0';
+    	char* buffer = new char[4];
+    	buffer[0] = dayChar;
+    	buffer[3] = '\0';
     	for (int i = 0; i < 6; i++) {
-    		JsonObject sch = jsonDay.createNestedObject((new String(i))->c_str());
+    		buffer[2] = digits[i];
     		sprintf(timeStr, "%02d:%02d", schedules[startAddr + i * 3 + 1], schedules[startAddr + i * 3 + 0]);
-    		sch["h"] = timeStr;
-    		sch["t"] = (float) schedules[startAddr + i * 3 + 2]	/ 2.0f;
+    		buffer[1] = 'h';
+    		network->log()->notice(buffer);
+    		json->propertyString(buffer, timeStr);
+    		buffer[1] = 't';
+    		json->propertyDouble(buffer, (double) schedules[startAddr + i * 3 + 2]	/ 2.0);
     	}
-    }*/
+    	delete[] buffer;
+    }
 
     void setOnNotifyCommand(TCommandHandlerFunction onNotifyCommand) {
     	this->onNotifyCommand = onNotifyCommand;
@@ -370,51 +450,34 @@ public:
     	}
     }
 
-    /*ToDo
-     * bool setSchedules(String payload) {
+    void schedulesToMcu() {
     	if (receivedSchedules()) {
-    		DynamicJsonDocument jsonBuffer(1216);
-    		DeserializationError error = deserializeJson(jsonBuffer, payload);
-    		//JsonObject& json = jsonBuffer.parseObject(payload);
-    		bool changed = false;
-    		if (error) {
-    			//Nothing to do
-    		} else {
-    			changed = ((changed) || (setSchedules( 0, jsonBuffer, SCHEDULE_WORKDAY)));
-    			changed = ((changed) || (setSchedules(18, jsonBuffer, SCHEDULE_SATURDAY)));
-    			changed = ((changed) || (setSchedules(36, jsonBuffer, SCHEDULE_SUNDAY)));
+    		//Changed schedules from MQTT server, send to mcu
+    		//send the changed array to MCU
+    		//per unit |MM HH TT|
+    		//55 AA 00 06 00 3A 65 00 00 36|
+    		//00 06 28|00 08 1E|1E 0B 1E|1E 0D 1E|00 11 2C|00 16 1E|
+    		//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
+    		//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
+    		unsigned char scheduleCommand[64];
+    		scheduleCommand[0] = 0x55;
+    		scheduleCommand[1] = 0xaa;
+    		scheduleCommand[2] = 0x00;
+    		scheduleCommand[3] = 0x06;
+    		scheduleCommand[4] = 0x00;
+    		scheduleCommand[5] = 0x3a;
+    		scheduleCommand[6] = schedulesDataPoint;
+    		scheduleCommand[7] = 0x00;
+    		scheduleCommand[8] = 0x00;
+    		scheduleCommand[9] = 0x36;
+    		for (int i = 0; i < 54; i++) {
+    			scheduleCommand[i + 10] = schedules[i];
     		}
-    		if (changed) {
-    			//Changed schedules from MQTT server, send to mcu
-    			//send the changed array to MCU
-    			//per unit |MM HH TT|
-    			//55 AA 00 06 00 3A 65 00 00 36|
-    			//00 06 28|00 08 1E|1E 0B 1E|1E 0D 1E|00 11 2C|00 16 1E|
-    			//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
-    			//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
-    			unsigned char scheduleCommand[64];
-    			scheduleCommand[0] = 0x55;
-    			scheduleCommand[1] = 0xaa;
-    			scheduleCommand[2] = 0x00;
-    			scheduleCommand[3] = 0x06;
-    			scheduleCommand[4] = 0x00;
-    			scheduleCommand[5] = 0x3a;
-    			scheduleCommand[6] = schedulesDataPoint;
-    			scheduleCommand[7] = 0x00;
-    			scheduleCommand[8] = 0x00;
-    			scheduleCommand[9] = 0x36;
-    			for (int i = 0; i < 54; i++) {
-    				scheduleCommand[i + 10] = schedules[i];
-    			}
-    			commandCharsToSerial(64, scheduleCommand);
-    			//notify change
-    			this->notifySchedules();
-    		}
-    		return changed;
-    	} else {
-    		return false;
+    		commandCharsToSerial(64, scheduleCommand);
+    		//notify change
+    		this->notifySchedules();
     	}
-    }*/
+    }
 
     String getFanMode() {
         return (fanMode != nullptr ? fanMode->c_str() : FAN_MODE_NONE);
@@ -534,6 +597,7 @@ private:
     unsigned char receivedCommand[1024];
     bool logMcu;
     boolean receivingDataFromMcu;
+    bool lastSchedulesWaitForResponse;
     WProperty* deviceOn;
     WProperty* state;
     WProperty* targetTemperature;
@@ -555,6 +619,7 @@ private:
     THandlerFunction onConfigurationRequest, onSchedulesChange;
     TCommandHandlerFunction onNotifyCommand;
     unsigned long lastNotify, lastScheduleNotify;
+    bool schedulesChanged;
 
     int getIndex(unsigned char c) {
     	const char HEX_DIGITS[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8',
@@ -862,38 +927,6 @@ private:
     boolean receivedSchedules() {
     	return (this->schedulesDataPoint != 0x00);
     }
-
-    /*ToDo
-     * bool addSchedules(int startAddr, JsonArray& array);
-    void addSchedules(int startAddr, JsonObject& json);
-
-    bool setSchedules(int startAddr, JsonDocument json, String dayRange) {
-       	bool changed = false;
-       	if (json.containsKey(dayRange)) {
-       		JsonObject jsonDayRange = json[dayRange];
-       		for (int i = 0; i < 6; i++) {
-       			if (jsonDayRange.containsKey(String(i))) {
-       				JsonObject jsonItem = jsonDayRange[String(i)];
-       				if (jsonItem.containsKey(SCHEDULE_HOUR)) {
-       					String timeStr = jsonItem[SCHEDULE_HOUR];
-       					timeStr = (timeStr.length() == 4 ? "0" + timeStr : timeStr);
-       					byte hh = timeStr.substring(0, 2).toInt();
-       					byte mm = timeStr.substring(3, 5).toInt();
-       					changed = changed || (schedules[startAddr + i * 3 + 1] != hh);
-       					schedules[startAddr + i * 3 + 1] = hh;
-       					changed = changed || (schedules[startAddr + i * 3 + 0] != mm);
-       					schedules[startAddr + i * 3 + 0] = mm;
-       				}
-       				if (jsonItem.containsKey(SCHEDULE_TEMPERATURE)) {
-       					byte tt = (int) ((float) jsonItem[SCHEDULE_TEMPERATURE] * 2);
-       					changed = changed || (schedules[startAddr + i * 3 + 2] != tt);
-       					schedules[startAddr + i * 3 + 2] = tt;
-       				}
-       			}
-       		}
-       	}
-       	return changed;
-    }*/
 
     void notifyState() {
     	lastNotify = 0;

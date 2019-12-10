@@ -24,13 +24,14 @@ public:
 	//WClock(bool debug, WNetwork *network) {
 	WClock(WNetwork* network, String applicationName)
 		: WDevice(network, "clock", "clock", DEVICE_TYPE_TEXT_DISPLAY) {
+		this->mainDevice = false;
 		this->visibility = MQTT;
-		this->ntpServer = network->getSettings()->registerString("ntpServer", 32, DEFAULT_NTP_SERVER);
+		this->ntpServer = network->getSettings()->setString("ntpServer", 32, DEFAULT_NTP_SERVER);
 		this->ntpServer->setReadOnly(true);
 		this->ntpServer->setString(DEFAULT_NTP_SERVER);
 		this->ntpServer->setVisibility(MQTT);
 		this->addProperty(ntpServer);
-		this->timeZoneServer = network->getSettings()->registerString("timeZoneServer", 64, DEFAULT_TIME_ZONE_SERVER);
+		this->timeZoneServer = network->getSettings()->setString("timeZoneServer", 64, DEFAULT_TIME_ZONE_SERVER);
 		this->timeZoneServer->setReadOnly(true);
 		this->timeZoneServer->setString(DEFAULT_TIME_ZONE_SERVER);
 		this->timeZoneServer->setVisibility(MQTT);
@@ -101,7 +102,7 @@ public:
 					this->timeZone->setReadOnly(false);
 					this->rawOffset->setReadOnly(false);
 					this->dstOffset->setReadOnly(false);
-					WProperty* property = parser.parse(this, http.getString().c_str());
+					WProperty* property = parser.parse(http.getString().c_str(), this);
 					this->timeZone->setReadOnly(true);
 					this->rawOffset->setReadOnly(true);
 					this->dstOffset->setReadOnly(true);
