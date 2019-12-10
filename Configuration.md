@@ -35,7 +35,7 @@ You don't need to use Webthings itself.
 {
   "url":"http://192.168.0.117/things/thermostat",
   "ip":"192.168.0.117",
-  "topic":"thermostat_beca/things/thermostat"
+  "topic":"<your_topic>/things/thermostat"
 }
 ```
 
