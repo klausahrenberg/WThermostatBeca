@@ -38,4 +38,4 @@ You don't need to use Webthings itself.
   "topic":"<your_topic>/things/thermostat"
 }
 ```
-
+## ... to be continued
