@@ -29,7 +29,7 @@ Firmware provides 3 different json messages:
 2. Schedules
 3. Device (at start of device to let you know the topics and ip)
 ### 1. State report 
-**MQTT:** State report is provided every 5 minutes, at change of a parameter or at request via message with empty payload to `<your_topic>/things/thermostat/properties`
+**MQTT:** State report is provided every 5 minutes, at change of a parameter or at request via message with empty payload to `<your_topic>/things/thermostat/properties`  
 **Webthing:** State report can be requested by: `http://<device_ip>/things/thermostat/properties`  
 ```json
 {
@@ -69,7 +69,7 @@ Firmware provides 3 different json messages:
 }
 ```
 ### 3. Device
-**MQTT:** At start of device to let you know the topics and ip to `devices/thermostat`
+**MQTT:** At start of device to let you know the topics and ip to `devices/thermostat`  
 **Webthing:** n.a.
 ```json
 {
