@@ -66,6 +66,12 @@ Write firmware (1MB)
 
 ```esptool -p /dev/ttyUSB0 write_flash -fs 1MB 0x0 ThermostatBecaWifi.bin```
 
+### Alternative method: use tuya-convert for flashing
+This method does not require any kind of soldering or disassembly of the device.  
+Some users were able to flash Beca Thermostats (BHT-002 and BHT-6000 also) with [tuya-convert](https://github.com/ct-Open-Source/tuya-convert).  
+Follow the steps [here](https://github.com/ct-Open-Source/tuya-convert#procedure) to upload the firmware to your thermostat.  
+You should download the binary from here and place it in the ```/files/``` folder before starting the flash procedure.  
+
 ## First steps
 * Remove all connections from flashing
 * Power on the device. The device will operate normally because this is untouched by the ESP module.
