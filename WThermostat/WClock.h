@@ -227,6 +227,18 @@ public:
 		return day(epochTime);
 	}
 
+	bool isTimeLaterThan(byte hours, byte minutes) {
+		network->log()->notice(F("Time is '%s':"), epochTimeFormatted->c_str());
+		return ((getHours() > hours) || ((getHours() == hours) && (getMinutes() >= minutes)));
+	}
+
+	bool isTimeEarlierThan(byte hours, byte minutes) {
+		network->log()->notice(F("Time is '%s':"), epochTimeFormatted->c_str());
+		network->log()->notice(F("Compare with %d:%d:"), hours, minutes);
+		network->log()->notice(F("Result is '%s':"), String(((getHours() < hours) || ((getHours() == hours) && (getMinutes() < minutes)))).c_str());
+		return ((getHours() < hours) || ((getHours() == hours) && (getMinutes() < minutes)));
+	}
+
 	void updateFormattedTime() {
 		updateFormattedTimeImpl(getEpochTime());
 	}

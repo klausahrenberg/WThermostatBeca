@@ -46,6 +46,8 @@ const char* FAN_MODE_MEDIUM  = "medium";
 const char* FAN_MODE_HIGH = "high";
 
 const byte STORED_FLAG_BECA = 0x36;
+const char SCHEDULES_PERIODS[] = "123456";
+const char SCHEDULES_DAYS[] = "wau";
 
 class WBecaDevice: public WDevice {
 public:
@@ -59,6 +61,7 @@ public:
     	this->lastSchedulesWaitForResponse = false;
     	this->schedulesChanged = false;
 		this->providingConfigPage = true;
+		this->targetTemperatureManualMode = 0.0;
     	this->wClock = wClock;
     	this->systemMode = nullptr;
     	this->actualTemperature = new WTemperatureProperty("temperature", "Actual");
@@ -66,8 +69,8 @@ public:
     	this->addProperty(actualTemperature);
     	this->targetTemperature = new WTargetTemperatureProperty("targetTemperature", "Target");//, 12.0, 28.0);
     	this->targetTemperature->setMultipleOf(0.5);
-    	this->targetTemperature->setOnChange(std::bind(&WBecaDevice::desiredTemperatureToMcu, this, std::placeholders::_1));
-    	this->targetTemperature->setDouble(23);
+    	this->targetTemperature->setOnChange(std::bind(&WBecaDevice::setTargetTemperature, this, std::placeholders::_1));
+    	this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
     	this->addProperty(targetTemperature);
     	this->deviceOn = new WOnOffProperty("deviceOn", "Power");
     	this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
@@ -335,9 +338,9 @@ public:
     					WStringStream* response = network->getResponseStream();
     					WJson json(response);
     		    		json.beginObject();
-    		    		this->toJsonSchedules(&json,  0, 'w');// SCHEDULE_WORKDAY);
-    		    		this->toJsonSchedules(&json, 18, 'a');// SCHEDULE_SATURDAY);
-    		    		this->toJsonSchedules(&json, 36, 'u');// SCHEDULE_SUNDAY);
+    		    		this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
+    		    		this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
+    		    		this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
     		    		json.endObject();
     		    		network->publishMqtt(completeTopic.c_str(), response);
     		    		lastSchedulesWaitForResponse = true;
@@ -369,30 +372,37 @@ public:
     	network->log()->notice(F("Process key '%s', value '%s'"), key, value);
     	if (strlen(key) == 3) {
     		byte startAddr = 255;
-    		byte i = (key[2] == '1' ? 0 : (key[2] == '2' ? 1 : (key[2] == '3' ? 2 : (key[2] == '4' ? 3 : (key[3] == '5' ? 4 : (key[2] == '6' ? 5 : 255))))));
-    		if (key[0] == 'w') {
+    		byte period = 255;
+    		for (int i = 0; i < 6; i++) {
+    			if (SCHEDULES_PERIODS[i] == key[1]) {
+    				period = i;
+    				break;
+    			}
+    		}
+    		//byte i = (key[1] == '1' ? 0 : (key[1] == '2' ? 1 : (key[1] == '3' ? 2 : (key[1] == '4' ? 3 : (key[1] == '5' ? 4 : (key[1] == '6' ? 5 : 255))))));
+    		if (key[0] == SCHEDULES_DAYS[0]) {
     			startAddr = 0;
-    		} else if (key[0] == 'a') {
+    		} else if (key[0] == SCHEDULES_DAYS[1]) {
     			startAddr = 18;
-    		} else if (key[0] == 'u') {
+    		} else if (key[0] == SCHEDULES_DAYS[2]) {
     			startAddr = 36;
     		}
-    		if ((startAddr != 255) && (i != 255)) {
-    			if (key[1] == 'h') {
+    		if ((startAddr != 255) && (period != 255)) {
+    			if (key[2] == 'h') {
     				//hour
     				String timeStr = String(value);
     				timeStr = (timeStr.length() == 4 ? "0" + timeStr : timeStr);
     				byte hh = timeStr.substring(0, 2).toInt();
     				byte mm = timeStr.substring(3, 5).toInt();
-    				schedulesChanged = schedulesChanged || (schedules[startAddr + i * 3 + 1] != hh);
-    				schedules[startAddr + i * 3 + 1] = hh;
-    				schedulesChanged = schedulesChanged || (schedules[startAddr + i * 3 + 0] != mm);
-    				schedules[startAddr + i * 3 + 0] = mm;
-    			} else if (key[1] == 't') {
+    				schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 1] != hh);
+    				schedules[startAddr + period * 3 + 1] = hh;
+    				schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 0] != mm);
+    				schedules[startAddr + period * 3 + 0] = mm;
+    			} else if (key[2] == 't') {
     				//temperature
     				byte tt = (int) (atof(value) * 2);
-    				schedulesChanged = schedulesChanged || (schedules[startAddr + i * 3 + 2] != tt);
-    				schedules[startAddr + i * 3 + 2] = tt;
+    				schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 2] != tt);
+    				schedules[startAddr + period * 3 + 2] = tt;
     			}
     		}
     	}
@@ -402,27 +412,38 @@ public:
     	WStringStream* response = network->getResponseStream();
     	WJson json(response);
     	json.beginObject();
-    	this->toJsonSchedules(&json,  0, 'w');// SCHEDULE_WORKDAY);
-    	this->toJsonSchedules(&json, 18, 'a');// SCHEDULE_SATURDAY);
-    	this->toJsonSchedules(&json, 36, 'u');// SCHEDULE_SUNDAY);
+    	this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
+    	this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
+    	this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
     	json.endObject();
     	webServer->send(200, APPLICATION_JSON, response->c_str());
     }
 
-    virtual void toJsonSchedules(WJson* json, byte startAddr, char dayChar) {
-    	const char digits[] = "123456";
+    virtual void toJsonSchedules(WJson* json, byte schedulesDay) {
+    	byte startAddr = 0;
+		char dayChar = SCHEDULES_DAYS[0];
+		switch (schedulesDay) {
+		case 1 :
+			startAddr = 18;
+			dayChar = SCHEDULES_DAYS[1];
+			break;
+		case 2 :
+			startAddr = 36;
+			dayChar = SCHEDULES_DAYS[2];
+			break;
+		}
     	char timeStr[6];
     	timeStr[5] = '\0';
     	char* buffer = new char[4];
     	buffer[0] = dayChar;
     	buffer[3] = '\0';
     	for (int i = 0; i < 6; i++) {
-    		buffer[2] = digits[i];
+    		buffer[1] = SCHEDULES_PERIODS[i];
     		sprintf(timeStr, "%02d:%02d", schedules[startAddr + i * 3 + 1], schedules[startAddr + i * 3 + 0]);
-    		buffer[1] = 'h';
+    		buffer[2] = 'h';
     		network->log()->notice(buffer);
     		json->propertyString(buffer, timeStr);
-    		buffer[1] = 't';
+    		buffer[2] = 't';
     		json->propertyDouble(buffer, (double) schedules[startAddr + i * 3 + 2]	/ 2.0);
     	}
     	delete[] buffer;
@@ -438,16 +459,6 @@ public:
 
     void setOnSchedulesChange(THandlerFunction onSchedulesChange) {
     	this->onSchedulesChange = onSchedulesChange;
-    }
-
-    void setDeviceOn(bool deviceOn) {
-    	this->deviceOn->setBoolean(deviceOn);
-    }
-
-    void setDesiredTemperature(float desiredTemperature) {
-    	if (((int) (desiredTemperature * 10) % 5) == 0) {
-    		this->targetTemperature->setDouble(desiredTemperature);
-    	}
     }
 
     void schedulesToMcu() {
@@ -598,6 +609,7 @@ private:
     bool logMcu;
     boolean receivingDataFromMcu;
     bool lastSchedulesWaitForResponse;
+    double targetTemperatureManualMode;
     WProperty* deviceOn;
     WProperty* state;
     WProperty* targetTemperature;
@@ -709,13 +721,13 @@ private:
     				break;
     			case 0x02:
     				if (commandLength == 0x08) {
-    					//desired Temperature
+    					//target Temperature for manual mode
     					//e.g. 24.5C: 55 aa 01 07 00 08 02 02 00 04 00 00 00 31
     					newValue = (float) receivedCommand[13] / 2.0f;
-    					changed = ((changed) || (!targetTemperature->equalsDouble(newValue)));
-    					targetTemperature->setDouble(newValue);
+    					changed = ((changed) || (WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
+    					targetTemperatureManualMode = newValue;
     					receivedStates[1] = true;
-    					notifyMcuCommand("desiredTemperature_x02");
+    					notifyMcuCommand("targetTemperature_x02");
     					knownCommand = true;
     				}
     				break;
@@ -880,9 +892,48 @@ private:
      	}
     }
 
-    void desiredTemperatureToMcu(WProperty* property) {
+    void updateTargetTemperature() {
+    	if ((receivedSchedules()) && (wClock->isValidTime()) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
+    		byte weekDay = wClock->getWeekDay();
+    		weekDay += schedulesDayOffset->getByte();
+    		weekDay = weekDay % 7;
+    		int startAddr = (weekDay == 0 ? 36 : (weekDay == 6 ? 18 : 0));
+    		int period = 0;
+    		if (wClock->isTimeEarlierThan(schedules[startAddr + period * 3 + 1], schedules[startAddr + period * 3 + 0])) {
+    			//Jump back to day before and last schedule of day
+    			weekDay = weekDay - 1;
+    			weekDay = weekDay % 7;
+    			startAddr = (weekDay == 0 ? 36 : (weekDay == 6 ? 18 : 0));
+    			period = 5;
+    		} else {
+    			//check the schedules in same day
+    			period = 1;
+    			while ((period < 5) && (wClock->isTimeLaterThan(schedules[startAddr + (period + 1) * 3 + 1], schedules[startAddr + (period + 1) * 3 + 0]))) {
+    				period++;
+    			}
+    		}
+    		//String p = String(weekDay == 0 ? SCHEDULES_DAYS[2] : (weekDay == 6 ? SCHEDULES_DAYS[1] : SCHEDULES_DAYS[0]));
+    		//p.concat(SCHEDULES_PERIODS[period]);
+    		//network->log()->notice(F("We take temperature from period '%s':"), p.c_str());
+    		double temp = (double) schedules[startAddr + period * 3 + 2] / 2.0;
+    		network->log()->notice(F("Schedule temperature is: %D"), temp);
+    		targetTemperature->setDouble(temp);
+    	} else {
+    		targetTemperature->setDouble(targetTemperatureManualMode);
+    	}
+    }
+
+    void setTargetTemperature(WProperty* property) {
+    	if (!WProperty::isEqual(targetTemperatureManualMode, this->targetTemperature->getDouble(), 0.01)) {
+    		targetTemperatureManualMode = this->targetTemperature->getDouble();
+    		targetTemperatureManualModeToMcu();
+    		schedulesMode->setString(SCHEDULES_MODE_OFF);
+    	}
+    }
+
+    void targetTemperatureManualModeToMcu() {
     	if (!this->receivingDataFromMcu) {
-    		network->log()->notice(F("Set desired Temperature to %D"), this->targetTemperature->getDouble());
+    		network->log()->notice(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
     	    //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
     	    byte dt = (byte) (this->targetTemperature->getDouble() * 2);
     	    unsigned char setTemperatureCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x08,
@@ -924,8 +975,8 @@ private:
        	}
     }
 
-    boolean receivedSchedules() {
-    	return (this->schedulesDataPoint != 0x00);
+    bool receivedSchedules() {
+    	return ((network->isDebug()) || (this->schedulesDataPoint != 0x00));
     }
 
     void notifyState() {
