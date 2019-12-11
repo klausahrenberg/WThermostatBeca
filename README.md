@@ -13,11 +13,30 @@ Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The
 * Only BAC-002-ALW: fanSpeed:auto|low|medium|high; systemMode:cooling|heating|ventilation
 * Reading and setting of time schedules via MQTT
 ## Installation
-To install the firmware, follow instructions here:
+To install the firmware, follow instructions here:  
 https://github.com/klausahrenberg/WThermostatBeca/blob/master/Flashing.md
 ## Json structure
 Firmware provides 3 different json messages:
-1. State report 
+1. State report  
+MQTT: State report is provided every 5 minutes or at change of a parameter  
+Webthing: State report can be requested by: http://<device_ip>/things/thermostat/properties  
+```json
+{
+  "idx":"thermostat_beca",
+  "ip":"192.168.0.xxx",
+  "firmware":"x.xx",
+  "temperature":21.5,
+  "targetTemperature":23,
+  "deviceOn":true,
+  "schedulesMode":"off|auto",
+  "ecoMode":false,
+  "locked":false,
+  "state":"off|heating", //only_available,_if_hardware_modified
+  "floorTemperature":20, //only_BHT-002-GBLW
+  "fanMode":"auto|low|medium|high", //only_BAC-002-ALW
+  "systemMode":"cool|heat|fan_only" //only_BAC-002-ALW
+}
+```
 2. Schedules
 3. Device
 ### 1. State report 
