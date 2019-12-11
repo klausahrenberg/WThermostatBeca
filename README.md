@@ -18,8 +18,15 @@ https://github.com/klausahrenberg/WThermostatBeca/blob/master/Flashing.md
 ## Json structure
 Firmware provides 3 different json messages:
 1. State report  
+2. Schedules
+3. Device
+### 1. State report 
 MQTT: State report is provided every 5 minutes or at change of a parameter  
-Webthing: State report can be requested by: http://<device_ip>/things/thermostat/properties  
+Webthing: State report can be requested by:
+```
+http://<device_ip>/things/thermostat/properties
+```  
+
 ```json
 {
   "idx":"thermostat_beca",
@@ -37,9 +44,6 @@ Webthing: State report can be requested by: http://<device_ip>/things/thermostat
   "systemMode":"cool|heat|fan_only" //only_BAC-002-ALW
 }
 ```
-2. Schedules
-3. Device
-### 1. State report 
 ### 2. Schedules
 ### 3. Device
 
