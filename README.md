@@ -19,7 +19,8 @@ https://github.com/klausahrenberg/WThermostatBeca/blob/master/Flashing.md
 Since version 0.96 this firmware supports Mozilla Webthings directly. With webthings you can control the thermostat via the Gateway - inside and also outside of your home network. No clunky VPN, dynDNS solutions needed to access your home devices. I recommend to run the gateway in parallel to an MQTT server and for example Node-Red. Via MQTT you can control the thermostat completely and logic can be done by Node-Red. Webthings is used for outside control of main parameters.  
 Add the device to the gateway via '+' icon. After that you have the new nice and shiny icon in the dashboard:  
 ![webthing_icon](https://github.com/klausahrenberg/WThermostatBeca/blob/master/docs/Webthing_Icon.png)  
-The icon shows the actual temperature and heating state. There is also a detailed view available:  
+The icon shows the actual temperature and heating state.  
+There is also a detailed view available:  
 <img src="https://github.com/klausahrenberg/WThermostatBeca/blob/master/docs/Webthing_Complete.png" width="400">
 
 ## Json structure
