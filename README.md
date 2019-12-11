@@ -3,29 +3,26 @@ Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The
 * BHT-002-GBLW, BHT-6000 (floor heating)
 * BAC-002-ALW (heater, cooling, ventilation)
 * BHT-002-GCLW (Water/Gas Boiler)
-
-Other models will work in some way also, but other functions must be implemented additionally.
-
-## Releases:
-* Version 0.96: This version is not compatible with 0.95 and MQTT integration is different. Tons of new features, e.g., Mozilla Webthings. Give it a try, get started here: https://github.com/klausahrenberg/WThermostatBeca/blob/master/Configuration.md
-
-![image of thermostat](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/bac-002-wifi.jpg)
-
 ## Features
-* Configuration of Wifi and MQTT connection via web interface
-* Firmware upload via web interface
+* Enables thermostat to communicate via MQTT and/or Mozilla Webthings
+* Configuration of connection and devixe parameters via web interface
 * NTP and time zone synchronisation to set the clock of thermostat
-* Reading of parameters via MQTT: desiredTemperature; actualTemperature; deviceOn:true|false; manualMode:true|false; ecoMode:true|false; locked:true|false
+* Reading and setting of all parameters via MQTT
+* Reading and setting of main parameters vie Webthing
 * Only BHT-002-GBLW: actualFloorTemperature (external temperature sensor)
 * Only BAC-002-ALW: fanSpeed:auto|low|medium|high; systemMode:cooling|heating|ventilation
-* Setting of all parameters above via MQTT
-* Reading and setting of time schedules
-* Parameter 'schedulesDayOffset' to correct weekend, which are not starting on Saturday in some regions. The original firmware defines weekday 1-5 as workdays and weekday 6-7 as weekend. If your weekend starts on friday at example, the firmware will send the actual date + 1 day offset to the thermostat, to start the weekend (day 6) one day earlier. This offset can be defined by parameter 'schedulesDayOffset'.
-## Limitations
-The thermostat is working independent from the Wifi-Module. That means, functionality of the thermostat itself will not and can't be changed. This firmware replaces only the communication part of the thermostat, which is handled by the ESP module. The firmware will partially work with other devices too. The Tuya devices has a serial communication standard (MCU commands) which is only different in parameters. Unknown commands will be forwarded to the MQTT server.
+* Reading and setting of time schedules via MQTT
 ## Installation
 To install the firmware, follow instructions here:
 https://github.com/klausahrenberg/WThermostatBeca/blob/master/Flashing.md
+## Json structure
+Firmware provides 3 different json messages:
+1. State report 
+2. Schedules
+3. Device
+### 1. State report 
+### 2. Schedules
+### 3. Device
 
 ## First steps
 * Remove all connections from flashing
