@@ -21,12 +21,8 @@ Firmware provides 3 different json messages:
 2. Schedules
 3. Device
 ### 1. State report 
-MQTT: State report is provided every 5 minutes or at change of a parameter  
-Webthing: State report can be requested by:
-```
-http://<device_ip>/things/thermostat/properties
-```  
-
+**MQTT:** State report is provided every 5 minutes or at change of a parameter  
+**Webthing:** State report can be requested by: `http://<device_ip>/things/thermostat/properties`  
 ```json
 {
   "idx":"thermostat_beca",
