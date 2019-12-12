@@ -1,3 +1,8 @@
+## Version 0.98
+* Webserver can't be disabled anymore to ensure that thermostat can configered all the time
+* MQTT port can be configured now
+* Serveral fixes for webinterface (Saved message, no timeout, clock settings)
+
 ## Version 0.97
 * Improved behavior for targetTemperature. If target is changed via MQTT/Webthing and thermostat is in 'auto mode', the thermotat switches in 'manual mode' now. Before only the target for 'manual mode' was changed, but had no effect when thermostat was in 'auto mode'
 * Fix: targetTemperature gives correct actual value now, when in 'auto mode'
