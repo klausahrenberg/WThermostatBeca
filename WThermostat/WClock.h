@@ -28,12 +28,10 @@ public:
 		this->visibility = MQTT;
 		this->ntpServer = network->getSettings()->setString("ntpServer", 32, DEFAULT_NTP_SERVER);
 		this->ntpServer->setReadOnly(true);
-		this->ntpServer->setString(DEFAULT_NTP_SERVER);
 		this->ntpServer->setVisibility(MQTT);
 		this->addProperty(ntpServer);
 		this->timeZoneServer = network->getSettings()->setString("timeZoneServer", 64, DEFAULT_TIME_ZONE_SERVER);
 		this->timeZoneServer->setReadOnly(true);
-		this->timeZoneServer->setString(DEFAULT_TIME_ZONE_SERVER);
 		this->timeZoneServer->setVisibility(MQTT);
 		//this->ntpServer->setVisibility(MQTT);
 		this->addProperty(timeZoneServer);
@@ -303,6 +301,7 @@ public:
 
 	void printConfigPage(WStringStream* page) {
     	network->log()->notice(F("Clock config page"));
+    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
     	page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "NTP server:", "ntp", "32", ntpServer->c_str());
     	page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "Time zone request:", "tz", "64", timeZoneServer->c_str());
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
