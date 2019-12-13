@@ -1,3 +1,7 @@
+## Version 0.99
+* Serveral fixes for webinterface (e.g. Upload in Chrome was not working)
+* Fix schedules. ESP was hanging in endless loop in last 2 schedules of day
+
 ## Version 0.98
 * Webserver can't be disabled anymore to ensure that thermostat can configered all the time
 * MQTT port can be configured now
