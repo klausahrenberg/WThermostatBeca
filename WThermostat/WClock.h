@@ -226,15 +226,15 @@ public:
 	}
 
 	bool isTimeLaterThan(byte hours, byte minutes) {
-		network->log()->notice(F("Time is '%s':"), epochTimeFormatted->c_str());
 		return ((getHours() > hours) || ((getHours() == hours) && (getMinutes() >= minutes)));
 	}
 
 	bool isTimeEarlierThan(byte hours, byte minutes) {
-		network->log()->notice(F("Time is '%s':"), epochTimeFormatted->c_str());
-		network->log()->notice(F("Compare with %d:%d:"), hours, minutes);
-		network->log()->notice(F("Result is '%s':"), String(((getHours() < hours) || ((getHours() == hours) && (getMinutes() < minutes)))).c_str());
 		return ((getHours() < hours) || ((getHours() == hours) && (getMinutes() < minutes)));
+	}
+
+	bool isTimeBetween(byte hours1, byte minutes1, byte hours2, byte minutes2) {
+		return ((isTimeLaterThan(hours1, minutes1)) && (isTimeEarlierThan(hours2, minutes2)));
 	}
 
 	void updateFormattedTime() {

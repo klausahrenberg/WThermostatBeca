@@ -907,9 +907,16 @@ private:
     			period = 5;
     		} else {
     			//check the schedules in same day
-    			period = 1;
-    			while ((period < 5) && (wClock->isTimeLaterThan(schedules[startAddr + (period + 1) * 3 + 1], schedules[startAddr + (period + 1) * 3 + 0]))) {
-    				period++;
+    			for (int i = 1; i < 6; i++) {
+    				if (i < 5) {
+    					if (wClock->isTimeBetween(schedules[startAddr + i * 3 + 1], schedules[startAddr + i * 3 + 0],
+    							                  schedules[startAddr + (i + 1) * 3 + 1], schedules[startAddr + (i + 1) * 3 + 0])) {
+    						period = i;
+    						break;
+    					}
+    				} else if (wClock->isTimeLaterThan(schedules[startAddr + 5 * 3 + 1], schedules[startAddr + 5 * 3 + 0])) {
+    					period = 5;
+    				}
     			}
     		}
     		//String p = String(weekDay == 0 ? SCHEDULES_DAYS[2] : (weekDay == 6 ? SCHEDULES_DAYS[1] : SCHEDULES_DAYS[0]));
