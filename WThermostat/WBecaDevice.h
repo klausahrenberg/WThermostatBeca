@@ -893,7 +893,7 @@ private:
     }
 
     void updateTargetTemperature() {
-    	if ((receivedSchedules()) && (wClock->isValidTime()) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
+    	/*if ((receivedSchedules()) && (wClock->isValidTime()) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
     		byte weekDay = wClock->getWeekDay();
     		weekDay += schedulesDayOffset->getByte();
     		weekDay = weekDay % 7;
@@ -925,9 +925,9 @@ private:
     		double temp = (double) schedules[startAddr + period * 3 + 2] / 2.0;
     		network->log()->notice(F("Schedule temperature is: %D"), temp);
     		targetTemperature->setDouble(temp);
-    	} else {
+    	} else {*/
     		targetTemperature->setDouble(targetTemperatureManualMode);
-    	}
+    	//}
     }
 
     void setTargetTemperature(WProperty* property) {
