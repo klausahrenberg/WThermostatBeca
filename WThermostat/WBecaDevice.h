@@ -70,7 +70,7 @@ public:
     	this->targetTemperature = new WTargetTemperatureProperty("targetTemperature", "Target");//, 12.0, 28.0);
     	this->targetTemperature->setMultipleOf(0.5);
     	this->targetTemperature->setOnChange(std::bind(&WBecaDevice::setTargetTemperature, this, std::placeholders::_1));
-    	this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
+    	//this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
     	this->addProperty(targetTemperature);
     	this->deviceOn = new WOnOffProperty("deviceOn", "Power");
     	this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
@@ -726,6 +726,7 @@ private:
     					newValue = (float) receivedCommand[13] / 2.0f;
     					changed = ((changed) || (WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
     					targetTemperatureManualMode = newValue;
+    					targetTemperature->setDouble(targetTemperatureManualMode);
     					receivedStates[1] = true;
     					notifyMcuCommand("targetTemperature_x02");
     					knownCommand = true;
@@ -892,8 +893,8 @@ private:
      	}
     }
 
-    void updateTargetTemperature() {
-    	/*if ((receivedSchedules()) && (wClock->isValidTime()) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
+    /*void updateTargetTemperature() {
+    	if ((receivedSchedules()) && (wClock->isValidTime()) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
     		byte weekDay = wClock->getWeekDay();
     		weekDay += schedulesDayOffset->getByte();
     		weekDay = weekDay % 7;
@@ -925,10 +926,10 @@ private:
     		double temp = (double) schedules[startAddr + period * 3 + 2] / 2.0;
     		network->log()->notice(F("Schedule temperature is: %D"), temp);
     		targetTemperature->setDouble(temp);
-    	} else {*/
+    	} else {
     		targetTemperature->setDouble(targetTemperatureManualMode);
-    	//}
-    }
+    	}
+    }*/
 
     void setTargetTemperature(WProperty* property) {
     	if (!WProperty::isEqual(targetTemperatureManualMode, this->targetTemperature->getDouble(), 0.01)) {
@@ -942,7 +943,7 @@ private:
     	if (!this->receivingDataFromMcu) {
     		network->log()->notice(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
     	    //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
-    	    byte dt = (byte) (this->targetTemperature->getDouble() * 2);
+    	    byte dt = (byte) (targetTemperatureManualMode * 2);
     	    unsigned char setTemperatureCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x08,
     	    		0x02, 0x02, 0x00, 0x04,
 					0x00, 0x00, 0x00, dt};
