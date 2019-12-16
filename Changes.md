@@ -1,3 +1,6 @@
+## Version 1.00
+* Fix: ESP disconnected and was not reconnecting automaticly
+
 ## Version 0.99
 * Serveral fixes for webinterface (e.g. Upload in Chrome was not working)
 * Fix schedules. ESP was hanging in endless loop in last 2 schedules of day
