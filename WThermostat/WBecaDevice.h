@@ -70,7 +70,7 @@ public:
     	this->targetTemperature = new WTargetTemperatureProperty("targetTemperature", "Target");//, 12.0, 28.0);
     	this->targetTemperature->setMultipleOf(0.5);
     	this->targetTemperature->setOnChange(std::bind(&WBecaDevice::setTargetTemperature, this, std::placeholders::_1));
-    	//this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
+    	this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
     	this->addProperty(targetTemperature);
     	this->deviceOn = new WOnOffProperty("deviceOn", "Power");
     	this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
@@ -726,7 +726,7 @@ private:
     					newValue = (float) receivedCommand[13] / 2.0f;
     					changed = ((changed) || (WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
     					targetTemperatureManualMode = newValue;
-    					targetTemperature->setDouble(targetTemperatureManualMode);
+    					//targetTemperature->setDouble(targetTemperatureManualMode);
     					receivedStates[1] = true;
     					notifyMcuCommand("targetTemperature_x02");
     					knownCommand = true;
@@ -893,7 +893,7 @@ private:
      	}
     }
 
-    /*void updateTargetTemperature() {
+    void updateTargetTemperature() {
     	if ((receivedSchedules()) && (wClock->isValidTime()) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
     		byte weekDay = wClock->getWeekDay();
     		weekDay += schedulesDayOffset->getByte();
@@ -929,7 +929,7 @@ private:
     	} else {
     		targetTemperature->setDouble(targetTemperatureManualMode);
     	}
-    }*/
+    }
 
     void setTargetTemperature(WProperty* property) {
     	if (!WProperty::isEqual(targetTemperatureManualMode, this->targetTemperature->getDouble(), 0.01)) {
