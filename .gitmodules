@@ -1,0 +1,3 @@
+[submodule "WAdapter"]
+	path = lib/WAdapter
+	url = https://github.com/fashberg/WAdapter.git
