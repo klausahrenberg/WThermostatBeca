@@ -22,10 +22,35 @@ After initial setup, the device configuration is still available via `http://<de
 ## Integration in Webthings
 Since version 0.96 this firmware supports Mozilla Webthings directly. With webthings you can control the thermostat via the Gateway - inside and also outside of your home network. No clunky VPN, dynDNS solutions needed to access your home devices. I recommend to run the gateway in parallel to an MQTT server and for example Node-Red. Via MQTT you can control the thermostat completely and logic can be done by Node-Red. Webthings is used for outside control of main parameters.  
 Add the device to the gateway via '+' icon. After that you have the new nice and shiny icon in the dashboard:  
-![webthing_icon](https://github.com/klausahrenberg/WThermostatBeca/blob/master/docs/Webthing_Icon.png)  
+![webthing_icon](docs/Webthing_Icon.png)  
 The icon shows the actual temperature and heating state.  
 There is also a detailed view available:  
-<img src="https://github.com/klausahrenberg/WThermostatBeca/blob/master/docs/Webthing_Complete.png" width="400">
+<img src="docs/Webthing_Complete.png" width="400">
+
+## Integration in Home Assisant
+![homeassistant](docs/homeassistant.png)  
+Here is an example for your configuration.yaml file:
+```yaml
+climate:
+  - platform: mqtt
+    name: Room_Thermostat
+    temperature_command_topic: "home/room/cmnd/things/thermostat/properties/targetTemperature"
+    temperature_state_topic: "home/room/stat/things/thermostat/properties"
+    temperature_state_template: "{{ value_json['targetTemperature'] }}"
+    current_temperature_topic: "home/room/stat/things/thermostat/properties"
+    current_temperature_template: "{{ value_json['temperature'] }}"
+    mode_command_topic: "home/room/cmnd/things/thermostat/properties/mode"
+    mode_state_topic: "home/room/stat/things/thermostat/properties"
+    mode_state_template: "{{ value_json['mode'] }}"
+    modes:
+      - "heat"
+      - "auto"
+      - "off"
+    min_temp: 5
+    max_temp: 35
+    temp_step: 0.5
+    precision: 0.5
+```
 
 ## Json structure
 Firmware provides 3 different json messages:
@@ -91,28 +116,3 @@ Also you can change single values by sending the value to `<your_topic>/cmnd/thi
 Flash the original firmware (see installation). Write me a message with your exact model and which parameter was not correct. Maybe your MQTT-server received some unknown messages - this would be also helpful for me. Again: I have tested this only with model BHT-002-GBLW. If you have another device, don't expect that this is working directly.
 ### Build this firmware from source
 For build from sources you can use the Arduino-IDE, Sloeber or other. All sources needed are inside the folder 'WThermostat' and my other library: https://github.com/klausahrenberg/WAdapter. Additionally you will need some other libraries: DNSServer, EEPROM (for esp8266), ESP8266HTTPClient, ESP8266mDNS, ESP8266WebServer, ESP8266WiFi, Hash, NTPClient, Time - It's all available via board and library manager inside of ArduinoIDE
-
-
-## Home Assisant
-Here is an example for your configuration.yaml file:
-```yaml
-climate:
-  - platform: mqtt
-    name: Room_Thermostat
-    temperature_command_topic: "home/room/cmnd/things/thermostat/properties/targetTemperature"
-    temperature_state_topic: "home/room/stat/things/thermostat/properties"
-    temperature_state_template: "{{ value_json['targetTemperature'] }}"
-    current_temperature_topic: "home/room/stat/things/thermostat/properties"
-    current_temperature_template: "{{ value_json['temperature'] }}"
-    mode_command_topic: "home/room/cmnd/things/thermostat/properties/mode"
-    mode_state_topic: "home/room/stat/things/thermostat/properties"
-    mode_state_template: "{{ value_json['mode'] }}"
-    modes:
-      - "heat"
-      - "auto"
-      - "off"
-    min_temp: 5
-    max_temp: 35
-    temp_step: 0.5
-    precision: 0.5
-```
