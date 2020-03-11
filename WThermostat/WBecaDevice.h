@@ -4,7 +4,7 @@
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <EEPROM.h>
-#include "../../WAdapter/Wadapter/WDevice.h"
+#include "../lib/WAdapter/Wadapter/WDevice.h"
 #include "WClock.h"
 
 const static char HTTP_CONFIG_CHECKBOX_RELAY[]         PROGMEM = R"=====(					
@@ -29,7 +29,7 @@ const static char HTTP_CONFIG_CHECKBOX_RELAY[]         PROGMEM = R"=====(
 
 const unsigned char COMMAND_START[] = {0x55, 0xAA};
 const char AR_COMMAND_END = '\n';
-const String SCHEDULES = "schedules";
+const String SCHEDULES = "schedules"; 
 const char* SCHEDULES_MODE_OFF = "off";
 const char* SCHEDULES_MODE_AUTO = "auto";
 const char* SYSTEM_MODE_NONE = "none";
@@ -44,6 +44,11 @@ const char* FAN_MODE_AUTO = "auto";
 const char* FAN_MODE_LOW  = "low";
 const char* FAN_MODE_MEDIUM  = "medium";
 const char* FAN_MODE_HIGH = "high";
+const char* MODE_OFF  = "off";
+const char* MODE_AUTO = "auto";
+const char* MODE_HEAT = "heat";
+const char* MODE_COOL = "cool";
+const char* MODE_FAN  = "fan_only";
 
 const byte STORED_FLAG_BECA = 0x36;
 const char SCHEDULES_PERIODS[] = "123456";
@@ -76,7 +81,7 @@ public:
     	this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
     	this->addProperty(deviceOn);
     	this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING);
-    	this->schedulesMode->setAtType("ThermostatModeProperty");
+    	this->schedulesMode->setAtType("ThermostatSchedulesModeProperty");
     	this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
     	this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
     	this->schedulesMode->setOnChange(std::bind(&WBecaDevice::schedulesModeToMcu, this, std::placeholders::_1));
@@ -115,6 +120,24 @@ public:
         	this->fanMode->setString(FAN_MODE_NONE);
         	this->addProperty(fanMode);
     	}
+		/* 
+		* New OverAllMode for easier integration
+		* https://iot.mozilla.org/schemas/#ThermostatModeProperty
+		* https://www.home-assistant.io/integrations/climate.mqtt/
+		*/
+	
+    	this->mode = new WProperty("mode", "Mode", STRING);
+    	this->mode->setAtType("ThermostatModeProperty"); 
+    	this->mode->addEnumString(MODE_OFF);
+    	this->mode->addEnumString(MODE_AUTO);
+    	this->mode->addEnumString(MODE_HEAT);
+		//if (getThermostatModel() == MODEL_BAC_002_ALW) {
+    	//	this->mode->addEnumString(MODE_COOL);
+    	//	this->mode->addEnumString(MODE_FAN);
+		//}
+    	this->mode->setOnChange(std::bind(&WBecaDevice::modeToMcu, this, std::placeholders::_1));
+		this->mode->setOnValueRequest([this](WProperty* p) {updateMode();});
+    	this->addProperty(mode);
     	//Heating Relay and State property
     	this->state = nullptr;
     	this->supportingHeatingRelay = network->getSettings()->setBoolean("supportingHeatingRelay", true);
@@ -615,6 +638,7 @@ private:
     WProperty* targetTemperature;
     WProperty* actualTemperature;
     WProperty* actualFloorTemperature;
+    WProperty* mode;
     WProperty* schedulesMode;
     WProperty* systemMode;
     WProperty* fanMode;
@@ -971,6 +995,51 @@ private:
        		//notifyState();
        	}
     }
+ 	void modeToMcu(WProperty* property) {
+		if (this->mode->equalsString(MODE_AUTO)){
+			this->deviceOn->setBoolean(true);
+			this->schedulesMode->setString(SCHEDULES_MODE_AUTO);
+			if (getThermostatModel() == MODEL_BAC_002_ALW){				
+				// FIXME: this->systemMode->setString( coo; )
+			}
+
+		} else {
+			this->schedulesMode->setString(SCHEDULES_MODE_OFF);
+			if (this->mode->equalsString(MODE_OFF)){
+				this->deviceOn->setBoolean(false);
+			} else {
+				this->deviceOn->setBoolean(true);
+				if (this->mode->equalsString(MODE_HEAT)){
+					// deviceOn + schedules Off = heat
+				} 
+				if (getThermostatModel() == MODEL_BAC_002_ALW) {
+					if (this->mode->equalsString(MODE_HEAT)){
+					} else if (this->mode->equalsString(MODE_COOL)){
+						this->systemMode->setString(SYSTEM_MODE_COOL);
+					} else if (this->mode->equalsString(MODE_FAN)){
+						this->systemMode->setString(SYSTEM_MODE_FAN);
+					}
+				}
+			}
+		}
+	}
+
+
+    void updateMode() {
+		if (!this->deviceOn->getBoolean()){
+			this->mode->setString(MODE_OFF);
+		} else if (this->schedulesMode->equalsString(SCHEDULES_MODE_AUTO)){
+			this->mode->setString(MODE_AUTO);
+		} else if (getThermostatModel() == MODEL_BAC_002_ALW) {
+			if (this->systemMode->equalsString(MODE_COOL)){
+				this->mode->setString(MODE_COOL);
+			} else if (this->systemMode->equalsString(SYSTEM_MODE_FAN)){
+				this->mode->setString(MODE_FAN);
+			} 
+		} else {
+			this->mode->setString(MODE_HEAT);
+		} 
+	}
 
     void lockedToMcu(WProperty* property) {
        	if (!this->receivingDataFromMcu) {
@@ -1010,4 +1079,3 @@ private:
 
 
 #endif
-

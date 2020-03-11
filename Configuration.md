@@ -36,7 +36,7 @@ You don't need to use Webthings itself.
 {
   "url":"http://192.168.0.xxx/things/thermostat",
   "ip":"192.168.0.xxx",
-  "topic":"<your_topic>/things/thermostat"
+  "topic":"<your_topic>/[cmnd|stat]/things/thermostat"
 }
 ```
 ## 4. Configure clock settings

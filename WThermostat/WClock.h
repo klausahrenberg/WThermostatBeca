@@ -4,12 +4,13 @@
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <Time.h>
 #include <TimeLib.h>
-#include "../../WAdapter/Wadapter/WDevice.h"
-#include "../../WAdapter/Wadapter/WNetwork.h"
+#include "../lib/WAdapter/Wadapter/WDevice.h"
+#include "../lib/WAdapter/Wadapter/WNetwork.h"
 
 const static char* DEFAULT_NTP_SERVER = "pool.ntp.org";
 const static char* DEFAULT_TIME_ZONE_SERVER = "http://worldtimeapi.org/api/ip";
@@ -92,8 +93,10 @@ public:
 					&& (WiFi.status() == WL_CONNECTED)) {
 				String request = timeZoneServer->c_str();
 				network->log()->notice(F("Time zone update via '%s'"), request.c_str());
+				//WiFiClient client;
 				HTTPClient http;
-				http.begin(request);
+				//https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266HTTPClient/src/ESP8266HTTPClient.h
+				http.begin(/*client,*/ request);
 				int httpCode = http.GET();
 				if (httpCode > 0) {
 					WJsonParser parser;

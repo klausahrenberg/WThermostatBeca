@@ -33,7 +33,7 @@ Firmware provides 3 different json messages:
 2. Schedules
 3. Device (at start of device to let you know the topics and ip)
 ### 1. State report 
-**MQTT:** State report is provided every 5 minutes, at change of a parameter or at request via message with empty payload to `<your_topic>/things/thermostat/properties`  
+**MQTT:** State report is provided every 5 minutes, at change of a parameter or at request via message with empty payload to `<your_topic>/cmnd/things/thermostat/properties` , reports are sent to `<your_topic>/stat/things/thermostat/properties`
 **Webthing:** State report can be requested by: `http://<device_ip>/things/thermostat/properties`  
 ```json
 {
@@ -49,11 +49,12 @@ Firmware provides 3 different json messages:
   "state":"off|heating", //only_available,_if_hardware_modified
   "floorTemperature":20, //only_BHT-002-GBLW
   "fanMode":"auto|low|medium|high", //only_BAC-002-ALW
-  "systemMode":"cool|heat|fan_only" //only_BAC-002-ALW
+  "systemMode":"cool|heat|fan_only", //only_BAC-002-ALW
+  "mode":"off|auto|heat|cool|fan_only" // combine Mode for better home assistant support. cool|fan_only only_BAC-002-AL 
 }
 ```
 ### 2. Schedules
-**MQTT:** Request actual schedules via message with empty payload to `<your_topic>/things/thermostat/schedules`
+**MQTT:** Request actual schedules via message with empty payload to `<your_topic>/cmnd/things/thermostat/schedules`, answers are reported to to `<your_topic>/stat/things/thermostat/schedules`
 **Webthing:** State report can be requested by: `http://<device_ip>/things/thermostat/schedules`  
 ```json
 {
@@ -83,9 +84,35 @@ Firmware provides 3 different json messages:
 }
 ```
 ## Modifying parameters via MQTT
-Send a json with changed parameters to `<your_topic>/things/thermostat/properties`.  
-Send a json with changed schedules to `<your_topic>/things/thermostat/schedules`.
+Send a json with changed parameters to `<your_topic>/cmnd/things/thermostat/properties`.  
+Send a json with changed schedules to `<your_topic>/cmnd/things/thermostat/schedules`.
+Also you can change single values by sending the value to `<your_topic>/cmnd/things/thermostat/properties/parameterName`.
 ### Don't like or it doesn't work?
 Flash the original firmware (see installation). Write me a message with your exact model and which parameter was not correct. Maybe your MQTT-server received some unknown messages - this would be also helpful for me. Again: I have tested this only with model BHT-002-GBLW. If you have another device, don't expect that this is working directly.
 ### Build this firmware from source
 For build from sources you can use the Arduino-IDE, Sloeber or other. All sources needed are inside the folder 'WThermostat' and my other library: https://github.com/klausahrenberg/WAdapter. Additionally you will need some other libraries: DNSServer, EEPROM (for esp8266), ESP8266HTTPClient, ESP8266mDNS, ESP8266WebServer, ESP8266WiFi, Hash, NTPClient, Time - It's all available via board and library manager inside of ArduinoIDE
+
+
+## Home Assisant
+Here is an example for your configuration.yaml file:
+```yaml
+climate:
+  - platform: mqtt
+    name: Room_Thermostat
+    temperature_command_topic: "home/room/cmnd/things/thermostat/properties/targetTemperature"
+    temperature_state_topic: "home/room/stat/things/thermostat/properties"
+    temperature_state_template: "{{ value_json['targetTemperature'] }}"
+    current_temperature_topic: "home/room/stat/things/thermostat/properties"
+    current_temperature_template: "{{ value_json['temperature'] }}"
+    mode_command_topic: "home/room/cmnd/things/thermostat/properties/mode"
+    mode_state_topic: "home/room/stat/things/thermostat/properties"
+    mode_state_template: "{{ value_json['mode'] }}"
+    modes:
+      - "heat"
+      - "auto"
+      - "off"
+    min_temp: 5
+    max_temp: 35
+    temp_step: 0.5
+    precision: 0.5
+```

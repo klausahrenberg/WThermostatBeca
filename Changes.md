@@ -1,3 +1,9 @@
+## Version 1.01b
+* MQTT Topics devided into 'cmnd' for receiving and 'stat' for sending 
+* Added new paramter 'Mode' controlling and monitoring both parameters deviceOn and schedulesMode
+* Better Home Assitant Support
+* by Folke Ashberg <folke@ashberg.de>
+
 ## Version 1.00
 * Fix: ESP disconnected and was not reconnecting automaticly
 

@@ -1,0 +1,18 @@
+language: python
+python:
+  - '3.7'
+sudo: false
+install:
+  - pip install -U platformio
+  - platformio upgrade --dev
+  - platformio update
+
+cache: false
+
+env:
+  - ENV=wmthermostat
+
+script:
+  - platformio run -e $ENV
+before_deploy:
+  - for file in .pioenvs/*/firmware.bin; do cp $file ${file%/*}.bin; done

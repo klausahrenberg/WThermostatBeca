@@ -1,10 +1,10 @@
-#include <Arduino.h>
-#include "../../WAdapter/Wadapter/WNetwork.h"
+# include <Arduino.h>
+#include "../lib/WAdapter/WAdapter/WNetwork.h"
 #include "WBecaDevice.h"
 #include "WClock.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "1.00"
+#define VERSION "1.01beta"
 #define DEBUG false
 
 WNetwork* network;
@@ -37,7 +37,8 @@ void setup() {
 		becaDevice->sendActualTimeToBeca();
 	});
 	wClock->setOnError([](const char* error) {
-		return network->publishMqtt("error", "message", error);
+		String t = (String)network->getMqttTopic()+ "/error" ;
+		return network->publishMqtt( t.c_str(), "message", error);
 	});
 	//Communication between ESP and Beca-Mcu
 	becaDevice = new WBecaDevice(network, wClock);
@@ -48,7 +49,8 @@ void setup() {
 		return true;// sendSchedulesViaMqtt();
 	});
 	becaDevice->setOnNotifyCommand([](const char* commandType) {
-		return network->publishMqtt("mcucommand", commandType, becaDevice->getCommandAsString().c_str());
+		String t = (String)network->getMqttTopic()+ "/mcucommand" ;
+		return network->publishMqtt(t.c_str(), commandType, becaDevice->getCommandAsString().c_str());
 	});
 	becaDevice->setOnConfigurationRequest([]() {
 		network->startWebServer();
