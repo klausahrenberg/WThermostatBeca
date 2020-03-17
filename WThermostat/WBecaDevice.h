@@ -61,7 +61,7 @@ public:
 
     WBecaDevice(WNetwork* network, WClock* wClock)
     	: WDevice(network, "thermostat", "thermostat", DEVICE_TYPE_THERMOSTAT) {
-    	this->logMcu = false;
+		
     	this->receivingDataFromMcu = false;
     	this->lastSchedulesWaitForResponse = false;
     	this->schedulesChanged = false;
@@ -69,6 +69,14 @@ public:
 		this->targetTemperatureManualMode = 0.0;
     	this->wClock = wClock;
     	this->systemMode = nullptr;
+		this->mqttRetain=true;
+		this->stateNotifyInterval=60000;
+		/* properties */
+    	this->logMcu = new WOnOffProperty("logMcu", "logMcu");
+		this->logMcu->setBoolean(false);
+    	this->logMcu->setVisibility(MQTT);
+    	this->logMcu->setOnChange(std::bind(&WBecaDevice::setLogMcu, this, std::placeholders::_1));
+    	this->addProperty(logMcu);
     	this->actualTemperature = new WTemperatureProperty("temperature", "Actual");
     	this->actualTemperature->setReadOnly(true);
     	this->addProperty(actualTemperature);
@@ -211,6 +219,7 @@ public:
     	while (Serial.available() > 0) {
     		receiveIndex++;
     		unsigned char inChar = Serial.read();
+			//logCommand(((String)"Serial Read "+String(inChar, HEX)).c_str());
     		receivedCommand[receiveIndex] = inChar;
     		if (receiveIndex < 2) {
     			//Check command start
@@ -229,6 +238,7 @@ public:
     			}
     			expChecksum = expChecksum % 0x100;
     			if (expChecksum == receivedCommand[receiveIndex]) {
+					logCommand("processSerial");
     				processSerialCommand();
     			}
     			resetAll();
@@ -241,6 +251,7 @@ public:
     					|| (now - lastHeartBeat > HEARTBEAT_INTERVAL))) {
     		unsigned char heartBeatCommand[] =
     				{ 0x55, 0xAA, 0x00, 0x00, 0x00, 0x00 };
+			logCommand("sending heartBeatCommand");
     		commandCharsToSerial(6, heartBeatCommand);
     		//commandHexStrToSerial("55 aa 00 00 00 00");
     		lastHeartBeat = now;
@@ -264,13 +275,13 @@ public:
     	return commandLength;
     }
 
-    String getCommandAsString() {
+    String getCommandAsString(int commandLength, unsigned char * command ) {
     	String result = "";
     	if (commandLength > -1) {
-    		for (int i = 0; i < 6 + commandLength; i++) {
-    			unsigned char ch = receivedCommand[i];
+    		for (int i = 0; i <  commandLength; i++) {
+    			unsigned char ch = command[i];
     			result = result + (ch < 16 ? "0" : "") + String(ch, HEX);// charToHexStr(ch);
-    			if (i + 1 < 6 + commandLength) {
+    			if (i + 1 < commandLength) {
     				result = result + " ";
     			}
     		}
@@ -278,10 +289,15 @@ public:
     	return result;
     }
 
+	 String getIncomingCommandAsString() {
+    	return getCommandAsString(commandLength + 6, receivedCommand);
+    }
+
     void commandHexStrToSerial(String command) {
     	command.trim();
     	command.replace(" ", "");
     	command.toLowerCase();
+		logCommand(((String)"commandHexStrToSerial: "+command).c_str());
     	int chkSum = 0;
     	if ((command.length() > 1) && (command.length() % 2 == 0)) {
     		for (int i = 0; i < (command.length() / 2); i++) {
@@ -298,6 +314,7 @@ public:
     void commandCharsToSerial(unsigned int length, unsigned char* command) {
     	int chkSum = 0;
     	if (length > 2) {
+			logCommand(((String)"commandCharsToSerial: "+getCommandAsString(length, command)).c_str());
     		for (int i = 0; i < length; i++) {
     			unsigned char chValue = command[i];
     			chkSum += chValue;
@@ -351,6 +368,7 @@ public:
     }
 
     void handleUnknownMqttCallback(String completeTopic, String partialTopic, char *payload, unsigned int length) {
+		logCommand(((String)"handleUnknownMqttCallback " + completeTopic + " / " + partialTopic + " / " + payload).c_str());
     	if (partialTopic.startsWith(SCHEDULES)) {
     		partialTopic = partialTopic.substring(SCHEDULES.length() + 1);
     		if (partialTopic.equals("")) {
@@ -476,6 +494,10 @@ public:
     	this->onNotifyCommand = onNotifyCommand;
     }
 
+    void setOnLogCommand(TCommandHandlerFunction onLogCommand) {
+    	this->onLogCommand = onLogCommand;
+    }
+
     void setOnConfigurationRequest(THandlerFunction onConfigurationRequest) {
     	this->onConfigurationRequest = onConfigurationRequest;
     }
@@ -586,9 +608,8 @@ public:
     	}
     }
 
-    void setLogMcu(bool logMcu) {
-    	if (this->logMcu != logMcu) {
-    		this->logMcu = logMcu;
+    void setLogMcu(WProperty* property) {
+    	if (this->logMcu->getBoolean() != property->getBoolean()) {
     		notifyState();
     	}
     }
@@ -629,7 +650,7 @@ private:
     int commandLength;
     long lastHeartBeat;
     unsigned char receivedCommand[1024];
-    bool logMcu;
+    WProperty* logMcu;
     boolean receivingDataFromMcu;
     bool lastSchedulesWaitForResponse;
     double targetTemperatureManualMode;
@@ -654,6 +675,7 @@ private:
     WProperty* schedulesDayOffset;
     THandlerFunction onConfigurationRequest, onSchedulesChange;
     TCommandHandlerFunction onNotifyCommand;
+    TCommandHandlerFunction onLogCommand;
     unsigned long lastNotify, lastScheduleNotify;
     bool schedulesChanged;
 
@@ -685,8 +707,14 @@ private:
     }
 
     void notifyMcuCommand(const char* commandType) {
-    	if ((logMcu) && (onNotifyCommand)) {
+    	if ((logMcu->getBoolean()) && (onNotifyCommand)) {
     		onNotifyCommand(commandType);
+    	}
+    }
+
+    void logCommand(const char* message) {
+    	if ((logMcu->getBoolean()) && (onLogCommand)) {
+    		onLogCommand(message);
     	}
     }
 
@@ -750,7 +778,7 @@ private:
     					newValue = (float) receivedCommand[13] / 2.0f;
     					changed = ((changed) || (WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
     					targetTemperatureManualMode = newValue;
-    					//targetTemperature->setDouble(targetTemperatureManualMode);
+    					targetTemperature->setDouble(targetTemperatureManualMode);
     					receivedStates[1] = true;
     					notifyMcuCommand("targetTemperature_x02");
     					knownCommand = true;
@@ -891,13 +919,16 @@ private:
     			if (!knownCommand) {
     				notifyUnknownCommand();
     			} else if (changed) {
+					logCommand("ReceivedSerial/Changed");
     				notifyState();
     			} else if (schedulesChanged) {
+					logCommand("ReceivedSerial/schedulesChanged");
     				notifySchedules();
     			}
 
     		} else if (receivedCommand[3] == 0x1C) {
     			//Request for time sync from MCU : 55 aa 01 1c 00 00
+				logCommand("Request for time sync from MCU");
     			this->sendActualTimeToBeca();
     		} else {
     			notifyUnknownCommand();

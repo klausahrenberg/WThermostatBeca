@@ -1,3 +1,11 @@
+## Version 1.02b
+* Fix: logMcu command is now working again (<TOPIC>/cmnd/things/thermostat/properties/logMcu)
+* Fix: manual temperature change on device now updated in realtime
+* stats/things/thermostat now with MQTT-Retain-Flag
+* stats/things/thermostat now every 60 seconds
+* more debug and log messages with logMcu
+* by Folke Ashberg <folke@ashberg.de>
+
 ## Version 1.01b
 * MQTT Topics devided into 'cmnd' for receiving and 'stat' for sending 
 * Added new paramter 'Mode' controlling and monitoring both parameters deviceOn and schedulesMode

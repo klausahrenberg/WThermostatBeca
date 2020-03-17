@@ -4,7 +4,7 @@
 #include "WClock.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "1.01beta"
+#define VERSION "1.02b"
 #define DEBUG false
 
 WNetwork* network;
@@ -50,7 +50,11 @@ void setup() {
 	});
 	becaDevice->setOnNotifyCommand([](const char* commandType) {
 		String t = (String)network->getMqttTopic()+ "/mcucommand" ;
-		return network->publishMqtt(t.c_str(), commandType, becaDevice->getCommandAsString().c_str());
+		return network->publishMqtt(t.c_str(), commandType, becaDevice->getIncomingCommandAsString().c_str());
+	});
+	becaDevice->setOnLogCommand([](const char* message) {
+		String t = (String)network->getMqttTopic()+ "/log" ;
+		return network->publishMqtt(t.c_str(), "log", message);
 	});
 	becaDevice->setOnConfigurationRequest([]() {
 		network->startWebServer();
