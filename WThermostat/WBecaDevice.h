@@ -63,7 +63,6 @@ public:
     	: WDevice(network, "thermostat", "thermostat", DEVICE_TYPE_THERMOSTAT) {
 		
     	this->receivingDataFromMcu = false;
-    	this->lastSchedulesWaitForResponse = false;
     	this->schedulesChanged = false;
 		this->providingConfigPage = true;
 		this->targetTemperatureManualMode = 0.0;
@@ -367,40 +366,36 @@ public:
     	webServer->on(deviceBase.c_str(), HTTP_GET, std::bind(&WBecaDevice::sendSchedules, this, webServer));
     }
 
-    void handleUnknownMqttCallback(String completeTopic, String partialTopic, char *payload, unsigned int length) {
-		logCommand(((String)"handleUnknownMqttCallback " + completeTopic + " / " + partialTopic + " / " + payload).c_str());
+    void handleUnknownMqttCallback(String stat_topic, String partialTopic, char *payload, unsigned int length) {
+		logCommand(((String)"handleUnknownMqttCallback " + stat_topic + " / " + partialTopic + " / " + payload).c_str());
+		// {"log":"handleUnknownMqttCallback home/bad/stat/things/thermostat/properties / schedules / "}
     	if (partialTopic.startsWith(SCHEDULES)) {
     		partialTopic = partialTopic.substring(SCHEDULES.length() + 1);
     		if (partialTopic.equals("")) {
-    			if (!lastSchedulesWaitForResponse) {
-    				if (length == 0) {
-    					//Send actual schedules
-    					network->log()->notice(F("Empty payload for schedules -> send schedules..."));
-    					WStringStream* response = network->getResponseStream();
-    					WJson json(response);
-    		    		json.beginObject();
-    		    		this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
-    		    		this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
-    		    		this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
-    		    		json.endObject();
-    		    		network->publishMqtt(completeTopic.c_str(), response);
-    		    		lastSchedulesWaitForResponse = true;
-    				} else {
-    					//Set schedules
-    					network->log()->notice(F("Payload for schedules -> set schedules..."));
-    					WJsonParser* parser = new WJsonParser();
-    					schedulesChanged = false;
-    					parser->parse(payload, std::bind(&WBecaDevice::processSchedulesKeyValue, this,
-										std::placeholders::_1, std::placeholders::_2));
-    					delete parser;
-    					if (schedulesChanged) {
-    						network->log()->notice(F("Some schedules changed. Write to MCU..."));
-    						this->schedulesToMcu();
-    					}
-    				}
-    			} else {
-    				lastSchedulesWaitForResponse = false;
-    			}
+				if (length == 0) {
+					//Send actual schedules
+					network->log()->notice(F("Empty payload for schedules -> send schedules..."));
+					WStringStream* response = network->getResponseStream();
+					WJson json(response);
+					json.beginObject();
+					this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
+					this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
+					this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
+					json.endObject();
+					network->publishMqtt((stat_topic+SCHEDULES).c_str(), response);
+				} else {
+					//Set schedules
+					network->log()->notice(F("Payload for schedules -> set schedules..."));
+					WJsonParser* parser = new WJsonParser();
+					schedulesChanged = false;
+					parser->parse(payload, std::bind(&WBecaDevice::processSchedulesKeyValue, this,
+									std::placeholders::_1, std::placeholders::_2));
+					delete parser;
+					if (schedulesChanged) {
+						network->log()->notice(F("Some schedules changed. Write to MCU..."));
+						this->schedulesToMcu();
+					}
+				}
     		} else {
     			//There are still some more topics after properties
     			network->log()->notice(F("Longer topic for schedules -> not supported yet..."));
@@ -652,7 +647,6 @@ private:
     unsigned char receivedCommand[1024];
     WProperty* logMcu;
     boolean receivingDataFromMcu;
-    bool lastSchedulesWaitForResponse;
     double targetTemperatureManualMode;
     WProperty* deviceOn;
     WProperty* state;

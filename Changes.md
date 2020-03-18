@@ -1,3 +1,12 @@
+## Version 1.03b
+* fix: Scheduler: wrong MQTT returned on empty payload.
+  requesting mqtt <your_topic>/cmnd/things/thermostat/schedules with empty payload suppose to return json to the <your_topic>/stat/things/thermostat/schedules
+  but returned to <your_topic>/stat/things/thermostat/properties
+  Thanks to nimda5 https://github.com/klausahrenberg/WThermostatBeca/pull/81#issuecomment-598461168 
+* fix: scheduler gave no MQTT response every 2nd command
+* fix: responded twice on empty payload
+* by Folke Ashberg <folke@ashberg.de>
+
 ## Version 1.02b
 * Fix: logMcu command is now working again (<TOPIC>/cmnd/things/thermostat/properties/logMcu)
 * Fix: manual temperature change on device now updated in realtime
