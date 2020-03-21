@@ -1,3 +1,12 @@
+## Version 1.04b
+ * new Logging to MQTT
+   * logMcu replaced by new logging
+ * removed worldtimeapi and implemented own offline hanling of timezone and daylightsaving 
+ * schedules editable on web GUI
+ * send changed schedules to MQTT if changed on device
+ * PLEASE CHECK all Settings after Upgrade!
+ * by Folke Ashberg <folke@ashberg.de>
+
 ## Version 1.03b
 * fix: Scheduler: wrong MQTT returned on empty payload.
   requesting mqtt <your_topic>/cmnd/things/thermostat/schedules with empty payload suppose to return json to the <your_topic>/stat/things/thermostat/schedules

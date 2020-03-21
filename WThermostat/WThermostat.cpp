@@ -1,69 +1,68 @@
-# include <Arduino.h>
+#include <Arduino.h>
+
 #include "../lib/WAdapter/WAdapter/WNetwork.h"
 #include "WBecaDevice.h"
 #include "WClock.h"
+#include "WLogDevice.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "1.03b"
-#define DEBUG false
+#define VERSION "1.04b"
 
-WNetwork* network;
-WBecaDevice* becaDevice;
-WClock* wClock;
+#ifdef DEBUG // use platform.io environment to activate/deactive 
+#define SERIALDEBUG true  // enables logging to serial console
+#else
+#define SERIALDEBUG false
+#endif
+
+
+WNetwork *network;
+WLogDevice *logDevice;
+WBecaDevice *becaDevice;
+WClock *wClock;
 
 void setup() {
-	Serial.begin(9600);
-	//Wifi and Mqtt connection
-	network = new WNetwork(DEBUG, APPLICATION, VERSION, true, NO_LED);
-	network->setOnNotify([]() {
-		if (network->isWifiConnected()) {
+    Serial.begin(9600);
+    // Wifi and Mqtt connection
+    network = new WNetwork(SERIALDEBUG, APPLICATION, VERSION, true, NO_LED);
+    network->setOnNotify([]() {
+        if (network->isWifiConnected()) {
+        }
+        if (network->isMqttConnected()) {
+            becaDevice->queryState();
+            if (becaDevice->isDeviceStateComplete()) {
+                // sendMqttStatus();
+            }
+        }
+    });
+    network->setOnConfigurationFinished([]() {
+        // Switch blinking thermostat in normal operating mode back
+        becaDevice->cancelConfiguration();
+    });
 
-		}
-		if (network->isMqttConnected()) {
-			becaDevice->queryState();
-			if (becaDevice->isDeviceStateComplete()) {
-				//sendMqttStatus();
-			}
-		}
-	});
-	network->setOnConfigurationFinished([]() {
-		//Switch blinking thermostat in normal operating mode back
-		becaDevice->cancelConfiguration();
-	});
-	//KaClock - time sync
-	wClock = new WClock(network, APPLICATION);
-	network->addDevice(wClock);
-	wClock->setOnTimeUpdate([]() {
-		becaDevice->sendActualTimeToBeca();
-	});
-	wClock->setOnError([](const char* error) {
-		String t = (String)network->getMqttTopic()+ "/error" ;
-		return network->publishMqtt( t.c_str(), "message", error);
-	});
-	//Communication between ESP and Beca-Mcu
-	becaDevice = new WBecaDevice(network, wClock);
-	network->addDevice(becaDevice);
+    // KaClock - time sync
+    wClock = new WClock(network, APPLICATION);
+    network->addDevice(wClock);
+    wClock->setOnTimeUpdate([]() { becaDevice->sendActualTimeToBeca(); });
+    wClock->setOnError([](const char *error) {
+        network->log()->error(F("Clock Error: %s"), error);
+    });
+    // Communication between ESP and Beca-Mcu
+    becaDevice = new WBecaDevice(network, wClock);
+    network->addDevice(becaDevice);
 
-	becaDevice->setOnSchedulesChange([]() {
-		//Send schedules once at ESP start and at every change
-		return true;// sendSchedulesViaMqtt();
-	});
-	becaDevice->setOnNotifyCommand([](const char* commandType) {
-		String t = (String)network->getMqttTopic()+ "/mcucommand" ;
-		return network->publishMqtt(t.c_str(), commandType, becaDevice->getIncomingCommandAsString().c_str());
-	});
-	becaDevice->setOnLogCommand([](const char* message) {
-		String t = (String)network->getMqttTopic()+ "/log" ;
-		return network->publishMqtt(t.c_str(), "log", message);
-	});
-	becaDevice->setOnConfigurationRequest([]() {
-		network->startWebServer();
-		return true;
-	});
+    becaDevice->setOnConfigurationRequest([]() {
+        network->startWebServer();
+        return true;
+    });
+
+    // add MQTTLog
+    network->log()->notice(F("Loading LogDevice"));
+    logDevice = new WLogDevice(network);
+    network->addDevice(logDevice);
+    network->log()->notice(F("Loading LogDevice Done"));
 }
 
 void loop() {
-	network->loop(millis());
-	delay(50);
+    network->loop(millis());
+    delay(50);
 }
-

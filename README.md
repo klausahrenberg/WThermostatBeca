@@ -14,10 +14,10 @@ Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The
 * Reading and setting of time schedules via MQTT
 ## Installation
 To install the firmware, follow instructions here:  
-https://github.com/klausahrenberg/WThermostatBeca/blob/master/Flashing.md
+Flashing.md
 ## Initial configuration
 To setup the device model, network options and other parameters, follow instrcution here:  
-https://github.com/klausahrenberg/WThermostatBeca/blob/master/Configuration.md  
+Configuration.md  
 After initial setup, the device configuration is still available via `http://<device_ip>/config`  
 ## Integration in Webthings
 Since version 0.96 this firmware supports Mozilla Webthings directly. With webthings you can control the thermostat via the Gateway - inside and also outside of your home network. No clunky VPN, dynDNS solutions needed to access your home devices. I recommend to run the gateway in parallel to an MQTT server and for example Node-Red. Via MQTT you can control the thermostat completely and logic can be done by Node-Red. Webthings is used for outside control of main parameters.  
@@ -108,6 +108,14 @@ Firmware provides 3 different json messages:
   "topic":"thermostat_beca/things/thermostat"
 }
 ```
+
+### 4. Logs
+If logging is enabled (webgui/mqtt) you will see messages like:
+```
+home/<your_topic>/tele/log trace: sending heartBeatCommand
+home/<your_topic>/tele/log trace: commandCharsToSerial: 55 aa 00 00 00 00
+```
+
 ## Modifying parameters via MQTT
 Send a json with changed parameters to `<your_topic>/cmnd/things/thermostat/properties`.  
 Send a json with changed schedules to `<your_topic>/cmnd/things/thermostat/schedules`.
