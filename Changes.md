@@ -1,9 +1,11 @@
 ## Version 1.04b
+ * moved webthings-page to /webthings (DNS-Discovery adopted)
+ * root-page is now config-page
  * new Logging to MQTT
-   * logMcu replaced by new logging
+   * old logMcu removed
  * removed worldtimeapi and implemented own offline hanling of timezone and daylightsaving 
  * schedules editable on web GUI
- * send changed schedules to MQTT if changed on device
+ * send changed schedules via MQTT if changed manually on device
  * PLEASE CHECK all Settings after Upgrade!
  * by Folke Ashberg <folke@ashberg.de>
 
