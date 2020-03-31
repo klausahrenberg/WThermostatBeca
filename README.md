@@ -1,24 +1,53 @@
 # ThermostatBecaWifi
 Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The firmware is tested with following devices:
 * BHT-002-GBLW, BHT-6000 (floor heating)
-* BAC-002-ALW (heater, cooling, ventilation)
+* BHT-002-GALW (Water/Gas heating)
 * BHT-002-GCLW (Water/Gas Boiler)
+* BAC-002-ALW (heater, cooling, ventilation)
+
+Also selled by Moes or Qiumi.
+
+![homeassistant](docs/bac-002-wifi.jpg)  
+
+### Hardware differences
+GA/GB/GC differs only on relais-outputs. You need WiFi Version! (W in product Name).
+
+* GA - Water-Heating
+  * Two Relais for opening and closing valve
+  * Only one Relais will be closed at the same time
+  * Closing Relais PIN 1 - PIN 3 (N or L)
+  * Opening Relais PIN 2 - PIN 3 (N or L)
+  * Product Spec says Max Power: 3 A
+* GB - Electric-Heating
+  * Connect Heating between PIN 1 and PIN 2
+  * Product Spec says Max Power: 16 A
+* GC - Water/Gas Boiler
+  * One Relais - potential free
+  * Relaise on PIN 1 - PIN 2 (dry contacts)
+  * Product Spec says Max Power: 3 A
+
 ## Features
 * Enables thermostat to communicate via MQTT and/or Mozilla Webthings
-* Configuration of connection and devixe parameters via web interface
+* Configuration of connection and device parameters via web interface
 * NTP and time zone synchronisation to set the clock of thermostat
 * Reading and setting of all parameters via MQTT
-* Reading and setting of main parameters vie Webthing
-* Only BHT-002-GBLW: actualFloorTemperature (external temperature sensor)
+* Reading and setting of main parameters via Webthings
+* Only BHT-002-GxLW: actualFloorTemperature (external temperature sensor)
 * Only BAC-002-ALW: fanSpeed:auto|low|medium|high; systemMode:cooling|heating|ventilation
 * Reading and setting of time schedules via MQTT
+
 ## Installation
 To install the firmware, follow instructions here:  
 Flashing.md
+
 ## Initial configuration
 To setup the device model, network options and other parameters, follow instrcution here:  
 Configuration.md  
-After initial setup, the device configuration is still available via `http://<device_ip>/config`  
+After initial setup, the device configuration is still available via `http://<device_ip>/` 
+
+
+![homeassistant](docs/Setup_Main.png)  
+
 ## Integration in Webthings
 Since version 0.96 this firmware supports Mozilla Webthings directly. With webthings you can control the thermostat via the Gateway - inside and also outside of your home network. No clunky VPN, dynDNS solutions needed to access your home devices. I recommend to run the gateway in parallel to an MQTT server and for example Node-Red. Via MQTT you can control the thermostat completely and logic can be done by Node-Red. Webthings is used for outside control of main parameters.  
 Add the device to the gateway via '+' icon. After that you have the new nice and shiny icon in the dashboard:  
@@ -75,7 +104,8 @@ Firmware provides 3 different json messages:
   "floorTemperature":20, //only_BHT-002-GBLW
   "fanMode":"auto|low|medium|high", //only_BAC-002-ALW
   "systemMode":"cool|heat|fan_only", //only_BAC-002-ALW
-  "mode":"off|auto|heat|cool|fan_only" // combine Mode for better home assistant support. cool|fan_only only_BAC-002-AL 
+  "mode":"off|auto|heat" // BHT-002: combined Mode for better home assistant support. 
+  "mode":"off|autoheat|autocool|autofan|heat|cool|fan_only" // BAC-002-ALW
 }
 ```
 ### 2. Schedules

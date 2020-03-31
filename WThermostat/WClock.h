@@ -185,7 +185,7 @@ class WClock : public WDevice {
                     RtcTime.year = tmpTime.year;
                     Rtc.daylight_saving_time = RuleToTime(this->timeRuleDst, RtcTime.year);
                     Rtc.standard_time = RuleToTime(this->timeRuleStd, RtcTime.year);
-                    network->log()->notice(F("NTP time synced: (%04d-%02d-%02d %02d:%02d:%02d, Weekday: %d, Epoch: %d, Dst: %d, Std: %d, Diff: )"),
+                    network->log()->notice(F("NTP time synced: (%04d-%02d-%02d %02d:%02d:%02d, Weekday: %d, Epoch: %d, Dst: %d, Std: %d, Diff: %d)"),
                             tmpTime.year, tmpTime.month, tmpTime.day_of_month, tmpTime.hour, tmpTime.minute, tmpTime.second, tmpTime.day_of_week,
                             ntpTime, Rtc.daylight_saving_time, Rtc.standard_time, ntpTime - oldutc );
 

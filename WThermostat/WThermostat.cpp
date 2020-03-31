@@ -6,7 +6,7 @@
 #include "WLogDevice.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "1.04b"
+#define VERSION "1.05b"
 
 #ifdef DEBUG // use platform.io environment to activate/deactive 
 #define SERIALDEBUG true  // enables logging to serial console

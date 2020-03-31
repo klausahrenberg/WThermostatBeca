@@ -67,6 +67,9 @@ const char* FAN_MODE_MEDIUM  = "medium";
 const char* FAN_MODE_HIGH = "high";
 const char* MODE_OFF  = "off";
 const char* MODE_AUTO = "auto";
+const char* MODE_AUTOHEAT = "autoheat";
+const char* MODE_AUTOCOOL = "autocool";
+const char* MODE_AUTOFAN = "autofan";
 const char* MODE_HEAT = "heat";
 const char* MODE_COOL = "cool";
 const char* MODE_FAN  = "fan_only";
@@ -132,7 +135,7 @@ public:
         	this->systemMode->addEnumString(SYSTEM_MODE_COOL);
         	this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
         	this->systemMode->addEnumString(SYSTEM_MODE_FAN);
-        	this->systemMode->setString(SYSTEM_MODE_NONE);
+			this->systemMode->setOnChange(std::bind(&WBecaDevice::systemModeToMcu, this, std::placeholders::_1));
         	this->addProperty(systemMode);
     		this->fanMode = new WProperty("fanMode", "Fan", STRING);
         	this->fanMode->setAtType("FanModeProperty");
@@ -140,7 +143,7 @@ public:
         	this->fanMode->addEnumString(FAN_MODE_LOW);
         	this->fanMode->addEnumString(FAN_MODE_MEDIUM);
         	this->fanMode->addEnumString(FAN_MODE_HIGH);
-        	this->fanMode->setString(FAN_MODE_NONE);
+			this->fanMode->setOnChange(std::bind(&WBecaDevice::fanModeToMcu, this, std::placeholders::_1));
         	this->addProperty(fanMode);
     	}
 		/* 
@@ -152,12 +155,17 @@ public:
     	this->mode = new WProperty("mode", "Mode", STRING);
     	this->mode->setAtType("ThermostatModeProperty"); 
     	this->mode->addEnumString(MODE_OFF);
-    	this->mode->addEnumString(MODE_AUTO);
-    	this->mode->addEnumString(MODE_HEAT);
-		//if (getThermostatModel() == MODEL_BAC_002_ALW) {
-    	//	this->mode->addEnumString(MODE_COOL);
-    	//	this->mode->addEnumString(MODE_FAN);
-		//}
+		if (getThermostatModel() == MODEL_BHT_002_GBLW) {
+    		this->mode->addEnumString(MODE_AUTO);
+		}
+		if (getThermostatModel() == MODEL_BAC_002_ALW) {
+			this->mode->addEnumString(MODE_AUTOHEAT);
+			this->mode->addEnumString(MODE_AUTOCOOL);
+			this->mode->addEnumString(MODE_AUTOFAN);
+			this->mode->addEnumString(MODE_COOL);
+    		this->mode->addEnumString(MODE_FAN);
+		}
+		this->mode->addEnumString(MODE_HEAT);
     	this->mode->setOnChange(std::bind(&WBecaDevice::modeToMcu, this, std::placeholders::_1));
 		this->mode->setOnValueRequest([this](WProperty* p) {updateMode();});
     	this->addProperty(mode);
@@ -646,8 +654,9 @@ public:
     	}
     }
 
-    void fanModeToMcu() {
+    void fanModeToMcu(WProperty* property) {
     	if ((fanMode != nullptr) && (!this->receivingDataFromMcu)) {
+			network->log()->notice(F("fanModeToMcu"));
     		byte dt = this->getFanModeAsByte();
     		if (dt != 0xFF) {
     			//send to device
@@ -682,8 +691,9 @@ public:
     	}
     }
 
-    void systemModeToMcu() {
+    void systemModeToMcu(WProperty* property) {
     	if ((systemMode != nullptr) && (!this->receivingDataFromMcu)) {
+			network->log()->notice(F("systemModeToMcu"));
     		byte dt = this->getSystemModeAsByte();
     		if (dt != 0xFF) {
     			//send to device
@@ -1099,30 +1109,51 @@ private:
        	}
     }
  	void modeToMcu(WProperty* property) {
-		network->log()->notice(F("modeToMcu %s"), property->c_str());
-		if (this->mode->equalsString(MODE_AUTO)){
-			this->deviceOn->setBoolean(true);
-			this->schedulesMode->setString(SCHEDULES_MODE_AUTO);
-			if (getThermostatModel() == MODEL_BAC_002_ALW){				
-				// FIXME: this->systemMode->setString( coo; )
-			}
+		network->log()->trace(F("modeToMcu %s"), property->c_str());
 
-		} else {
-			this->schedulesMode->setString(SCHEDULES_MODE_OFF);
+		if (getThermostatModel() == MODEL_BHT_002_GBLW) {
 			if (this->mode->equalsString(MODE_OFF)){
+				this->deviceOn->setBoolean(false);
+				this->schedulesMode->setString(SCHEDULES_MODE_OFF);
+			} else {
+				this->deviceOn->setBoolean(true);
+				if (this->mode->equalsString(MODE_AUTO)){
+					this->schedulesMode->setString(SCHEDULES_MODE_AUTO);
+					this->schedulesMode->setString(SCHEDULES_MODE_AUTO);
+				} else if (this->mode->equalsString(MODE_HEAT)){
+					this->schedulesMode->setString(SCHEDULES_MODE_OFF);
+				} else {
+					network->log()->warning(F("modeToMcu unknown mode %s"), property->c_str());
+				}
+			}
+		}
+		if (getThermostatModel() == MODEL_BAC_002_ALW){		
+			if (this->mode->equalsString(MODE_OFF)){
+				this->schedulesMode->setString(SCHEDULES_MODE_OFF);
 				this->deviceOn->setBoolean(false);
 			} else {
 				this->deviceOn->setBoolean(true);
+				this->fanMode->setString(FAN_MODE_AUTO);
 				if (this->mode->equalsString(MODE_HEAT)){
-					// deviceOn + schedules Off = heat
-				} 
-				if (getThermostatModel() == MODEL_BAC_002_ALW) {
-					if (this->mode->equalsString(MODE_HEAT)){
-					} else if (this->mode->equalsString(MODE_COOL)){
-						this->systemMode->setString(SYSTEM_MODE_COOL);
-					} else if (this->mode->equalsString(MODE_FAN)){
-						this->systemMode->setString(SYSTEM_MODE_FAN);
-					}
+					this->schedulesMode->setString(SCHEDULES_MODE_OFF);
+					this->systemMode->setString(SYSTEM_MODE_HEAT);
+				} else if (this->mode->equalsString(MODE_COOL)){
+					this->schedulesMode->setString(SCHEDULES_MODE_OFF);
+					this->systemMode->setString(SYSTEM_MODE_COOL);
+				} else if (this->mode->equalsString(MODE_FAN)){
+					this->schedulesMode->setString(SCHEDULES_MODE_OFF);
+					this->systemMode->setString(SYSTEM_MODE_FAN);
+				} else if (this->mode->equalsString(MODE_AUTOHEAT)){
+					this->schedulesMode->setString(SCHEDULES_MODE_AUTO);
+					this->systemMode->setString(SYSTEM_MODE_HEAT);
+				} else if (this->mode->equalsString(MODE_AUTOCOOL)){
+					this->schedulesMode->setString(SCHEDULES_MODE_AUTO);
+					this->systemMode->setString(SYSTEM_MODE_COOL);
+				} else if (this->mode->equalsString(MODE_AUTOFAN)){
+					this->schedulesMode->setString(SCHEDULES_MODE_AUTO);
+					this->systemMode->setString(SYSTEM_MODE_FAN);
+				} else {
+					network->log()->warning(F("modeToMcu unknown mode %s"), property->c_str());
 				}
 			}
 		}
@@ -1133,16 +1164,32 @@ private:
 		if (!this->deviceOn->getBoolean()){
 			this->mode->setString(MODE_OFF);
 		} else if (this->schedulesMode->equalsString(SCHEDULES_MODE_AUTO)){
-			this->mode->setString(MODE_AUTO);
+			if (getThermostatModel() == MODEL_BAC_002_ALW){
+				if (this->systemMode->equalsString(SYSTEM_MODE_HEAT)){
+					this->mode->setString(MODE_AUTOHEAT);
+				} else if (this->systemMode->equalsString(SYSTEM_MODE_COOL)){
+					this->mode->setString(MODE_AUTOCOOL);
+				} else if (this->systemMode->equalsString(SYSTEM_MODE_FAN)){
+					this->mode->setString(MODE_AUTOFAN);
+				} 
+			} else if (getThermostatModel() == MODEL_BHT_002_GBLW) {
+				this->mode->setString(MODE_AUTO);
+			} else {
+				network->log()->error(F("Bug. Can't find mode (on+auto+?)"));
+			}
 		} else if (getThermostatModel() == MODEL_BAC_002_ALW) {
-			if (this->systemMode->equalsString(MODE_COOL)){
+			if (this->systemMode->equalsString(SYSTEM_MODE_HEAT)){
+				this->mode->setString(MODE_HEAT);
+			} else if (this->systemMode->equalsString(SYSTEM_MODE_COOL)){
 				this->mode->setString(MODE_COOL);
 			} else if (this->systemMode->equalsString(SYSTEM_MODE_FAN)){
 				this->mode->setString(MODE_FAN);
-			} 
-		} else {
+			}
+		} else if (getThermostatModel() == MODEL_BHT_002_GBLW){
 			this->mode->setString(MODE_HEAT);
-		} 
+		} else {
+			network->log()->error(F("Bug. Can't find mode (on+noauto+?)"));
+		}
 	}
 
     void lockedToMcu(WProperty* property) {

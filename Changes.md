@@ -1,3 +1,7 @@
+## Version 1.05b
+* Fix for heating/cooling devices (systemMode/fanMode)
+* by Folke Ashberg <folke@ashberg.de>
+
 ## Version 1.04b
  * moved webthings-page to /webthings (DNS-Discovery adopted)
  * root-page is now config-page
