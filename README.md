@@ -9,8 +9,31 @@ Also selled by Moes or Qiumi.
 
 ![homeassistant](docs/bac-002-wifi.jpg)  
 
-### Hardware differences
-GA/GB/GC differs only on relais-outputs. You need WiFi Version! (W in product Name).
+## Features
+* Enables thermostat to communicate via MQTT and/or Mozilla Webthings
+* Configuration of connection, device parameters and schedules via web interface
+* Provides NTP, time zone handling and Daylight-Saving-Calculation to set the clock of thermostat
+* Reading and setting of all parameters via MQTT
+* Reading and setting of main parameters via Webthings
+* Only BHT-002-GxLW: actualFloorTemperature (external temperature sensor)
+* Only BAC-002-ALW: fanSpeed:auto|low|medium|high; systemMode:cooling|heating|ventilation
+* Reading and setting of time schedules via MQTT
+
+## Hardware
+The Hardware itself has two Microcontrollers:
+* The MCU, the Main Controlling Unit.
+  * It controls the Display, the Relais, has RTC, etc.
+  * The software on the MCU is not upgraded, so no changes here.
+* The ESP8266-based Tuya-Wifi-Module. 
+  * WThermostat replaces the Software on this ESP-Module
+  * There is a serial connection between MCU and ESP. Via this connection the we can control the MCU
+  * Only the Wifi-Verisons of thermostats have the ESP-Module.
+
+### Hardware-Versions
+You need the WiFi Version! (W in product Name). There is also a version without WLAN.
+
+The BHT Version is for heating only. The BAC-Version has modes Cooling, Heating and Ventilation.
+The HBT-002-GA/GB/GC versions only differs in relais-wiring. 
 
 * GA - Water-Heating
   * Two Relais for opening and closing valve
@@ -26,19 +49,13 @@ GA/GB/GC differs only on relais-outputs. You need WiFi Version! (W in product Na
   * Relaise on PIN 1 - PIN 2 (dry contacts)
   * Product Spec says Max Power: 3 A
 
-## Features
-* Enables thermostat to communicate via MQTT and/or Mozilla Webthings
-* Configuration of connection and device parameters via web interface
-* NTP and time zone synchronisation to set the clock of thermostat
-* Reading and setting of all parameters via MQTT
-* Reading and setting of main parameters via Webthings
-* Only BHT-002-GxLW: actualFloorTemperature (external temperature sensor)
-* Only BAC-002-ALW: fanSpeed:auto|low|medium|high; systemMode:cooling|heating|ventilation
-* Reading and setting of time schedules via MQTT
 
 ## Installation
-To install the firmware, follow instructions here:  
-Flashing.md
+You can install the firmware either
+* by using tuya-convert - no Hardware Modifications necessary
+* by soldering cables to the ESP-Modules using an ESP/Arduino-Programmer (3,3 Volt TTL)
+
+Follow instructions here: Flashing.md
 
 ## Initial configuration
 To setup the device model, network options and other parameters, follow instrcution here:  
@@ -81,14 +98,20 @@ climate:
     precision: 0.5
 ```
 
-## Json structure
-Firmware provides 3 different json messages:
-1. State report  
-2. Schedules
+# Device-Functions
+## Json structures
+The software provides different messages:
+1. Thermostat State report (JSON)
+2. Schedules (JSON)
 3. Device (at start of device to let you know the topics and ip)
-### 1. State report 
-**MQTT:** State report is provided every 5 minutes, at change of a parameter or at request via message with empty payload to `<your_topic>/cmnd/things/thermostat/properties` , reports are sent to `<your_topic>/stat/things/thermostat/properties`
-**Webthing:** State report can be requested by: `http://<device_ip>/things/thermostat/properties`  
+4. Logs (Plain)
+
+### 1. Thermostat State report 
+**MQTT:** State report is provided every 5 minutes, at change of a parameter or at request via message with empty payload to `<your_topic>/cmnd/things/thermostat/properties` , reports are sent to `<your_topic>/stat/things/thermostat/properties`.
+The state report is sent with MQTT-retain-flag enabled.
+
+**WebThings:** State report can be requested by: `http://<device_ip>/things/thermostat/properties`  
+
 ```json
 {
   "idx":"thermostat_beca",
@@ -108,9 +131,13 @@ Firmware provides 3 different json messages:
   "mode":"off|autoheat|autocool|autofan|heat|cool|fan_only" // BAC-002-ALW
 }
 ```
+
+
 ### 2. Schedules
 **MQTT:** Request actual schedules via message with empty payload to `<your_topic>/cmnd/things/thermostat/schedules`, answers are reported to to `<your_topic>/stat/things/thermostat/schedules`
-**Webthing:** State report can be requested by: `http://<device_ip>/things/thermostat/schedules`  
+
+**WebThings:** State report can be requested by: `http://<device_ip>/things/thermostat/schedules`
+
 ```json
 {
   "w1h":"06:00",
@@ -128,9 +155,11 @@ Firmware provides 3 different json messages:
   "u6t":15
 }
 ```
-### 3. Device
+### 3. Device Report
 **MQTT:** At start of device to let you know the topics and ip to `devices/thermostat`  
-**Webthing:** n.a.
+
+**WebThings:** n.a.
+
 ```json
 {
   "url":"http://192.168.0.xxx/things/thermostat",
@@ -150,7 +179,35 @@ home/<your_topic>/tele/log trace: commandCharsToSerial: 55 aa 00 00 00 00
 Send a json with changed parameters to `<your_topic>/cmnd/things/thermostat/properties`.  
 Send a json with changed schedules to `<your_topic>/cmnd/things/thermostat/schedules`.
 Also you can change single values by sending the value to `<your_topic>/cmnd/things/thermostat/properties/parameterName`.
+
+Examples:
+```
+# set device on
+mosquitto_pub  -h mqtt  -t home/test/cmnd/things/thermostat/properties/deviceOn  -m "true"
+# set device to heating
+mosquitto_pub  -h mqtt  -t home/test/cmnd/things/thermostat/properties/mode  -m "heat"
+# set target temperature
+mosquitto_pub  -h mqtt  -t home/test/cmnd/things/thermostat/properties/targetTemperature  -m "23.5"
+# set target temperature (json)
+mosquitto_pub  -h mqtt  -t home/test/cmnd/things/thermostat/properties -m '{"targetTemperature":23.00}'
+# set target temperature and mode (json)
+mosquitto_pub  -h mqtt  -t home/test/cmnd/things/thermostat/properties -m '{"targetTemperature":22.00,"mode":heat}'
+# set device to auto (target temperature controlled by MCU-Scheduler)
+mosquitto_pub  -h mqtt  -t home/test/cmnd/things/thermostat/properties/mode -m "auto"
+# just request properties
+mosquitto_pub  -h mqtt  -t home/test/cmnd/things/thermostat/properties -n
+# request properties and show answer directly
+mosquitto_rr  -h mqtt  -t home/test/cmnd/things/thermostat/properties  -n -e home/test/stat/things/thermostat/properties
+{"idx":"test","ip":"10.10.200.69","firmware":"1.04b","temperature":0.00,"targetTemperature":22.00,"deviceOn":true,"schedulesMode":"off","ecoMode":false,"locked":false,"systemMode":"heat","fanMode":"auto","mode":"heat"}
+# disable MQTT logging
+mosquitto_pub  -h mqtt  -t home/test/cmnd/things/logging/properties/logLevel -m "silent"
+# set to level trace (available: silent|fatal|error|warning|notice|trace|verbose)
+mosquitto_pub  -h mqtt  -t home/test/cmnd/things/logging/properties/logLevel -m "trace"
+
+```
+
 ### Don't like or it doesn't work?
 Flash the original firmware (see installation). Write me a message with your exact model and which parameter was not correct. Maybe your MQTT-server received some unknown messages - this would be also helpful for me. Again: I have tested this only with model BHT-002-GBLW. If you have another device, don't expect that this is working directly.
+
 ### Build this firmware from source
 For build from sources you can use the Arduino-IDE, Sloeber or other. All sources needed are inside the folder 'WThermostat' and my other library: https://github.com/klausahrenberg/WAdapter. Additionally you will need some other libraries: DNSServer, EEPROM (for esp8266), ESP8266HTTPClient, ESP8266mDNS, ESP8266WebServer, ESP8266WiFi, Hash, NTPClient, Time - It's all available via board and library manager inside of ArduinoIDE
