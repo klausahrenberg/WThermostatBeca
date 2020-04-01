@@ -1,0 +1,35 @@
+{
+    "name": "NTPClient", 
+    "keywords": [
+        "ntp", 
+        "client", 
+        "time"
+    ], 
+    "description": "A NTPClient to connect to a time server", 
+    "authors": [
+        {
+            "email": "fabrice@weinberg.me", 
+            "url": null, 
+            "maintainer": false, 
+            "name": "Fabrice Weinberg"
+        }, 
+        {
+            "email": "s.mistry@arduino.cc", 
+            "url": null, 
+            "maintainer": false, 
+            "name": "Sandeep Mistry"
+        }
+    ], 
+    "repository": {
+        "type": "git", 
+        "url": "https://github.com/arduino-libraries/NTPClient.git"
+    }, 
+    "version": "3.1.0", 
+    "frameworks": [
+        "arduino"
+    ], 
+    "platforms": [
+        "espressif8266"
+    ], 
+    "id": 551
+}
