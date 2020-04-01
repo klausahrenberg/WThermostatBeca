@@ -1,3 +1,7 @@
+## Version 1.06b
+* fixed json buffer size (WebThings)
+* by Folke Ashberg <folke@ashberg.de>
+
 ## Version 1.05b
 * Fix for heating/cooling devices (systemMode/fanMode)
 * by Folke Ashberg <folke@ashberg.de>
