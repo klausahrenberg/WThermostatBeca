@@ -1,3 +1,6 @@
+## Version 1.01
+* Time zone sync for offset of NTP-UTC-Time via internet is now optional. Alternatively a fixed offset in minutes can be stored.
+
 ## Version 1.00
 * Fix: ESP disconnected and was not reconnecting automaticly
 
