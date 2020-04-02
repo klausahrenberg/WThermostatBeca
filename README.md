@@ -5,10 +5,10 @@ Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The
 * BHT-002-GCLW (Water/Gas Boiler)
 ## Features
 * Enables thermostat to communicate via MQTT and/or Mozilla Webthings
-* Configuration of connection and devixe parameters via web interface
+* Configuration of connection and device parameters via web interface
 * NTP and time zone synchronisation to set the clock of thermostat
 * Reading and setting of all parameters via MQTT
-* Reading and setting of main parameters vie Webthing
+* Reading and setting of main parameters via Webthing
 * Only BHT-002-GBLW: actualFloorTemperature (external temperature sensor)
 * Only BAC-002-ALW: fanSpeed:auto|low|medium|high; systemMode:cooling|heating|ventilation
 * Reading and setting of time schedules via MQTT
@@ -20,7 +20,7 @@ To setup the device model, network options and other parameters, follow instrcut
 https://github.com/klausahrenberg/WThermostatBeca/blob/master/Configuration.md  
 After initial setup, the device configuration is still available via `http://<device_ip>/config`  
 ## Integration in Webthings
-Since version 0.96 this firmware supports Mozilla Webthings directly. With webthings you can control the thermostat via the Gateway - inside and also outside of your home network. No clunky VPN, dynDNS solutions needed to access your home devices. I recommend to run the gateway in parallel to an MQTT server and for example Node-Red. Via MQTT you can control the thermostat completely and logic can be done by Node-Red. Webthings is used for outside control of main parameters.  
+This firmware supports Mozilla Webthings directly. With Webthings you can control the device via the Gateway - inside and also outside of your home network. No clunky VPN, dynDNS solutions needed to access your home devices. I recommend to run the gateway in parallel to an MQTT server and for example Node-Red. Via MQTT you can control the device completely and logic can be done by Node-Red. Webthings is used for outside control of main parameters.  
 Add the device to the gateway via '+' icon. After that you have the new nice and shiny icon in the dashboard:  
 ![webthing_icon](https://github.com/klausahrenberg/WThermostatBeca/blob/master/docs/Webthing_Icon.png)  
 The icon shows the actual temperature and heating state.  
@@ -31,14 +31,14 @@ There is also a detailed view available:
 Firmware provides 3 different json messages:
 1. State report  
 2. Schedules
-3. Device (at start of device to let you know the topics and ip)
+3. Device information (at start of device to let you know the topics and ip)
 ### 1. State report 
-**MQTT:** State report is provided every 5 minutes, at change of a parameter or at request via message with empty payload to `<your_topic>/things/thermostat/properties`  
+**MQTT:** State report is provided every 5 minutes, at change of a parameter or at request via message with empty payload to `<your_mqtt_topic>/thermostat/<your_state_topic>`  
 **Webthing:** State report can be requested by: `http://<device_ip>/things/thermostat/properties`  
 ```json
 {
   "idx":"thermostat_beca",
-  "ip":"192.168.0.xxx",
+  "ip":"192.168.x.x",
   "firmware":"x.xx",
   "temperature":21.5,
   "targetTemperature":23,
@@ -53,7 +53,7 @@ Firmware provides 3 different json messages:
 }
 ```
 ### 2. Schedules
-**MQTT:** Request actual schedules via message with empty payload to `<your_topic>/things/thermostat/schedules`
+**MQTT:** Request actual schedules via message with empty payload to `<your_mqtt_topic>/things/thermostat/schedules`
 **Webthing:** State report can be requested by: `http://<device_ip>/things/thermostat/schedules`  
 ```json
 {
@@ -72,20 +72,20 @@ Firmware provides 3 different json messages:
   "u6t":15
 }
 ```
-### 3. Device
+### 3. Device information
 **MQTT:** At start of device to let you know the topics and ip to `devices/thermostat`  
 **Webthing:** n.a.
 ```json
 {
-  "url":"http://192.168.0.xxx/things/thermostat",
-  "ip":"192.168.0.xxx",
+  "url":"http://192.168.x.x/things/thermostat",
+  "ip":"192.168.x.x",
   "stateTopic":"<your_mqtt_topic>/thermostat/<your_state_topic>"
   "setTopic":"<your_mqtt_topic>/thermostat/<your_set_topic>"
 }
 ```
 ## Modifying parameters via MQTT
-Send a complete json structure with changed parameters to `<your_topic>/thermostat/<your_set_topic>`, e.g. `beca/thermostat/set`. Alternatively you can set single values, modify the topic to `<your_topic>/thermostat/<your_set_topic>/<parameter>`, e.g. `beca/thermostat/set/deviceOn`. The payload contains the new value. 
-Send a json with changed schedules to `<your_topic>/things/thermostat/schedules`.
+Send a complete json structure with changed parameters to `<your_mqtt_topic>/thermostat/<your_set_topic>`, e.g. `beca/thermostat/set`. Alternatively you can set single values, modify the topic to `<your_mqtt_topic>/thermostat/<your_set_topic>/<parameter>`, e.g. `beca/thermostat/set/deviceOn`. The payload contains the new value. 
+Send a json with changed schedules to `<your_mqtt_topic>/things/thermostat/schedules`.
 
 ### Build this firmware from source
-For build from sources you can use the Arduino-IDE, Sloeber or other. All sources needed are inside the folder 'WThermostat' and my other library: https://github.com/klausahrenberg/WAdapter. Additionally you will need some other libraries: DNSServer, EEPROM (for esp8266), ESP8266HTTPClient, ESP8266mDNS, ESP8266WebServer, ESP8266WiFi, Hash, NTPClient, Time - It's all available via board and library manager inside of ArduinoIDE
+For build from sources you can use the Arduino-IDE, Atom IDE or other. All sources needed are inside the folder 'WThermostat' and my other library: https://github.com/klausahrenberg/WAdapter. Additionally you will need some other libraries: DNSServer, EEPROM (for esp8266), ESP8266HTTPClient, ESP8266mDNS, ESP8266WebServer, ESP8266WiFi, Hash, NTPClient, Time - It's all available via board and library manager inside of ArduinoIDE
