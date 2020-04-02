@@ -1,0 +1,4 @@
+
+[submodule "WAdapter"]
+	path = lib/WAdapter
+	url = https://github.com/klausahrenberg/WAdapter.git
