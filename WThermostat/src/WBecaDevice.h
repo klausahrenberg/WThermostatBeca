@@ -58,10 +58,9 @@ public:
     	: WDevice(network, "thermostat", "thermostat", DEVICE_TYPE_THERMOSTAT) {
     	this->logMcu = false;
     	this->receivingDataFromMcu = false;
-    	this->lastSchedulesWaitForResponse = false;
     	this->schedulesChanged = false;
-		this->providingConfigPage = true;
-		this->targetTemperatureManualMode = 0.0;
+			this->providingConfigPage = true;
+			this->targetTemperatureManualMode = 0.0;
     	this->wClock = wClock;
     	this->systemMode = nullptr;
     	this->actualTemperature = new WTemperatureProperty("temperature", "Actual");
@@ -131,6 +130,7 @@ public:
     		this->addProperty(state);
     	}
 
+			this->completeDeviceState = network->getSettings()->setBoolean("sendCompleteDeviceState", true);
     	//schedulesDayOffset
     	this->schedulesDayOffset = network->getSettings()->setByte("schedulesDayOffset", 0);
 
@@ -163,6 +163,8 @@ public:
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "6", (getSchedulesDayOffset() == 6 ? "selected" : ""), "Workday (1-5): Tue-Sat; Weekend (6 - 7): Sun-Mon");
     	page->print(FPSTR(HTTP_COMBOBOX_END));
 
+			page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "cr", "cr", (this->sendCompleteDeviceState() ? "" : "checked"), "", "Send every property change in a single MQTT message");
+
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
     }
 
@@ -171,6 +173,7 @@ public:
         this->thermostatModel->setByte(webServer->arg("tm").toInt());
         this->schedulesDayOffset->setByte(webServer->arg("ws").toInt());
         this->supportingHeatingRelay->setBoolean(webServer->arg("rs") == "true");
+				this->completeDeviceState->setBoolean(webServer->arg("cr") != "true");
     }
 
     void loop(unsigned long now) {
@@ -327,44 +330,33 @@ public:
     	webServer->on(deviceBase.c_str(), HTTP_GET, std::bind(&WBecaDevice::sendSchedules, this, webServer));
     }
 
-    void handleUnknownMqttCallback(String completeTopic, String partialTopic, char *payload, unsigned int length) {
+    void handleUnknownMqttCallback(bool getState, String completeTopic, String partialTopic, char *payload, unsigned int length) {
     	if (partialTopic.startsWith(SCHEDULES)) {
     		partialTopic = partialTopic.substring(SCHEDULES.length() + 1);
-    		if (partialTopic.equals("")) {
-    			if (!lastSchedulesWaitForResponse) {
-    				if (length == 0) {
-    					//Send actual schedules
-    					network->log()->notice(F("Empty payload for schedules -> send schedules..."));
-    					WStringStream* response = network->getResponseStream();
-    					WJson json(response);
-    		    		json.beginObject();
-    		    		this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
-    		    		this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
-    		    		this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
-    		    		json.endObject();
-    		    		network->publishMqtt(completeTopic.c_str(), response);
-    		    		lastSchedulesWaitForResponse = true;
-    				} else {
-    					//Set schedules
-    					network->log()->notice(F("Payload for schedules -> set schedules..."));
-    					WJsonParser* parser = new WJsonParser();
-    					schedulesChanged = false;
-    					parser->parse(payload, std::bind(&WBecaDevice::processSchedulesKeyValue, this,
-										std::placeholders::_1, std::placeholders::_2));
-    					delete parser;
-    					if (schedulesChanged) {
-    						network->log()->notice(F("Some schedules changed. Write to MCU..."));
-    						this->schedulesToMcu();
-    					}
-    				}
-    			} else {
-    				lastSchedulesWaitForResponse = false;
-    			}
-    		} else {
-    			//There are still some more topics after properties
-    			network->log()->notice(F("Longer topic for schedules -> not supported yet..."));
-
-    		}
+				if (getState) {
+					//Send actual schedules
+					network->log()->notice(F("Empty payload for schedules -> send schedules..."));
+					WStringStream* response = network->getResponseStream();
+					WJson json(response);
+					json.beginObject();
+					this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
+					this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
+					this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
+					json.endObject();
+					network->publishMqtt(completeTopic.c_str(), response);
+				} else if (length > 0) {
+					//Set schedules
+					network->log()->notice(F("Payload for schedules -> set schedules..."));
+					WJsonParser* parser = new WJsonParser();
+					schedulesChanged = false;
+					parser->parse(payload, std::bind(&WBecaDevice::processSchedulesKeyValue, this,
+								std::placeholders::_1, std::placeholders::_2));
+					delete parser;
+					if (schedulesChanged) {
+						network->log()->notice(F("Some schedules changed. Write to MCU..."));
+						this->schedulesToMcu();
+					}
+				}
     	}
     }
 
@@ -582,6 +574,10 @@ public:
     	return true;
     }
 
+		bool sendCompleteDeviceState() {
+			return completeDeviceState->getBoolean();
+		}
+
     byte getSchedulesDayOffset() {
     	return schedulesDayOffset->getByte();
     }
@@ -608,7 +604,6 @@ private:
     unsigned char receivedCommand[1024];
     bool logMcu;
     boolean receivingDataFromMcu;
-    bool lastSchedulesWaitForResponse;
     double targetTemperatureManualMode;
     WProperty* deviceOn;
     WProperty* state;
@@ -628,6 +623,7 @@ private:
     WProperty *supportingCoolingRelay;
     WProperty* ntpServer;
     WProperty* schedulesDayOffset;
+		WProperty *completeDeviceState;
     THandlerFunction onConfigurationRequest, onSchedulesChange;
     TCommandHandlerFunction onNotifyCommand;
     unsigned long lastNotify, lastScheduleNotify;
@@ -726,7 +722,7 @@ private:
     					newValue = (float) receivedCommand[13] / 2.0f;
     					changed = ((changed) || (WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
     					targetTemperatureManualMode = newValue;
-    					//targetTemperature->setDouble(targetTemperatureManualMode);
+							if (changed) updateTargetTemperature();
     					receivedStates[1] = true;
     					notifyMcuCommand("targetTemperature_x02");
     					knownCommand = true;
@@ -750,7 +746,8 @@ private:
     					newB = (receivedCommand[10] == 0x01);
     					changed = ((changed) || ((newB) && (!schedulesMode->equalsString(SCHEDULES_MODE_OFF))) || ((!newB) && (!schedulesMode->equalsString(SCHEDULES_MODE_AUTO))));
     					schedulesMode->setString(newB ? SCHEDULES_MODE_OFF : SCHEDULES_MODE_AUTO);
-    					receivedStates[2] = true;
+							if (changed) updateTargetTemperature();
+							receivedStates[2] = true;
     					notifyMcuCommand("manualMode_x04");
     					knownCommand = true;
     				}

@@ -79,13 +79,13 @@ Firmware provides 3 different json messages:
 {
   "url":"http://192.168.0.xxx/things/thermostat",
   "ip":"192.168.0.xxx",
-  "topic":"thermostat_beca/things/thermostat"
+  "stateTopic":"<your_mqtt_topic>/thermostat/<your_state_topic>"
+  "setTopic":"<your_mqtt_topic>/thermostat/<your_set_topic>"
 }
 ```
 ## Modifying parameters via MQTT
-Send a json with changed parameters to `<your_topic>/things/thermostat/properties`.  
+Send a complete json structure with changed parameters to `<your_topic>/thermostat/<your_set_topic>`, e.g. `beca/thermostat/set`. Alternatively you can set single values, modify the topic to `<your_topic>/thermostat/<your_set_topic>/<parameter>`, e.g. `beca/thermostat/set/deviceOn`. The payload contains the new value. 
 Send a json with changed schedules to `<your_topic>/things/thermostat/schedules`.
-### Don't like or it doesn't work?
-Flash the original firmware (see installation). Write me a message with your exact model and which parameter was not correct. Maybe your MQTT-server received some unknown messages - this would be also helpful for me. Again: I have tested this only with model BHT-002-GBLW. If you have another device, don't expect that this is working directly.
+
 ### Build this firmware from source
 For build from sources you can use the Arduino-IDE, Sloeber or other. All sources needed are inside the folder 'WThermostat' and my other library: https://github.com/klausahrenberg/WAdapter. Additionally you will need some other libraries: DNSServer, EEPROM (for esp8266), ESP8266HTTPClient, ESP8266mDNS, ESP8266WebServer, ESP8266WiFi, Hash, NTPClient, Time - It's all available via board and library manager inside of ArduinoIDE

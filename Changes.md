@@ -1,3 +1,10 @@
+## Version 1.02
+* MQTT: New option 'Send every property change in a single MQTT message'. If not selected (default), state will sent as a complete json - no difference like before. If selected, properties will sent in sepearate, single MQTT messages. For example: Changes on property 'deviceOn' will sent with topic '../properties/deviceOn' and payload 'true|false', if the option is selected.
+* MQTT: Optional configurable state and set topics for MQTT: if not configured, for both cases topic 'things' is used - no difference like before
+* MQTT messages are send now with 'retain' flag
+* Added 'Running since: x minutes' at info page to check for firmware crashes
+* Fix: Update of target temperature in manual mode will push a MQTT update right now
+
 ## Version 1.01
 * Time zone sync for offset of NTP-UTC-Time via internet is now optional. Alternatively a fixed offset in minutes can be stored.
 
