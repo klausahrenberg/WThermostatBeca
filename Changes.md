@@ -4,6 +4,7 @@
 * MQTT messages are send now with 'retain' flag
 * Added 'Running since: x minutes' at info page to check for firmware crashes
 * Fix: Update of target temperature in manual mode will push a MQTT update right now
+* Fix: Setting systemMode and fanMode
 
 ## Version 1.01
 * Time zone sync for offset of NTP-UTC-Time via internet is now optional. Alternatively a fixed offset in minutes can be stored.

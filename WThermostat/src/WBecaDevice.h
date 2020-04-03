@@ -67,7 +67,7 @@ public:
     	this->actualTemperature->setReadOnly(true);
     	this->addProperty(actualTemperature);
     	this->targetTemperature = new WTargetTemperatureProperty("targetTemperature", "Target");//, 12.0, 28.0);
-    	this->targetTemperature->setMultipleOf(0.5);
+    	this->targetTemperature->setMultipleOf(1.0f / getTemperatureFactor());
     	this->targetTemperature->setOnChange(std::bind(&WBecaDevice::setTargetTemperature, this, std::placeholders::_1));
     	this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
     	this->addProperty(targetTemperature);
@@ -104,6 +104,7 @@ public:
         	this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
         	this->systemMode->addEnumString(SYSTEM_MODE_FAN);
         	this->systemMode->setString(SYSTEM_MODE_NONE);
+					this->systemMode->setOnChange(std::bind(&WBecaDevice::systemModeToMcu, this, std::placeholders::_1));
         	this->addProperty(systemMode);
     		this->fanMode = new WProperty("fanMode", "Fan", STRING);
         	this->fanMode->setAtType("FanModeProperty");
@@ -112,6 +113,7 @@ public:
         	this->fanMode->addEnumString(FAN_MODE_MEDIUM);
         	this->fanMode->addEnumString(FAN_MODE_HIGH);
         	this->fanMode->setString(FAN_MODE_NONE);
+					this->fanMode->setOnChange(std::bind(&WBecaDevice::fanModeToMcu, this, std::placeholders::_1));
         	this->addProperty(fanMode);
     	}
     	//Heating Relay and State property
@@ -148,7 +150,7 @@ public:
     	//ComboBox with model selection
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Thermostat model:", "tm");
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "0", (getThermostatModel() == 0 ? "selected" : ""), "Floor heating (BHT-002-GBLW)");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getThermostatModel() == 1 ? "selected" : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getThermostatModel() == 1 ? "selected" : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");			
     	page->print(FPSTR(HTTP_COMBOBOX_END));
     	//Checkbox with support for relay
     	page->printAndReplace(FPSTR(HTTP_CONFIG_CHECKBOX_RELAY), (this->isSupportingHeatingRelay() ? "checked" : ""));
@@ -392,7 +394,7 @@ public:
     				schedules[startAddr + period * 3 + 0] = mm;
     			} else if (key[2] == 't') {
     				//temperature
-    				byte tt = (int) (atof(value) * 2);
+    				byte tt = (int) (atof(value) * getTemperatureFactor());
     				schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 2] != tt);
     				schedules[startAddr + period * 3 + 2] = tt;
     			}
@@ -436,7 +438,7 @@ public:
     		network->log()->notice(buffer);
     		json->propertyString(buffer, timeStr);
     		buffer[2] = 't';
-    		json->propertyDouble(buffer, (double) schedules[startAddr + i * 3 + 2]	/ 2.0);
+    		json->propertyDouble(buffer, (double) schedules[startAddr + i * 3 + 2]	/ getTemperatureFactor());
     	}
     	delete[] buffer;
     }
@@ -504,7 +506,7 @@ public:
     	}
     }
 
-    void fanModeToMcu() {
+    void fanModeToMcu(WProperty* property) {
     	if ((fanMode != nullptr) && (!this->receivingDataFromMcu)) {
     		byte dt = this->getFanModeAsByte();
     		if (dt != 0xFF) {
@@ -540,7 +542,7 @@ public:
     	}
     }
 
-    void systemModeToMcu() {
+    void systemModeToMcu(WProperty* property) {
     	if ((systemMode != nullptr) && (!this->receivingDataFromMcu)) {
     		byte dt = this->getSystemModeAsByte();
     		if (dt != 0xFF) {
@@ -595,6 +597,10 @@ protected:
     bool isSupportingCoolingRelay() {
         return this->supportingCoolingRelay->getBoolean();
     }
+
+		float getTemperatureFactor() {
+			return 2.0f;
+		}
 
 private:
     WClock *wClock;
@@ -719,7 +725,7 @@ private:
     				if (commandLength == 0x08) {
     					//target Temperature for manual mode
     					//e.g. 24.5C: 55 aa 01 07 00 08 02 02 00 04 00 00 00 31
-    					newValue = (float) receivedCommand[13] / 2.0f;
+    					newValue = (float) receivedCommand[13] / getTemperatureFactor();
     					changed = ((changed) || (WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
     					targetTemperatureManualMode = newValue;
 							if (changed) updateTargetTemperature();
@@ -733,7 +739,7 @@ private:
     				if (commandLength == 0x08) {
     					//actual Temperature
     					//e.g. 23C: 55 aa 01 07 00 08 03 02 00 04 00 00 00 2e
-    					newValue = (float) receivedCommand[13] / 2.0f;
+    					newValue = (float) receivedCommand[13] / getTemperatureFactor();
     					changed = ((changed) || (!actualTemperature->equalsDouble(newValue)));
     					actualTemperature->setDouble(newValue);
     					notifyMcuCommand("actualTemperature_x03");
@@ -801,7 +807,7 @@ private:
     				if (commandLength == 0x08) {
     					//MODEL_BHT_002_GBLW - actualFloorTemperature
     					//55 aa 01 07 00 08 66 02 00 04 00 00 00 00
-    					newValue = (float) receivedCommand[13] / 2.0f;
+    					newValue = (float) receivedCommand[13] / getTemperatureFactor();
     					if (actualFloorTemperature != nullptr) {
     						changed = ((changed) || (!actualFloorTemperature->equalsDouble(newValue)));
     						actualFloorTemperature->setDouble(newValue);
@@ -920,7 +926,7 @@ private:
     		//String p = String(weekDay == 0 ? SCHEDULES_DAYS[2] : (weekDay == 6 ? SCHEDULES_DAYS[1] : SCHEDULES_DAYS[0]));
     		//p.concat(SCHEDULES_PERIODS[period]);
     		//network->log()->notice(F("We take temperature from period '%s':"), p.c_str());
-    		double temp = (double) schedules[startAddr + period * 3 + 2] / 2.0;
+    		double temp = (double) schedules[startAddr + period * 3 + 2] / getTemperatureFactor();
     		network->log()->notice(F("Schedule temperature is: %D"), temp);
     		targetTemperature->setDouble(temp);
     	} else {
@@ -940,7 +946,7 @@ private:
     	if (!this->receivingDataFromMcu) {
     		network->log()->notice(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
     	    //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
-    	    byte dt = (byte) (targetTemperatureManualMode * 2);
+    	    byte dt = (byte) (targetTemperatureManualMode * getTemperatureFactor());
     	    unsigned char setTemperatureCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x08,
     	    		0x02, 0x02, 0x00, 0x04,
 					0x00, 0x00, 0x00, dt};
