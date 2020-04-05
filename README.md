@@ -53,7 +53,7 @@ Firmware provides 3 different json messages:
 }
 ```
 ### 2. Schedules
-**MQTT:** Request actual schedules via message with empty payload to `<your_mqtt_topic>/things/thermostat/schedules`
+**MQTT:** Request actual schedules via message with empty payload to `<your_mqtt_topic>/thermostat/<your_state_topic>/schedules`
 **Webthing:** State report can be requested by: `http://<device_ip>/things/thermostat/schedules`  
 ```json
 {
@@ -72,6 +72,8 @@ Firmware provides 3 different json messages:
   "u6t":15
 }
 ```
+Schedules can be modified via MQTT. Send a payload structure with all schedules or only the parts you want to modify to
+`<your_mqtt_topic>/thermostat/<your_set_topic>/schedules`.
 ### 3. Device information
 **MQTT:** At start of device to let you know the topics and ip to `devices/thermostat`  
 **Webthing:** n.a.

@@ -52,7 +52,6 @@ const char SCHEDULES_DAYS[] = "wau";
 class WBecaDevice: public WDevice {
 public:
     typedef std::function<bool()> THandlerFunction;
-    typedef std::function<bool(const char*)> TCommandHandlerFunction;
 
     WBecaDevice(WNetwork* network, WClock* wClock)
     	: WDevice(network, "thermostat", "thermostat", DEVICE_TYPE_THERMOSTAT) {
@@ -150,7 +149,7 @@ public:
     	//ComboBox with model selection
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Thermostat model:", "tm");
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "0", (getThermostatModel() == 0 ? "selected" : ""), "Floor heating (BHT-002-GBLW)");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getThermostatModel() == 1 ? "selected" : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");			
+    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getThermostatModel() == 1 ? "selected" : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
     	page->print(FPSTR(HTTP_COMBOBOX_END));
     	//Checkbox with support for relay
     	page->printAndReplace(FPSTR(HTTP_CONFIG_CHECKBOX_RELAY), (this->isSupportingHeatingRelay() ? "checked" : ""));
@@ -230,9 +229,7 @@ public:
     	if (receivedSchedules()) {
     		//Notify schedules
     		if ((lastScheduleNotify == 0) && (now - lastScheduleNotify > MINIMUM_INTERVAL)) {
-    			if (onSchedulesChange) {
-    				onSchedulesChange();
-    			}
+					handleSchedulesChange("");
     			lastScheduleNotify = now;
     		}
     	}
@@ -337,15 +334,7 @@ public:
     		partialTopic = partialTopic.substring(SCHEDULES.length() + 1);
 				if (getState) {
 					//Send actual schedules
-					network->log()->notice(F("Empty payload for schedules -> send schedules..."));
-					WStringStream* response = network->getResponseStream();
-					WJson json(response);
-					json.beginObject();
-					this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
-					this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
-					this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
-					json.endObject();
-					network->publishMqtt(completeTopic.c_str(), response);
+					handleSchedulesChange(completeTopic);
 				} else if (length > 0) {
 					//Set schedules
 					network->log()->notice(F("Payload for schedules -> set schedules..."));
@@ -373,7 +362,6 @@ public:
     				break;
     			}
     		}
-    		//byte i = (key[1] == '1' ? 0 : (key[1] == '2' ? 1 : (key[1] == '3' ? 2 : (key[1] == '4' ? 3 : (key[1] == '5' ? 4 : (key[1] == '6' ? 5 : 255))))));
     		if (key[0] == SCHEDULES_DAYS[0]) {
     			startAddr = 0;
     		} else if (key[0] == SCHEDULES_DAYS[1]) {
@@ -443,16 +431,8 @@ public:
     	delete[] buffer;
     }
 
-    void setOnNotifyCommand(TCommandHandlerFunction onNotifyCommand) {
-    	this->onNotifyCommand = onNotifyCommand;
-    }
-
     void setOnConfigurationRequest(THandlerFunction onConfigurationRequest) {
     	this->onConfigurationRequest = onConfigurationRequest;
-    }
-
-    void setOnSchedulesChange(THandlerFunction onSchedulesChange) {
-    	this->onSchedulesChange = onSchedulesChange;
     }
 
     void schedulesToMcu() {
@@ -630,8 +610,7 @@ private:
     WProperty* ntpServer;
     WProperty* schedulesDayOffset;
 		WProperty *completeDeviceState;
-    THandlerFunction onConfigurationRequest, onSchedulesChange;
-    TCommandHandlerFunction onNotifyCommand;
+    THandlerFunction onConfigurationRequest;
     unsigned long lastNotify, lastScheduleNotify;
     bool schedulesChanged;
 
@@ -663,9 +642,13 @@ private:
     }
 
     void notifyMcuCommand(const char* commandType) {
-    	if ((logMcu) && (onNotifyCommand)) {
-    		onNotifyCommand(commandType);
+			if (logMcu) {
+    		notifyFailure(commandType, this->getCommandAsString().c_str());
     	}
+    }
+
+		void notifyUnknownCommand() {
+			notifyFailure("unknownMCU", this->getCommandAsString().c_str());
     }
 
     void processSerialCommand() {
@@ -684,7 +667,7 @@ private:
     				break;
     			//default:
     				//notifyUnknownCommand();
-    			}
+    			}					
     		} else if (receivedCommand[3] == 0x03) {
     			//ignore, MCU response to wifi state
     			//55 aa 01 03 00 00
@@ -1003,11 +986,20 @@ private:
        	commandLength = -1;
     }
 
-    void notifyUnknownCommand() {
-    	if (onNotifyCommand) {
-    		onNotifyCommand("unknown");
-    	}
-    }
+		void handleSchedulesChange(String completeTopic) {
+			network->log()->notice(F("Send Schedules state..."));
+			if (completeTopic == "") {
+				completeTopic = String(network->getMqttBaseTopic()) + SLASH + String(this->getId()) + SLASH + String(network->getMqttStateTopic() + SLASH + SCHEDULES);
+			}
+			WStringStream* response = network->getResponseStream();
+			WJson json(response);
+			json.beginObject();
+			this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
+			this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
+			this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
+			json.endObject();
+			network->publishMqtt(completeTopic.c_str(), response);
+		}
 
 };
 
