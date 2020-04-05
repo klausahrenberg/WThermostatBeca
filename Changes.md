@@ -1,3 +1,6 @@
+## Version 1.03
+* Fix: After setting schedules, the device sends now the whole schedules for confirmation.
+
 ## Version 1.02
 * MQTT: New option 'Send every property change in a single MQTT message'. If not selected (default), state will sent as a complete json - no difference like before. If selected, properties will sent in sepearate, single MQTT messages. For example: Changes on property 'deviceOn' will sent with topic '../properties/deviceOn' and payload 'true|false', if the option is selected.
 * MQTT: Optional configurable state and set topics for MQTT: if not configured, for both cases topic 'things' is used - no difference like before
