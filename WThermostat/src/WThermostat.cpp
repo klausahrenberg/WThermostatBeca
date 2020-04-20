@@ -4,7 +4,7 @@
 #include "WClock.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "1.03"
+#define VERSION "1.04"
 #define DEBUG false
 
 WNetwork* network;

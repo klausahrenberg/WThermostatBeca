@@ -1,0 +1,77 @@
+{"unknownMCU":"55 aa 01 07 00 08 06 02 00 04 00 00 01 09"}
+{"unknownMCU":"55 aa 01 07 00 08 07 02 00 04 00 00 00 3b"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 c8"}
+{"unknownMCU":"55 aa 01 07 00 08 09 02 00 04 00 00 00 c8"}
+{"unknownMCU":"55 aa 01 07 00 05 0a 01 00 01 00"}
+{"unknownMCU":"55 aa 01 07 00 05 0b 01 00 01 00"}
+{"unknownMCU":"55 aa 01 07 00 08 0c 02 00 04 00 00 00 00"}
+{"unknownMCU":"55 aa 01 07 00 08 0d 02 00 04 00 00 00 00"}
+{"unknownMCU":"55 aa 01 07 00 05 0e 04 00 01 02"}
+{"unknownMCU":"55 aa 01 07 00 08 0f 02 00 04 00 00 00 00"}
+{"unknownMCU":"55 aa 01 07 00 08 10 02 00 04 00 00 00 00"}
+{"unknownMCU":"55 aa 01 07 00 08 11 02 00 04 00 00 00 00"}
+{"unknownMCU":"55 aa 01 07 00 08 12 02 00 04 00 00 00 00"}
+{"unknownMCU":"55 aa 01 07 00 05 13 04 00 01 01"}
+{"unknownMCU":"55 aa 01 07 00 05 14 04 00 01 01"}
+{"unknownMCU":"55 aa 01 07 00 05 15 01 00 01 00"}
+{"unknownMCU":"55 aa 01 07 00 08 16 02 00 04 00 00 00 00"}
+{"unknownMCU":"55 aa 01 07 00 08 17 02 00 04 00 00 00 02"}
+{"unknownMCU":"55 aa 01 07 00 05 19 04 00 01 00"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 cd"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 c8"}
+{"unknownMCU":"55 aa 01 07 00 08 05 02 00 04 00 00 01 04"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 cd"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 c8"}
+{"unknownMCU":"55 aa 01 07 00 08 05 02 00 04 00 00 00 ff"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 cd"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 c8"}
+{"unknownMCU":"55 aa 01 07 00 08 05 02 00 04 00 00 00 fa"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 cd"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 c8"}
+
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 91"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 8c"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 87"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 82"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 7d"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 82"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 87"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 8c"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 91"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 96"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 9b"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 a0"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 a5"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 aa"}
+           {"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 cd"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 af"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 b4"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 b9"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 be"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 c3"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 c8"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 cd"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 d2"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 d7"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 dc"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 e1"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 e6"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 eb"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 f0"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 f5"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 fa"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 ff"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 01 04"}
+
+Turning power off and on:
+
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 c8"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 32"}
+{"deviceOn_x01":"55 aa 01 07 00 05 01 01 00 01 00"}
+{"unknownMCU":"55 aa 01 07 00 05 19 04 00 01 00"}
+{"targetTemperature_x02":"55 aa 01 07 00 08 02 02 00 04 00 00 00 96"}
+{"deviceOn_x01":"55 aa 01 07 00 05 01 01 00 01 01"}
+{"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 cd"}
+{"unknownMCU":"55 aa 01 07 00 08 05 02 00 04 00 00 00 f5"}
+{"unknownMCU":"55 aa 01 07 00 08 05 02 00 04 00 00 00 f0"}
+{"unknownMCU":"55 aa 01 07 00 08 05 02 00 04 00 00 00 f5"}

@@ -1,3 +1,6 @@
+## Version 1.04
+* Experimental support for other devices ET-81W (still for testing only). These devices has other temperature values and other schedules. Please report any unknown messages and which function on thermostat was selected. So far, following parameters are expected to work: deviceOn, temperature, targetTemperature, floorTemperature. Schedules will not work. Unclear functions, please report: Time synchronization, schedulesMode, ecoMode, locked
+
 ## Version 1.03
 * Fix: After setting schedules, the device sends now the whole schedules for confirmation.
 

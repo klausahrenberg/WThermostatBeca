@@ -88,7 +88,7 @@ public:
 		this->timeZoneServer->setVisibility(this->useTimeZoneServer->getBoolean() ? MQTT : NONE);
 		//this->ntpServer->setVisibility(MQTT);
 		this->addProperty(timeZoneServer);
-		this->epochTime = new WUnsignedLongProperty("epochTime");
+		this->epochTime = new WUnsignedLongProperty("epochTime", "epochTime");
 		this->epochTime->setReadOnly(true);
 		this->epochTime->setOnValueRequest([this](WProperty* p) {
 			p->setUnsignedLong(getEpochTime());
@@ -356,9 +356,9 @@ public:
 	void printConfigPage(WStringStream* page) {
     	network->log()->notice(F("Clock config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
-			page->printAndReplace(FPSTR(HTTP_CLOCK_CONFIG_PAGE_STYLE), (useTimeZoneServer->getBoolean() ? "block" : "none"), (useTimeZoneServer->getBoolean() ? "none" : "block"));
+			page->printAndReplace(FPSTR(HTTP_CLOCK_CONFIG_PAGE_STYLE), (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
     	page->printAndReplace(FPSTR(HTTP_CLOCK_CONFIG_PAGE), ntpServer->c_str(),
-																													 (useTimeZoneServer->getBoolean() ? "checked" : ""), (useTimeZoneServer->getBoolean() ? "" : "checked"),
+																													 (useTimeZoneServer->getBoolean() ? HTTP_CHECKED : ""), (useTimeZoneServer->getBoolean() ? "" : HTTP_CHECKED),
 			                                                     timeZoneServer->c_str(),
 																												   String(getRawOffset() / 60).c_str());
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
@@ -368,7 +368,7 @@ public:
 		network->log()->notice(F("Save clock config page"));
 		this->ntpServer->setString(webServer->arg("ntp").c_str());
 		this->timeZoneServer->setString(webServer->arg("tz").c_str());
-		this->useTimeZoneServer->setBoolean(webServer->arg("ts") == "true");
+		this->useTimeZoneServer->setBoolean(webServer->arg("ts") == HTTP_TRUE);
 		this->rawOffset->setLong(atoi(webServer->arg("ro").c_str()) * 60);
 	}
 
