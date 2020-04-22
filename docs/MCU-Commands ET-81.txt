@@ -1,3 +1,33 @@
+
+0x01   deviceOn            false:0x00|true:0x01
+0x02   targetTemperature   /10
+0x03   schedulesMode       holiday:0x00|auto:0x01|hold:0x02
+0x05   floorTemperature °C /10
+0x06 + floorTemperature F 
+0x07 ? 3b 59 minutes? 
+0x08   temperature °C      /10
+0x09 + temperature F
+0x0a + °C to F selection   °C:0x00|F:0x01
+0x0b ? 00 byte value
+0x0c + holidayDays         in days
+0x0d + holdTime            in minutes      
+0x0e + sensor selection    room:0x00|floor:0x01|both:0x02
+0x0f ? 0 int value
+0x10 ? 0 int value
+0x11 ? 0 int value
+0x12 ? 0 int value
+0x13 ? 101 257 int value / control backlash C?
+0x14 ? 101 257 int value / control backlash F?
+0x15 ? 100 256 int value
+0x16 + power rating        watt int value
+0x17 ? 8 int value
+0x19 ? 100 256 int value something at C and F change 101 - 100
+
+floor limit temperature
+delay output (seconds)
+control backlash (temp tolerance) in C
+backlight brightness
+
 {"unknownMCU":"55 aa 01 07 00 08 06 02 00 04 00 00 01 09"}
 {"unknownMCU":"55 aa 01 07 00 08 07 02 00 04 00 00 00 3b"}
 {"unknownMCU":"55 aa 01 07 00 08 08 02 00 04 00 00 00 c8"}

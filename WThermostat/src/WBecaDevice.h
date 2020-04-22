@@ -7,10 +7,11 @@
 #include "WDevice.h"
 #include "WClock.h"
 
-#define COUNT_DEVICE_MODELS 3
+#define COUNT_DEVICE_MODELS 4
 #define MODEL_BHT_002_GBLW 0
 #define MODEL_BAC_002_ALW 1
 #define MODEL_ET_81_W 2
+#define MODEL_FLOUREON_HY08WE 3
 
 #define HEARTBEAT_INTERVAL 10000
 #define MINIMUM_INTERVAL 2000
@@ -23,14 +24,14 @@ const String SCHEDULES = "schedules";
 const String LOGMCU = "logmcu";
 const char* SCHEDULES_MODE_OFF = "off";
 const char* SCHEDULES_MODE_AUTO = "auto";
-const char* SYSTEM_MODE_NONE = "none";
+const char* SCHEDULES_MODE_HOLIDAY = "holiday";
+const char* SCHEDULES_MODE_HOLD = "hold";
 const char* SYSTEM_MODE_COOL = "cool";
 const char* SYSTEM_MODE_HEAT = "heat";
 const char* SYSTEM_MODE_FAN = "fan_only";
 const char* STATE_OFF = SCHEDULES_MODE_OFF;
 const char* STATE_HEATING = "heating";
 const char* STATE_COOLING = "cooling";
-const char* FAN_MODE_NONE = SYSTEM_MODE_NONE;
 const char* FAN_MODE_AUTO = SCHEDULES_MODE_AUTO;
 const char* FAN_MODE_LOW  = "low";
 const char* FAN_MODE_MEDIUM  = "medium";
@@ -40,106 +41,119 @@ const byte STORED_FLAG_BECA = 0x36;
 const char SCHEDULES_PERIODS[] = "123456";
 const char SCHEDULES_DAYS[] = "wau";
 
-const float MODEL_TEMPERATURE_FACTOR[] = { 2.0f, 2.0f, 10.0f };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_TARGET[] = {0x02, 0x02, 0x02 };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_ACTUAL[] = {0x03, 0x03, 0x05 };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_FLOOR[]  = {0x66, 0x00, 0x08 };
-const byte  MODEL_MCU_BYTE_SYSTEM_MODE[]  			= {0x00, 0x66, 0x00 };
-const byte  MODEL_MCU_BYTE_FAN_MODE[]  					= {0x00, 0x67, 0x00 };
-const byte  MODEL_MCU_BYTE_SCHEDULES[]          = {0x65, 0x68, 0x00 };
+const float MODEL_TEMPERATURE_FACTOR[]                  = { 2.0f, 2.0f, 10.0f, 10.0f };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_TARGET[]         = {0x02, 0x02, 0x02, 0x02 };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_ACTUAL[]         = {0x03, 0x03, 0x08, 0x03 };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_FLOOR[]          = {0x66, 0x00, 0x05, 0x66 };
+const byte  MODEL_MCU_BYTE_SYSTEM_MODE[]  			        = {0x00, 0x66, 0x00, 0x00 };
+const byte  MODEL_MCU_BYTE_SCHEDULES_MODE[]			        = {0x04, 0x04, 0x03, 0x04 };
+const byte  MODEL_MCU_BYTE_FAN_MODE[]  					        = {0x00, 0x67, 0x00, 0x00 };
+const byte  MODEL_MCU_BYTE_ECO_MODE[]  					        = {0x05, 0x05, 0x00, 0x00 };
+const byte  MODEL_MCU_BYTE_SCHEDULES[]                  = {0x65, 0x68, 0x00, 0x00 };
 
 class WBecaDevice: public WDevice {
 public:
-    typedef std::function<bool()> THandlerFunction;
+  typedef std::function<bool()> THandlerFunction;
 
-    WBecaDevice(WNetwork* network, WClock* wClock)
-    	: WDevice(network, "thermostat", "thermostat", DEVICE_TYPE_THERMOSTAT) {
-    	this->logMcu = false;
-    	this->receivingDataFromMcu = false;
-    	this->schedulesChanged = false;
-			this->schedulesReceived = false;
-			this->providingConfigPage = true;
-			this->targetTemperatureManualMode = 0.0;
-    	this->wClock = wClock;
-    	this->systemMode = nullptr;
-    	this->actualTemperature = new WTemperatureProperty("temperature", "Actual");
-    	this->actualTemperature->setReadOnly(true);
-    	this->addProperty(actualTemperature);
-    	this->targetTemperature = new WTargetTemperatureProperty("targetTemperature", "Target");//, 12.0, 28.0);
-    	this->targetTemperature->setOnChange(std::bind(&WBecaDevice::setTargetTemperature, this, std::placeholders::_1));
-    	this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
-    	this->addProperty(targetTemperature);
-    	this->deviceOn = new WOnOffProperty("deviceOn", "Power");
-    	this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
-    	this->addProperty(deviceOn);
-    	this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING);
-    	this->schedulesMode->setAtType("ThermostatModeProperty");
-    	this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
-    	this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
-    	this->schedulesMode->setOnChange(std::bind(&WBecaDevice::schedulesModeToMcu, this, std::placeholders::_1));
-    	this->addProperty(schedulesMode);
-    	this->ecoMode = new WOnOffProperty("ecoMode", "Eco");
+  WBecaDevice(WNetwork* network, WClock* wClock)
+    : WDevice(network, "thermostat", "thermostat", DEVICE_TYPE_THERMOSTAT) {
+    this->logMcu = false;
+    this->receivingDataFromMcu = false;
+    this->schedulesChanged = false;
+		this->schedulesReceived = false;
+		this->providingConfigPage = true;
+		this->targetTemperatureManualMode = 0.0;
+    this->wClock = wClock;
+
+    this->actualTemperature = WProperty::createTemperatureProperty("temperature", "Actual");
+    this->actualTemperature->setReadOnly(true);
+    this->addProperty(actualTemperature);
+    this->targetTemperature = WProperty::createTargetTemperatureProperty("targetTemperature", "Target");
+    this->targetTemperature->setOnChange(std::bind(&WBecaDevice::setTargetTemperature, this, std::placeholders::_1));
+    this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
+    this->addProperty(targetTemperature);
+    this->deviceOn = WProperty::createOnOffProperty("deviceOn", "Power");
+    this->deviceOn->setOnChange(std::bind(&WBecaDevice::deviceOnToMcu, this, std::placeholders::_1));
+    this->addProperty(deviceOn);
+    //Model
+    this->thermostatModel = network->getSettings()->setByte("thermostatModel", MODEL_BHT_002_GBLW);
+    this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
+    if (getThermostatModel() != MODEL_ET_81_W) {
+      this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
+      this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
+    } else {
+      this->schedulesMode->addEnumString(SCHEDULES_MODE_HOLIDAY);
+      this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
+      this->schedulesMode->addEnumString(SCHEDULES_MODE_HOLD);
+    }
+    this->schedulesMode->setOnChange(std::bind(&WBecaDevice::schedulesModeToMcu, this, std::placeholders::_1));
+    this->addProperty(schedulesMode);
+    if (MODEL_MCU_BYTE_ECO_MODE[getThermostatModel()] != 0x00) {
+      this->ecoMode = WProperty::createOnOffProperty("ecoMode", "Eco");
     	this->ecoMode->setOnChange(std::bind(&WBecaDevice::ecoModeToMcu, this, std::placeholders::_1));
     	this->ecoMode->setVisibility(MQTT);
     	this->addProperty(ecoMode);
-    	this->locked = new WOnOffProperty("locked", "Lock");
-    	this->locked->setOnChange(std::bind(&WBecaDevice::lockedToMcu, this, std::placeholders::_1));
-    	this->locked->setVisibility(MQTT);
-    	this->addProperty(locked);
-    	//Model
-    	this->actualFloorTemperature = nullptr;
-    	this->thermostatModel = network->getSettings()->setByte("thermostatModel", MODEL_BHT_002_GBLW);
-			if (MODEL_MCU_BYTE_TEMPERATURE_FLOOR[getThermostatModel()] != 0x00) {
-				this->actualFloorTemperature = new WTemperatureProperty("floorTemperature", "Floor");
-    		this->actualFloorTemperature->setReadOnly(true);
-    		this->actualFloorTemperature->setVisibility(MQTT);
-    		this->addProperty(actualFloorTemperature);
-			}
-			if (MODEL_MCU_BYTE_SYSTEM_MODE[getThermostatModel()] != 0x00) {
-    		this->systemMode = new WProperty("systemMode", "System Mode", STRING);
-        this->systemMode->setAtType("ThermostatModeProperty");
-        this->systemMode->addEnumString(SYSTEM_MODE_NONE);
-        this->systemMode->addEnumString(SYSTEM_MODE_COOL);
-        this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
-        this->systemMode->addEnumString(SYSTEM_MODE_FAN);
-        this->systemMode->setString(SYSTEM_MODE_NONE);
-				this->systemMode->setOnChange(std::bind(&WBecaDevice::systemModeToMcu, this, std::placeholders::_1));
-        this->addProperty(systemMode);
-			}
-			if (MODEL_MCU_BYTE_FAN_MODE[getThermostatModel()] != 0x00) {
-    		this->fanMode = new WProperty("fanMode", "Fan", STRING);
-        this->fanMode->setAtType("FanModeProperty");
-        this->fanMode->addEnumString(FAN_MODE_NONE);
-        this->fanMode->addEnumString(FAN_MODE_LOW);
-        this->fanMode->addEnumString(FAN_MODE_MEDIUM);
-        this->fanMode->addEnumString(FAN_MODE_HIGH);
-        this->fanMode->setString(FAN_MODE_NONE);
-				this->fanMode->setOnChange(std::bind(&WBecaDevice::fanModeToMcu, this, std::placeholders::_1));
-        this->addProperty(fanMode);
-    	}
-    	//Heating Relay and State property
-    	this->state = nullptr;
-    	this->supportingHeatingRelay = network->getSettings()->setBoolean("supportingHeatingRelay", true);
-    	this->supportingCoolingRelay = network->getSettings()->setBoolean("supportingCoolingRelay", false);
-    	if (isSupportingHeatingRelay()) pinMode(PIN_STATE_HEATING_RELAY, INPUT);
-    	if (isSupportingCoolingRelay()) pinMode(PIN_STATE_COOLING_RELAY, INPUT);
-    	if ((isSupportingHeatingRelay()) || (isSupportingCoolingRelay())) {
-    		this->state = new WProperty("state", "State", STRING);
-    		this->state->setAtType("HeatingCoolingProperty");
-    		this->state->setReadOnly(true);
-    		this->state->addEnumString(STATE_OFF);
-    		this->state->addEnumString(STATE_HEATING);
-    		this->state->addEnumString(STATE_COOLING);
-    		this->addProperty(state);
-    	}
-			this->targetTemperature->setMultipleOf(1.0f / getTemperatureFactor());
-			this->completeDeviceState = network->getSettings()->setBoolean("sendCompleteDeviceState", true);
-    	//schedulesDayOffset
-    	this->schedulesDayOffset = network->getSettings()->setByte("schedulesDayOffset", 0);
-
-    	lastHeartBeat = lastNotify = lastScheduleNotify = 0;
-    	resetAll();
+    } else {
+      this->ecoMode = nullptr;
     }
+    this->locked = WProperty::createOnOffProperty("locked", "Lock");
+    this->locked->setOnChange(std::bind(&WBecaDevice::lockedToMcu, this, std::placeholders::_1));
+    this->locked->setVisibility(MQTT);
+    this->addProperty(locked);
+
+
+
+		if (MODEL_MCU_BYTE_TEMPERATURE_FLOOR[getThermostatModel()] != 0x00) {
+			this->actualFloorTemperature = WProperty::createTargetTemperatureProperty("floorTemperature", "Floor");
+    	this->actualFloorTemperature->setReadOnly(true);
+    	this->actualFloorTemperature->setVisibility(MQTT);
+    	this->addProperty(actualFloorTemperature);
+		} else {
+      this->actualFloorTemperature = nullptr;
+    }
+		if (MODEL_MCU_BYTE_SYSTEM_MODE[getThermostatModel()] != 0x00) {
+    	this->systemMode = new WProperty("systemMode", "System Mode", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
+      this->systemMode->addEnumString(SYSTEM_MODE_COOL);
+      this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
+      this->systemMode->addEnumString(SYSTEM_MODE_FAN);
+			this->systemMode->setOnChange(std::bind(&WBecaDevice::systemModeToMcu, this, std::placeholders::_1));
+      this->addProperty(systemMode);
+		} else {
+      this->systemMode = nullptr;
+    }
+		if (MODEL_MCU_BYTE_FAN_MODE[getThermostatModel()] != 0x00) {
+    	this->fanMode = new WProperty("fanMode", "Fan", STRING, TYPE_FAN_MODE_PROPERTY);
+      this->fanMode->addEnumString(FAN_MODE_AUTO);
+      this->fanMode->addEnumString(FAN_MODE_HIGH);
+      this->fanMode->addEnumString(FAN_MODE_MEDIUM);
+      this->fanMode->addEnumString(FAN_MODE_LOW);
+			this->fanMode->setOnChange(std::bind(&WBecaDevice::fanModeToMcu, this, std::placeholders::_1));
+      this->addProperty(fanMode);
+    } else {
+      this->fanMode = nullptr;
+    }
+    //Heating Relay and State property
+    this->state = nullptr;
+    this->supportingHeatingRelay = network->getSettings()->setBoolean("supportingHeatingRelay", true);
+    this->supportingCoolingRelay = network->getSettings()->setBoolean("supportingCoolingRelay", false);
+    if (isSupportingHeatingRelay()) pinMode(PIN_STATE_HEATING_RELAY, INPUT);
+    if (isSupportingCoolingRelay()) pinMode(PIN_STATE_COOLING_RELAY, INPUT);
+    if ((isSupportingHeatingRelay()) || (isSupportingCoolingRelay())) {
+    	this->state = new WProperty("state", "State", STRING, TYPE_HEATING_COOLING_PROPERTY);
+    	this->state->setReadOnly(true);
+    	this->state->addEnumString(STATE_OFF);
+    	this->state->addEnumString(STATE_HEATING);
+    	this->state->addEnumString(STATE_COOLING);
+    	this->addProperty(state);
+    }
+		this->targetTemperature->setMultipleOf(1.0f / getTemperatureFactor());
+		this->completeDeviceState = network->getSettings()->setBoolean("sendCompleteDeviceState", true);
+    //schedulesDayOffset
+    this->schedulesDayOffset = network->getSettings()->setByte("schedulesDayOffset", 0);
+
+    lastHeartBeat = lastNotify = lastScheduleNotify = 0;
+    resetAll();
+  }
 
     virtual void printConfigPage(WStringStream* page) {
     	network->log()->notice(F("Beca thermostat config page"));
@@ -149,6 +163,7 @@ public:
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "0", (getThermostatModel() == 0 ? HTTP_SELECTED : ""), "Floor heating (BHT-002-GBLW)");
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getThermostatModel() == 1 ? HTTP_SELECTED : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
 			page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "2", (getThermostatModel() == 2 ? HTTP_SELECTED : ""), "Floor heating (ET-81W)");
+			page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "3", (getThermostatModel() == 3 ? HTTP_SELECTED : ""), "Floor heating (Floureon HY08WE)");
     	page->print(FPSTR(HTTP_COMBOBOX_END));
     	//Checkbox with support for relay
 			page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "rs", "rs", (this->isSupportingHeatingRelay() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 *");
@@ -330,23 +345,25 @@ public:
 
     void handleUnknownMqttCallback(bool getState, String completeTopic, String partialTopic, char *payload, unsigned int length) {
     	if (partialTopic.startsWith(SCHEDULES)) {
-    		partialTopic = partialTopic.substring(SCHEDULES.length() + 1);
-				if (getState) {
-					//Send actual schedules
-					handleSchedulesChange(completeTopic);
-				} else if (length > 0) {
-					//Set schedules
-					network->log()->notice(F("Payload for schedules -> set schedules..."));
-					WJsonParser* parser = new WJsonParser();
-					schedulesChanged = false;
-					parser->parse(payload, std::bind(&WBecaDevice::processSchedulesKeyValue, this,
-								std::placeholders::_1, std::placeholders::_2));
-					delete parser;
-					if (schedulesChanged) {
-						network->log()->notice(F("Some schedules changed. Write to MCU..."));
-						this->schedulesToMcu();
-					}
-				}
+        if (MODEL_MCU_BYTE_SCHEDULES[getThermostatModel()] != 0x00) {
+    		  partialTopic = partialTopic.substring(SCHEDULES.length() + 1);
+				  if (getState) {
+					  //Send actual schedules
+					  handleSchedulesChange(completeTopic);
+				  } else if (length > 0) {
+					  //Set schedules
+					  network->log()->notice(F("Payload for schedules -> set schedules..."));
+					  WJsonParser* parser = new WJsonParser();
+					  schedulesChanged = false;
+					  parser->parse(payload, std::bind(&WBecaDevice::processSchedulesKeyValue, this,
+						  		std::placeholders::_1, std::placeholders::_2));
+					  delete parser;
+					  if (schedulesChanged) {
+						  network->log()->notice(F("Some schedules changed. Write to MCU..."));
+						  this->schedulesToMcu();
+					  }
+				  }
+        }
     	} else if (partialTopic.startsWith(LOGMCU)) {
 				if ((!getState) && (length > 1)) {
 					this->setLogMcu(strcmp(HTTP_TRUE, payload) == 0);
@@ -467,74 +484,32 @@ public:
     	}
     }
 
-    String getFanMode() {
-        return (fanMode != nullptr ? fanMode->c_str() : FAN_MODE_NONE);
-    }
-
-    byte getFanModeAsByte() {
-    	if (fanMode != nullptr) {
-    	   	if (fanMode->equalsString(FAN_MODE_AUTO)) {
-    	   		return 0x00;
-    	   	} else if (fanMode->equalsString(FAN_MODE_HIGH)) {
-    	   		return 0x01;
-    	   	} else if (fanMode->equalsString(FAN_MODE_MEDIUM)) {
-    	   		return 0x02;
-    	   	} else if (fanMode->equalsString(FAN_MODE_LOW)) {
-    	   		return 0x03;
-    	   	} else {
-    	   		return 0xFF;
-    	   	}
-    	} else {
-    		return 0xFF;
-    	}
-    }
-
     void fanModeToMcu(WProperty* property) {
-    	if ((fanMode != nullptr) && (!this->receivingDataFromMcu)) {
-    		byte dt = this->getFanModeAsByte();
-    		if (dt != 0xFF) {
+    	if ((!this->receivingDataFromMcu) && (fanMode != nullptr)) {
+        byte fm = fanMode->getEnumIndex();
+    		if (fm != 0xFF) {
     			//send to device
-    		    //auto:   55 aa 00 06 00 05 67 04 00 01 00
-    			//low:    55 aa 00 06 00 05 67 04 00 01 03
-    			//medium: 55 aa 00 06 00 05 67 04 00 01 02
+    		  //auto:   55 aa 00 06 00 05 67 04 00 01 00
     			//high:   55 aa 00 06 00 05 67 04 00 01 01
+          //medium: 55 aa 00 06 00 05 67 04 00 01 02
+    			//low:    55 aa 00 06 00 05 67 04 00 01 03
     			unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
-    			                                    0x67, 0x04, 0x00, 0x01, dt};
+    			                                    0x67, 0x04, 0x00, 0x01, fm};
     			commandCharsToSerial(11, deviceOnCommand);
     		}
     	}
     }
 
-    String getSystemMode() {
-    	return (systemMode != nullptr ? systemMode->c_str() : SYSTEM_MODE_NONE);
-    }
-
-    byte getSystemModeAsByte() {
-    	if (systemMode != nullptr) {
-    		if (systemMode->equalsString(SYSTEM_MODE_COOL)) {
-    			return 0x00;
-    		} else if (systemMode->equalsString(SYSTEM_MODE_HEAT)) {
-    			return 0x01;
-    		} else if (systemMode->equalsString(SYSTEM_MODE_FAN)) {
-    			return 0x02;
-    		} else {
-    			return 0xFF;
-    		}
-    	} else {
-    		return 0xFF;
-    	}
-    }
-
     void systemModeToMcu(WProperty* property) {
-    	if ((systemMode != nullptr) && (!this->receivingDataFromMcu)) {
-    		byte dt = this->getSystemModeAsByte();
-    		if (dt != 0xFF) {
+    	if ((!this->receivingDataFromMcu) && (systemMode != nullptr)) {
+    		byte sm = systemMode->getEnumIndex();
+    		if (sm != 0xFF) {
     			//send to device
     			//cooling:     55 AA 00 06 00 05 66 04 00 01 00
     			//heating:     55 AA 00 06 00 05 66 04 00 01 01
     			//ventilation: 55 AA 00 06 00 05 66 04 00 01 02
     			unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
-    												0x66, 0x04, 0x00, 0x01, dt};
+    												0x66, 0x04, 0x00, 0x01, sm};
     			commandCharsToSerial(11, deviceOnCommand);
     		}
     	}
@@ -677,6 +652,7 @@ private:
     			bool changed = false;
     			bool schedulesChangedMCU = false;
     			bool newB;
+          const char* newS;
     			float newValue;
     			byte newByte;
     			byte commandLength = receivedCommand[5];
@@ -716,17 +692,18 @@ private:
     					notifyMcuCommand("actualTemperature");
     					knownCommand = true;
     				}
-    			} else if (cByte == 0x04) {
+    			} else if ((cByte == MODEL_MCU_BYTE_SCHEDULES_MODE[thModel]) && (schedulesMode != nullptr)) {
     				if (commandLength == 0x05) {
-    					//manualMode?
-    					newB = (receivedCommand[10] == 0x01);
-    					changed = ((changed) || ((newB) && (!schedulesMode->equalsString(SCHEDULES_MODE_OFF))) || ((!newB) && (!schedulesMode->equalsString(SCHEDULES_MODE_AUTO))));
-    					schedulesMode->setString(newB ? SCHEDULES_MODE_OFF : SCHEDULES_MODE_AUTO);
-							if (changed) updateTargetTemperature();
-    					notifyMcuCommand("manualMode");
-    					knownCommand = true;
+    					//schedulesMode?
+              newS = schedulesMode->getEnumString(receivedCommand[10]);
+              if (newS != nullptr) {
+    					  changed = ((changed) || (schedulesMode->setString(newS)));
+							  if (changed) updateTargetTemperature();
+    					  notifyMcuCommand("schedulesMode");
+    					  knownCommand = true;
+              }
     				}
-    			} else if (cByte ==  0x05) {
+    			} else if ((cByte == MODEL_MCU_BYTE_ECO_MODE[thModel]) && (ecoMode != nullptr)) {
     				if (commandLength == 0x05) {
     					//ecoMode
     					newB = (receivedCommand[10] == 0x01);
@@ -785,50 +762,26 @@ private:
     					//cooling:     55 AA 00 06 00 05 66 04 00 01 00
     					//heating:     55 AA 00 06 00 05 66 04 00 01 01
     					//ventilation: 55 AA 00 06 00 05 66 04 00 01 02
-    					//this->thermostatModel->setByte(MODEL_BAC_002_ALW);
-    					changed = ((changed) || (receivedCommand[10] != this->getSystemModeAsByte()));
-    					if (systemMode != nullptr) {
-    						switch (receivedCommand[10]) {
-    						case 0x00 :
-    							systemMode->setString(SYSTEM_MODE_COOL);
-    							break;
-    						case 0x01 :
-    							systemMode->setString(SYSTEM_MODE_HEAT);
-    							break;
-    						case 0x02 :
-    							systemMode->setString(SYSTEM_MODE_FAN);
-    							break;
-    						}
-    					}
-    					notifyMcuCommand("systemMode");
-    					knownCommand = true;
+    					newS = systemMode->getEnumString(receivedCommand[10]);
+              if (newS != nullptr) {
+                changed = ((changed) || (systemMode->setString(newS)));
+                notifyMcuCommand("systemMode");
+      					knownCommand = true;
+              }
     				}
 					} else if ((cByte == MODEL_MCU_BYTE_FAN_MODE[thModel]) && (fanMode != nullptr)) {
     				if (commandLength == 0x05) {
     					//fanMode
     					//auto   - 55 aa 01 07 00 05 67 04 00 01 00
+              //high   - 55 aa 01 07 00 05 67 04 00 01 01
+              //medium - 55 aa 01 07 00 05 67 04 00 01 02
     					//low    - 55 aa 01 07 00 05 67 04 00 01 03
-    					//medium - 55 aa 01 07 00 05 67 04 00 01 02
-    					//high   - 55 aa 01 07 00 05 67 04 00 01 01
-    					changed = ((changed) || (receivedCommand[10] != this->getFanModeAsByte()));
-    					if (fanMode != nullptr) {
-    						switch (receivedCommand[10]) {
-    						case 0x00 :
-    							fanMode->setString(FAN_MODE_AUTO);
-    							break;
-    						case 0x03 :
-    							fanMode->setString(FAN_MODE_LOW);
-    							break;
-    						case 0x02 :
-    							fanMode->setString(FAN_MODE_MEDIUM);
-    							break;
-    						case 0x01 :
-    							fanMode->setString(FAN_MODE_HIGH);
-    							break;
-    						}
-    					}
-    					notifyMcuCommand("fanMode");
-    					knownCommand = true;
+              newS = fanMode->getEnumString(receivedCommand[10]);
+              if (newS != nullptr) {
+                changed = ((changed) || (fanMode->setString(newS)));
+                notifyMcuCommand("fanMode");
+      					knownCommand = true;
+              }
     				}
     			}
     			if (!knownCommand) {
@@ -920,17 +873,19 @@ private:
     }
 
     void schedulesModeToMcu(WProperty* property) {
-    	if (!this->receivingDataFromMcu) {
+    	if ((!this->receivingDataFromMcu) && (schedulesMode != nullptr)) {
         	//55 AA 00 06 00 05 04 04 00 01 01
-        	byte dt = (schedulesMode->equalsString(SCHEDULES_MODE_OFF) ? 0x01 : 0x00);
-        	unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
-        	                                    0x04, 0x04, 0x00, 0x01, dt};
-        	commandCharsToSerial(11, deviceOnCommand);
+          byte sm = schedulesMode->getEnumIndex();
+          if (sm != 0xFF) {
+        	  unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
+        	                                     0x04, 0x04, 0x00, 0x01, sm};
+        	  commandCharsToSerial(11, deviceOnCommand);
+          }
         }
     }
 
     void ecoModeToMcu(WProperty* property) {
-       	if (!this->receivingDataFromMcu) {
+       	if ((!this->receivingDataFromMcu) && (ecoMode != nullptr)) {
        		//55 AA 00 06 00 05 05 01 00 01 01
        		byte dt = (this->ecoMode->getBoolean() ? 0x01 : 0x00);
        		unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,

@@ -13,64 +13,12 @@
 
 const char* DEFAULT_NTP_SERVER = "pool.ntp.org";
 const char* DEFAULT_TIME_ZONE_SERVER = "http://worldtimeapi.org/api/ip";
-const static char HTTP_CLOCK_CONFIG_PAGE_STYLE[]    PROGMEM = R"=====(
-	<style>
-	#div_tz {
-	  display:%s;
-	}
-	#div_ro {
-	  display:%s;
-	}
-	</style>
-)=====";
-const static char HTTP_CLOCK_CONFIG_PAGE[]    PROGMEM = R"=====(
-	<div>
-		NTP server:<br>
-		<input type='text' name='ntp' length=32 value='%s'>
-	</div>
-
-	<div>
-		<label>
-			<input type='radio' id='r_tz' name='ts' value='true' %s onclick='toggleTzGroup()'>
-			Evaluate time zone from internet
-		</label>
-		<label>
-			<input type='radio' id='r_ro' name='ts' value='false' %s onclick='toggleTzGroup()'>
-			Use fixed time offset to NTP-UTC time
-		</label>
-	</div>
-	<div id ='div_tz'>
-		Time zone server:<br>
-		<input type='text' name='tz' length=64 value='%s'>
-	</div>
-	<div id ='div_ro'>
-		Fixed offset in minutes:<br>
-		<input type='text' name='ro' length=10 value='%s'>
-	</div>
-	<script>
-		function toggleTzGroup() {
-			var rro = document.getElementById('r_ro');
-  		var dtz = document.getElementById('div_tz');
-			var dro = document.getElementById('div_ro');
-  		if (rro.checked) {
-	    	dtz.style.display = 'none';
-				dro.style.display = 'block';
-  		} else {
-				dtz.style.display = 'block';
-				dro.style.display = 'none';
-  		}
-		}
-	</script>
-)=====";
 
 class WClock: public WDevice {
 public:
 	typedef std::function<void(void)> THandlerFunction;
 	typedef std::function<void(const char*)> TErrorHandlerFunction;
 
-
-
-	//WClock(bool debug, WNetwork *network) {
 	WClock(WNetwork* network, String applicationName)
 		: WDevice(network, "clock", "clock", DEVICE_TYPE_TEXT_DISPLAY) {
 		this->mainDevice = false;
@@ -88,32 +36,33 @@ public:
 		this->timeZoneServer->setVisibility(this->useTimeZoneServer->getBoolean() ? MQTT : NONE);
 		//this->ntpServer->setVisibility(MQTT);
 		this->addProperty(timeZoneServer);
-		this->epochTime = new WUnsignedLongProperty("epochTime", "epochTime");
+		this->epochTime = WProperty::createUnsignedLongProperty("epochTime", "epochTime");
 		this->epochTime->setReadOnly(true);
 		this->epochTime->setOnValueRequest([this](WProperty* p) {
 			p->setUnsignedLong(getEpochTime());
 		});
 		this->addProperty(epochTime);
-		this->epochTimeFormatted = new WStringProperty("epochTimeFormatted", "epochTimeFormatted", 19);
+		this->epochTimeFormatted = WProperty::createStringProperty("epochTimeFormatted", "epochTimeFormatted", 19);
 		this->epochTimeFormatted->setReadOnly(true);
 		this->epochTimeFormatted->setOnValueRequest([this](WProperty* p) {updateFormattedTime();});
 		this->addProperty(epochTimeFormatted);
-		this->validTime = new WOnOffProperty("validTime", "validTime");
+		this->validTime = WProperty::createOnOffProperty("validTime", "validTime");
 		this->validTime->setBoolean(false);
 		this->validTime->setReadOnly(true);
 		this->addProperty(validTime);
-		this->timeZone = new WStringProperty("timezone", "timeZone", 32);
+		this->timeZone = WProperty::createStringProperty("timezone", "timeZone", 32);
 		this->timeZone->setReadOnly(true);
 		this->addProperty(timeZone);
-		this->rawOffset = new WLongProperty("raw_offset", "rawOffset");
+		this->rawOffset = WProperty::createLongProperty("raw_offset", "rawOffset");
 		this->rawOffset->setLong(0);
 		this->network->getSettings()->add(this->rawOffset);
 		this->rawOffset->setReadOnly(true);
 		this->addProperty(rawOffset);
-		this->dstOffset = new WLongProperty("dst_offset", "dstOffset");
+		this->dstOffset = WProperty::createLongProperty("dst_offset", "dstOffset");
 		this->dstOffset->setLong(0);
 		this->dstOffset->setReadOnly(true);
 		this->addProperty(dstOffset);
+
 		lastTry = lastNtpSync = lastTimeZoneSync = ntpTime = 0;
 	}
 
@@ -356,11 +305,23 @@ public:
 	void printConfigPage(WStringStream* page) {
     	network->log()->notice(F("Clock config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
-			page->printAndReplace(FPSTR(HTTP_CLOCK_CONFIG_PAGE_STYLE), (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
-    	page->printAndReplace(FPSTR(HTTP_CLOCK_CONFIG_PAGE), ntpServer->c_str(),
-																													 (useTimeZoneServer->getBoolean() ? HTTP_CHECKED : ""), (useTimeZoneServer->getBoolean() ? "" : HTTP_CHECKED),
-			                                                     timeZoneServer->c_str(),
-																												   String(getRawOffset() / 60).c_str());
+			page->printAndReplace(FPSTR(HTTP_PAGE_CONFIGURATION_STYLE), (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
+			//NTP Server
+			page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "NTP server:", "ntp", "32", ntpServer->c_str());
+
+			page->print(FPSTR(HTTP_DIV_BEGIN));
+			page->printAndReplace(FPSTR(HTTP_RADIO_OPTION), "sa", "sa", HTTP_TRUE, (useTimeZoneServer->getBoolean() ? HTTP_CHECKED : ""), HTTP_FUNCTION_TOGGLE, "Get time zone via internet");
+			page->printAndReplace(FPSTR(HTTP_RADIO_OPTION), "sb", "sa", HTTP_FALSE, (useTimeZoneServer->getBoolean() ? "" : HTTP_CHECKED), HTTP_FUNCTION_TOGGLE, "Use fixed offset to UTC time");
+			page->print(FPSTR(HTTP_DIV_END));
+
+			page->printAndReplace(FPSTR(HTTP_DIV_ID_BEGIN), "ga");
+			page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "Time zone server:", "tz", "64", timeZoneServer->c_str());
+			page->print(FPSTR(HTTP_DIV_END));
+			page->printAndReplace(FPSTR(HTTP_DIV_ID_BEGIN), "gb");
+			page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "Fixed offset in minutes:", "ro", "10", String(getRawOffset() / 60).c_str());
+			page->print(FPSTR(HTTP_DIV_END));
+
+			page->print(FPSTR(HTTP_SCRIPT_FUNCTION_TOGGLE));
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
 	}
 
@@ -368,7 +329,7 @@ public:
 		network->log()->notice(F("Save clock config page"));
 		this->ntpServer->setString(webServer->arg("ntp").c_str());
 		this->timeZoneServer->setString(webServer->arg("tz").c_str());
-		this->useTimeZoneServer->setBoolean(webServer->arg("ts") == HTTP_TRUE);
+		this->useTimeZoneServer->setBoolean(webServer->arg("sa") == HTTP_TRUE);
 		this->rawOffset->setLong(atoi(webServer->arg("ro").c_str()) * 60);
 	}
 
