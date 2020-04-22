@@ -5,6 +5,7 @@ Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The
 * BHT-002-GCLW (Water/Gas Boiler)
 * ET-81W and Floureon HY08WE (floor heating, experimental only)
 ## Features
+* No Tuya cloud connection anymore
 * Enables thermostat to communicate via MQTT and/or Mozilla Webthings
 * Configuration of connection and device parameters via web interface
 * NTP and time zone synchronisation to set the clock of thermostat
