@@ -4,7 +4,7 @@
 #include "WClock.h"
 
 #define APPLICATION "Thermostat Beca"
-#define VERSION "1.05"
+#define VERSION "1.06"
 #define DEBUG false
 
 WNetwork* network;
@@ -35,9 +35,6 @@ void setup() {
 	network->addDevice(wClock);
 	wClock->setOnTimeUpdate([]() {
 		becaDevice->sendActualTimeToBeca();
-	});
-	wClock->setOnError([](const char* error) {
-		return network->publishMqtt("error", "message", error);
 	});
 	//Communication between ESP and Beca-Mcu
 	becaDevice = new WBecaDevice(network, wClock);

@@ -1,3 +1,7 @@
+## Version 1.06
+* Optimized code and reduced binary size
+* Fix: Available sketch size corrected (Corrects 'Not enough space' error at firmware flashing)
+
 ## Version 1.05
 * Experimental support for other devices ET-81W and Floureon HY08WE
 * Reduced bin file size

@@ -156,7 +156,7 @@ public:
   }
 
     virtual void printConfigPage(WStringStream* page) {
-    	network->log()->notice(F("Beca thermostat config page"));
+    	network->notice(F("Beca thermostat config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
     	//ComboBox with model selection
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Thermostat model:", "tm");
@@ -184,7 +184,7 @@ public:
     }
 
     void saveConfigPage(ESP8266WebServer* webServer) {
-        network->log()->notice(F("Save Beca config page"));
+        network->notice(F("Save Beca config page"));
         this->thermostatModel->setByte(webServer->arg("tm").toInt());
         this->schedulesDayOffset->setByte(webServer->arg("ws").toInt());
         this->supportingHeatingRelay->setBoolean(webServer->arg("rs") == HTTP_TRUE);
@@ -352,14 +352,14 @@ public:
 					  handleSchedulesChange(completeTopic);
 				  } else if (length > 0) {
 					  //Set schedules
-					  network->log()->notice(F("Payload for schedules -> set schedules..."));
+					  network->notice(F("Payload for schedules -> set schedules..."));
 					  WJsonParser* parser = new WJsonParser();
 					  schedulesChanged = false;
 					  parser->parse(payload, std::bind(&WBecaDevice::processSchedulesKeyValue, this,
 						  		std::placeholders::_1, std::placeholders::_2));
 					  delete parser;
 					  if (schedulesChanged) {
-						  network->log()->notice(F("Some schedules changed. Write to MCU..."));
+						  network->notice(F("Some schedules changed. Write to MCU..."));
 						  this->schedulesToMcu();
 					  }
 				  }
@@ -372,7 +372,7 @@ public:
     }
 
     void processSchedulesKeyValue(const char* key, const char* value) {
-    	network->log()->notice(F("Process key '%s', value '%s'"), key, value);
+    	network->notice(F("Process key '%s', value '%s'"), key, value);
     	if (strlen(key) == 3) {
     		byte startAddr = 255;
     		byte period = 255;
@@ -443,7 +443,6 @@ public:
     		buffer[1] = SCHEDULES_PERIODS[i];
     		sprintf(timeStr, "%02d:%02d", schedules[startAddr + i * 3 + 1], schedules[startAddr + i * 3 + 0]);
     		buffer[2] = 'h';
-    		network->log()->notice(buffer);
     		json->propertyString(buffer, timeStr);
     		buffer[2] = 't';
     		json->propertyDouble(buffer, (double) schedules[startAddr + i * 3 + 2]	/ getTemperatureFactor());
@@ -606,14 +605,14 @@ private:
     	return ((dayOfWeek == 6) || (dayOfWeek == 7));
     }
 
-    void notifyMcuCommand(const char* commandType) {
+    void notifyKnownCommand(const char* commandType) {
 			if (logMcu) {
-    		notifyFailure(commandType, this->getCommandAsString().c_str());
+        network->debug(commandType, this->getCommandAsString().c_str());
     	}
     }
 
 		void notifyUnknownCommand() {
-			notifyFailure("unknownMCU", this->getCommandAsString().c_str());
+			network->error("Unknown MCU command", this->getCommandAsString().c_str());
     }
 
     void processSerialCommand() {
@@ -666,7 +665,7 @@ private:
     					newB = (receivedCommand[10] == 0x01);
     					changed = ((changed) || (newB != deviceOn->getBoolean()));
     					deviceOn->setBoolean(newB);
-    					notifyMcuCommand("deviceOn");
+    					notifyKnownCommand("deviceOn %s");
     					knownCommand = true;
     				}
     			} else if (cByte == MODEL_MCU_BYTE_TEMPERATURE_TARGET[thModel]) {
@@ -678,7 +677,7 @@ private:
     					changed = ((changed) || (WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
     					targetTemperatureManualMode = newValue;
 							if (changed) updateTargetTemperature();
-    					notifyMcuCommand("targetTemperature");
+    					notifyKnownCommand("targetTemperature %s");
     					knownCommand = true;
     				}
 					} else if (cByte == MODEL_MCU_BYTE_TEMPERATURE_ACTUAL[thModel]) {
@@ -689,7 +688,7 @@ private:
     					newValue = (float) rawValue / getTemperatureFactor();
     					changed = ((changed) || (!actualTemperature->equalsDouble(newValue)));
     					actualTemperature->setDouble(newValue);
-    					notifyMcuCommand("actualTemperature");
+    					notifyKnownCommand("actualTemperature %s");
     					knownCommand = true;
     				}
     			} else if ((cByte == MODEL_MCU_BYTE_SCHEDULES_MODE[thModel]) && (schedulesMode != nullptr)) {
@@ -699,7 +698,7 @@ private:
               if (newS != nullptr) {
     					  changed = ((changed) || (schedulesMode->setString(newS)));
 							  if (changed) updateTargetTemperature();
-    					  notifyMcuCommand("schedulesMode");
+    					  notifyKnownCommand("schedulesMode %s");
     					  knownCommand = true;
               }
     				}
@@ -709,7 +708,7 @@ private:
     					newB = (receivedCommand[10] == 0x01);
     					changed = ((changed) || (newB != ecoMode->getBoolean()));
     					ecoMode->setBoolean(newB);
-    					notifyMcuCommand("ecoMode");
+    					notifyKnownCommand("ecoMode %s");
     					knownCommand = true;
     				}
     			} else if (cByte == 0x06) {
@@ -718,7 +717,7 @@ private:
     					newB = (receivedCommand[10] == 0x01);
     					changed = ((changed) || (newB != locked->getBoolean()));
     					locked->setBoolean(newB);
-    					notifyMcuCommand("locked");
+    					notifyKnownCommand("locked %s");
     					knownCommand = true;
     				}
     			} else if (cByte == MODEL_MCU_BYTE_SCHEDULES[thModel]) {
@@ -734,7 +733,7 @@ private:
     						schedulesChangedMCU = ((schedulesChangedMCU) || (newByte != schedules[i]));
     						schedules[i] = newByte;
     					}
-    					notifyMcuCommand("schedules");
+    					notifyKnownCommand("schedules %s");
     					knownCommand = true;
     				}
 					} else if (cByte == 0x68) {
@@ -753,7 +752,7 @@ private:
     						changed = ((changed) || (!actualFloorTemperature->equalsDouble(newValue)));
     						actualFloorTemperature->setDouble(newValue);
     					}
-    					notifyMcuCommand("actualFloorTemperature");
+    					notifyKnownCommand("actualFloorTemperature %s");
     					knownCommand = true;
     				}
 					} else if ((cByte == MODEL_MCU_BYTE_SYSTEM_MODE[thModel]) && (systemMode != nullptr)) {
@@ -765,7 +764,7 @@ private:
     					newS = systemMode->getEnumString(receivedCommand[10]);
               if (newS != nullptr) {
                 changed = ((changed) || (systemMode->setString(newS)));
-                notifyMcuCommand("systemMode");
+                notifyKnownCommand("systemMode %s");
       					knownCommand = true;
               }
     				}
@@ -779,7 +778,7 @@ private:
               newS = fanMode->getEnumString(receivedCommand[10]);
               if (newS != nullptr) {
                 changed = ((changed) || (fanMode->setString(newS)));
-                notifyMcuCommand("fanMode");
+                notifyKnownCommand("fanMode %s");
       					knownCommand = true;
               }
     				}
@@ -844,7 +843,7 @@ private:
     		//p.concat(SCHEDULES_PERIODS[period]);
     		//network->log()->notice(F("We take temperature from period '%s':"), p.c_str());
     		double temp = (double) schedules[startAddr + period * 3 + 2] / getTemperatureFactor();
-    		network->log()->notice(F("Schedule temperature is: %D"), temp);
+    		network->notice(F("Schedule temperature is: %D"), temp);
     		targetTemperature->setDouble(temp);
     	} else {
     		targetTemperature->setDouble(targetTemperatureManualMode);
@@ -861,7 +860,7 @@ private:
 
     void targetTemperatureManualModeToMcu() {
     	if (!this->receivingDataFromMcu) {
-    		network->log()->notice(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
+    		network->notice(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
     	    //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
 					byte ulValues[4];
 					WSettings::getUnsignedLongBytes((targetTemperatureManualMode * getTemperatureFactor()), ulValues);
@@ -907,7 +906,7 @@ private:
     }
 
     bool receivedSchedules() {
-    	return ((network->isDebug()) || (this->schedulesReceived));
+    	return ((network->isDebugging()) || (this->schedulesReceived));
     }
 
     void notifyState() {
@@ -924,7 +923,7 @@ private:
     }
 
 		void handleSchedulesChange(String completeTopic) {
-			network->log()->notice(F("Send Schedules state..."));
+			network->notice(F("Send Schedules state..."));
 			if (completeTopic == "") {
 				completeTopic = String(network->getMqttBaseTopic()) + SLASH + String(this->getId()) + SLASH + String(network->getMqttStateTopic() + SLASH + SCHEDULES);
 			}

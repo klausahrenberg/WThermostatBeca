@@ -17,7 +17,6 @@ const char* DEFAULT_TIME_ZONE_SERVER = "http://worldtimeapi.org/api/ip";
 class WClock: public WDevice {
 public:
 	typedef std::function<void(void)> THandlerFunction;
-	typedef std::function<void(const char*)> TErrorHandlerFunction;
 
 	WClock(WNetwork* network, String applicationName)
 		: WDevice(network, "clock", "clock", DEVICE_TYPE_TEXT_DISPLAY) {
@@ -74,18 +73,19 @@ public:
 				&& (WiFi.status() == WL_CONNECTED)) {
 			//1. Sync ntp
 			if ((lastNtpSync == 0) || (now - lastNtpSync > 60000)) {
-				network->log()->notice(F("Time via NTP server '%s'"), ntpServer->c_str());
+				network->notice(F("Time via NTP server '%s'"), ntpServer->c_str());
 				WiFiUDP ntpUDP;
 				NTPClient ntpClient(ntpUDP, ntpServer->c_str());
 				//ntpClient.begin();
+
 				//delay(500);
 				if (ntpClient.update()) {
 					lastNtpSync = millis();
 					ntpTime = ntpClient.getEpochTime();
-					network->log()->notice(F("NTP time synced: %s"), epochTimeFormatted->c_str());
+					network->notice(F("NTP time synced: %s"), epochTimeFormatted->c_str());
 					notifyOnTimeUpdate();
 				} else {
-					notifyOnError("NTP sync failed. ");
+					network->error(F("NTP sync failed. "));
 				}
 			}
 			//2. Sync time zone
@@ -94,7 +94,7 @@ public:
 					&& (useTimeZoneServer->getBoolean())
 				  && (!timeZoneServer->equalsString(""))) {
 				String request = timeZoneServer->c_str();
-				network->log()->notice(F("Time zone update via '%s'"), request.c_str());
+				network->notice(F("Time zone update via '%s'"), request.c_str());
 				HTTPClient http;
 				http.begin(request);
 				int httpCode = http.GET();
@@ -110,7 +110,7 @@ public:
 					if (property != nullptr) {
 						lastTimeZoneSync = millis();
 						validTime->setBoolean(true);
-						network->log()->notice(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
+						network->notice(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
 						notifyOnTimeUpdate();
 												 /* {
 												 *  "week_number":19,
@@ -147,7 +147,7 @@ public:
 					}
 
 				} else {
-					notifyOnError("Time zone update failed: " + httpCode);
+					network->error(F("Time zone update failed: %s)"), httpCode);
 				}
 				http.end();   //Close connection
 			}
@@ -157,10 +157,6 @@ public:
 
 	void setOnTimeUpdate(THandlerFunction onTimeUpdate) {
 		this->onTimeUpdate = onTimeUpdate;
-	}
-
-	void setOnError(TErrorHandlerFunction onError) {
-		this->onError = onError;
 	}
 
 	unsigned long getEpochTime() {
@@ -281,7 +277,6 @@ public:
 		stream->print(buffer);
 
 		epochTimeFormatted->setString(stream->c_str());
-		delete stream;
 	}
 
 	bool isValidTime() {
@@ -303,7 +298,7 @@ public:
 
 
 	void printConfigPage(WStringStream* page) {
-    	network->log()->notice(F("Clock config page"));
+    	network->notice(F("Clock config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
 			page->printAndReplace(FPSTR(HTTP_PAGE_CONFIGURATION_STYLE), (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
 			//NTP Server
@@ -326,7 +321,7 @@ public:
 	}
 
 	void saveConfigPage(ESP8266WebServer* webServer) {
-		network->log()->notice(F("Save clock config page"));
+		network->notice(F("Save clock config page"));
 		this->ntpServer->setString(webServer->arg("ntp").c_str());
 		this->timeZoneServer->setString(webServer->arg("tz").c_str());
 		this->useTimeZoneServer->setBoolean(webServer->arg("sa") == HTTP_TRUE);
@@ -335,7 +330,6 @@ public:
 
 private:
 	THandlerFunction onTimeUpdate;
-	TErrorHandlerFunction onError;
 	unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime;
 	WProperty* epochTime;
 	WProperty* epochTimeFormatted;
@@ -353,12 +347,6 @@ private:
 		}
 	}
 
-	void notifyOnError(const char* error) {
-		network->log()->notice(error);
-		if (onError) {
-			onError(error);
-		}
-	}
 };
 
 #endif
