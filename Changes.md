@@ -1,3 +1,6 @@
+## Version 1.07
+* Optimized code and reduced binary size
+
 ## Version 1.06
 * Optimized code and reduced binary size
 * Fix: Available sketch size corrected (Corrects 'Not enough space' error at firmware flashing)

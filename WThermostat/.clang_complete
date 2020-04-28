@@ -15,6 +15,11 @@
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/cores/esp8266
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/tools/sdk/lwip2/include
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/variants/generic
+-I/home/klausahrenberg/.platformio/lib/Adafruit MPR121_ID839
+-I/home/klausahrenberg/.platformio/lib/Adafruit SSD1306_ID135
+-I/home/klausahrenberg/.platformio/lib/PMSerial_ID6265/src
+-I/home/klausahrenberg/.platformio/lib/TTP229_ID6690
+-I/home/klausahrenberg/.platformio/lib/iAQ-core_ID1760
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ArduinoOTA
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266AVRISP/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266HTTPUpdateServer/src

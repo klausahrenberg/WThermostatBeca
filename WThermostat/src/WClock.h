@@ -277,6 +277,7 @@ public:
 		stream->print(buffer);
 
 		epochTimeFormatted->setString(stream->c_str());
+		delete stream;
 	}
 
 	bool isValidTime() {
