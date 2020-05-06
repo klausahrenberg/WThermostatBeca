@@ -1,3 +1,6 @@
+## Version 1.08
+* Fix: Device went offline in Webthings Gateway (0.12) after 2 minutes
+
 ## Version 1.07
 * Optimized code and reduced binary size
 
