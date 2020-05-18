@@ -1,3 +1,8 @@
+## Version 1.09
+* New option (default enabled): Switch back to automatic mode at next schedule mode change. If you select manual mode, the thermostat will switch back to automatic mode at next switching point of schedules. Available on all devices, except ET-81W.
+* New option for calculating of time zone and day saving time (default disabled, time zone synced via worltimeapi).
+* Various fixes
+
 ## Version 1.08
 * Fix: Device went offline in Webthings Gateway (0.12) after 2 minutes
 

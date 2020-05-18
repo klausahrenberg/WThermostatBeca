@@ -61,10 +61,12 @@ public:
     this->receivingDataFromMcu = false;
     this->schedulesChanged = false;
 		this->schedulesReceived = false;
-		this->providingConfigPage = true;
 		this->targetTemperatureManualMode = 0.0;
+    this->currentSchedulePeriod = -1;
     this->wClock = wClock;
-
+    this->wClock->setOnTimeUpdate([this]() {
+  		this->sendActualTimeToBeca();
+  	});
     this->actualTemperature = WProperty::createTemperatureProperty("temperature", "Actual");
     this->actualTemperature->setReadOnly(true);
     this->addProperty(actualTemperature);
@@ -86,6 +88,7 @@ public:
       this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
       this->schedulesMode->addEnumString(SCHEDULES_MODE_HOLD);
     }
+    this->switchBackToAuto = network->getSettings()->setBoolean("switchBackToAuto", true);
     this->schedulesMode->setOnChange(std::bind(&WBecaDevice::schedulesModeToMcu, this, std::placeholders::_1));
     this->addProperty(schedulesMode);
     if (MODEL_MCU_BYTE_ECO_MODE[getThermostatModel()] != 0x00) {
@@ -155,7 +158,11 @@ public:
     resetAll();
   }
 
-    virtual void printConfigPage(WStringStream* page) {
+  virtual bool isProvidingConfigPage() {
+    return true;
+  }
+
+  virtual void printConfigPage(WStringStream* page) {
     	network->notice(F("Beca thermostat config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
     	//ComboBox with model selection
@@ -165,7 +172,9 @@ public:
 			page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "2", (getThermostatModel() == 2 ? HTTP_SELECTED : ""), "Floor heating (ET-81W)");
 			page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "3", (getThermostatModel() == 3 ? HTTP_SELECTED : ""), "Floor heating (Floureon HY08WE)");
     	page->print(FPSTR(HTTP_COMBOBOX_END));
-    	//Checkbox with support for relay
+      //Checkbox
+      page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change (not at model ET-81W)");
+      //Checkbox with support for relay
 			page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "rs", "rs", (this->isSupportingHeatingRelay() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 *");
     	//ComboBox with weekday
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Workday schedules:", "ws");
@@ -188,6 +197,7 @@ public:
         this->thermostatModel->setByte(webServer->arg("tm").toInt());
         this->schedulesDayOffset->setByte(webServer->arg("ws").toInt());
         this->supportingHeatingRelay->setBoolean(webServer->arg("rs") == HTTP_TRUE);
+        this->switchBackToAuto->setBoolean(webServer->arg("sb") == HTTP_TRUE);
 				this->completeDeviceState->setBoolean(webServer->arg("cr") != HTTP_TRUE);
     }
 
@@ -229,6 +239,8 @@ public:
     			resetAll();
     		}
     	}
+      //
+      updateCurrentSchedulePeriod();
     	//Heartbeat
     	//long now = millis();
     	if ((HEARTBEAT_INTERVAL > 0)
@@ -574,9 +586,11 @@ private:
     WProperty* ntpServer;
     WProperty* schedulesDayOffset;
 		WProperty *completeDeviceState;
+    WProperty* switchBackToAuto;
     THandlerFunction onConfigurationRequest;
     unsigned long lastNotify, lastScheduleNotify;
     bool schedulesChanged, schedulesReceived;
+    int currentSchedulePeriod;
 
     int getIndex(unsigned char c) {
     	const char HEX_DIGITS[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8',
@@ -813,7 +827,17 @@ private:
     }
 
     void updateTargetTemperature() {
-    	if ((receivedSchedules()) && (wClock->isValidTime()) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
+      if ((this->currentSchedulePeriod != -1) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
+        double temp = (double) schedules[this->currentSchedulePeriod + 2] / getTemperatureFactor();
+    		network->notice(F("Schedule temperature is: %D"), temp);
+    		targetTemperature->setDouble(temp);
+      } else {
+        targetTemperature->setDouble(targetTemperatureManualMode);
+      }
+    }
+
+    void updateCurrentSchedulePeriod() {
+    	if ((receivedSchedules()) && (wClock->isValidTime())) {
     		byte weekDay = wClock->getWeekDay();
     		weekDay += schedulesDayOffset->getByte();
     		weekDay = weekDay % 7;
@@ -839,14 +863,15 @@ private:
     				}
     			}
     		}
-    		//String p = String(weekDay == 0 ? SCHEDULES_DAYS[2] : (weekDay == 6 ? SCHEDULES_DAYS[1] : SCHEDULES_DAYS[0]));
-    		//p.concat(SCHEDULES_PERIODS[period]);
-    		//network->log()->notice(F("We take temperature from period '%s':"), p.c_str());
-    		double temp = (double) schedules[startAddr + period * 3 + 2] / getTemperatureFactor();
-    		network->notice(F("Schedule temperature is: %D"), temp);
-    		targetTemperature->setDouble(temp);
+        int newPeriod = startAddr + period * 3;
+        if ((getThermostatModel() != MODEL_ET_81_W) && (this->switchBackToAuto->getBoolean()) &&
+            (this->currentSchedulePeriod > -1) && (newPeriod != this->currentSchedulePeriod) &&
+            (this->schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
+          this->schedulesMode->setString(SCHEDULES_MODE_AUTO);
+        }
+        this->currentSchedulePeriod = newPeriod;
     	} else {
-    		targetTemperature->setDouble(targetTemperatureManualMode);
+        this->currentSchedulePeriod = -1;
     	}
     }
 

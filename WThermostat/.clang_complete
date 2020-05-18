@@ -21,7 +21,9 @@
 -I/home/klausahrenberg/.platformio/lib/ArduinoJson_ID64/src
 -I/home/klausahrenberg/.platformio/lib/ESPAsyncTCP-esphome_ID6757/src
 -I/home/klausahrenberg/.platformio/lib/ESPAsyncWebServer-esphome_ID6758/src
+-I/home/klausahrenberg/.platformio/lib/FastLED_ID126
 -I/home/klausahrenberg/.platformio/lib/HTU21D_ID2941/src
+-I/home/klausahrenberg/.platformio/lib/NeoPixelBus_ID547/src
 -I/home/klausahrenberg/.platformio/lib/PCF8574_ID1358
 -I/home/klausahrenberg/.platformio/lib/PMSerial_ID6265/src
 -I/home/klausahrenberg/.platformio/lib/TTP229_ID6690
