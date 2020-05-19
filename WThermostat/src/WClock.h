@@ -81,6 +81,12 @@ public:
 		this->useDaySavingTimes = network->getSettings()->setBoolean("useDaySavingTimes", false);
 		this->useDaySavingTimes->setVisibility(NONE);
 		this->dstRule = network->getSettings()->setByteArray("dstRule", 8, DEFAULT_DST_RULE);
+		//HtmlPages
+    WPage* configPage = new WPage(this->getId(), "Configure clock");
+    configPage->setPrintPage(std::bind(&WClock::printConfigPage, this, std::placeholders::_1, std::placeholders::_2));
+    configPage->setSubmittedPage(std::bind(&WClock::saveConfigPage, this, std::placeholders::_1, std::placeholders::_2));
+    network->addCustomPage(configPage);
+
 		lastTry = lastNtpSync = lastTimeZoneSync = ntpTime = dstStart = dstEnd = 0;
 	}
 
@@ -318,11 +324,7 @@ public:
 		return (useTimeZoneServer->getBoolean() || isDaySavingTime() ? dstOffset->getInteger() : 0);
 	}
 
-  virtual bool isProvidingConfigPage() {
-    return true;
-  }
-
-	void printConfigPage(WStringStream* page) {
+	void printConfigPage(ESP8266WebServer* webServer, WStringStream* page) {
     	network->notice(F("Clock config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
 			page->printAndReplace(FPSTR(HTTP_TOGGLE_GROUP_STYLE), "ga", (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gb", (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
@@ -401,7 +403,7 @@ public:
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
 	}
 
-	void saveConfigPage(ESP8266WebServer* webServer) {
+	void saveConfigPage(ESP8266WebServer* webServer, WStringStream* page) {
 		network->notice(F("Save clock config page"));
 		this->ntpServer->setString(webServer->arg("ntp").c_str());
 		this->timeZoneServer->setString(webServer->arg("tz").c_str());

@@ -20,7 +20,7 @@
 
 const unsigned char COMMAND_START[] = {0x55, 0xAA};
 const char AR_COMMAND_END = '\n';
-const String SCHEDULES = "schedules";
+const char* SCHEDULES = "schedules";
 const String LOGMCU = "logmcu";
 const char* SCHEDULES_MODE_OFF = "off";
 const char* SCHEDULES_MODE_AUTO = "auto";
@@ -104,8 +104,6 @@ public:
     this->locked->setVisibility(MQTT);
     this->addProperty(locked);
 
-
-
 		if (MODEL_MCU_BYTE_TEMPERATURE_FLOOR[getThermostatModel()] != 0x00) {
 			this->actualFloorTemperature = WProperty::createTargetTemperatureProperty("floorTemperature", "Floor");
     	this->actualFloorTemperature->setReadOnly(true);
@@ -153,6 +151,15 @@ public:
 		this->completeDeviceState = network->getSettings()->setBoolean("sendCompleteDeviceState", true);
     //schedulesDayOffset
     this->schedulesDayOffset = network->getSettings()->setByte("schedulesDayOffset", 0);
+    //HtmlPages
+    WPage* configPage = new WPage(this->getId(), "Configure thermostat");
+    configPage->setPrintPage(std::bind(&WBecaDevice::printConfigPage, this, std::placeholders::_1, std::placeholders::_2));
+    configPage->setSubmittedPage(std::bind(&WBecaDevice::submitConfigPage, this, std::placeholders::_1, std::placeholders::_2));
+    network->addCustomPage(configPage);
+    WPage* schedulesPage = new WPage(SCHEDULES, "Configure schedules");
+    schedulesPage->setPrintPage(std::bind(&WBecaDevice::printConfigSchedulesPage, this, std::placeholders::_1, std::placeholders::_2));
+    schedulesPage->setSubmittedPage(std::bind(&WBecaDevice::submitConfigSchedulesPage, this, std::placeholders::_1, std::placeholders::_2));
+    network->addCustomPage(schedulesPage);
 
     lastHeartBeat = lastNotify = lastScheduleNotify = 0;
     resetAll();
@@ -162,7 +169,7 @@ public:
     return true;
   }
 
-  virtual void printConfigPage(WStringStream* page) {
+  virtual void printConfigPage(ESP8266WebServer* webServer, WStringStream* page) {
     	network->notice(F("Beca thermostat config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
     	//ComboBox with model selection
@@ -192,7 +199,7 @@ public:
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
     }
 
-    void saveConfigPage(ESP8266WebServer* webServer) {
+    void submitConfigPage(ESP8266WebServer* webServer, WStringStream* page) {
         network->notice(F("Save Beca config page"));
         this->thermostatModel->setByte(webServer->arg("tm").toInt());
         this->schedulesDayOffset->setByte(webServer->arg("ws").toInt());
@@ -358,7 +365,7 @@ public:
     void handleUnknownMqttCallback(bool getState, String completeTopic, String partialTopic, char *payload, unsigned int length) {
     	if (partialTopic.startsWith(SCHEDULES)) {
         if (MODEL_MCU_BYTE_SCHEDULES[getThermostatModel()] != 0x00) {
-    		  partialTopic = partialTopic.substring(SCHEDULES.length() + 1);
+    		  partialTopic = partialTopic.substring(strlen(SCHEDULES) + 1);
 				  if (getState) {
 					  //Send actual schedules
 					  handleSchedulesChange(completeTopic);
@@ -386,7 +393,7 @@ public:
     void processSchedulesKeyValue(const char* key, const char* value) {
     	network->notice(F("Process key '%s', value '%s'"), key, value);
     	if (strlen(key) == 3) {
-    		byte startAddr = 255;
+        byte startAddr = 255;
     		byte period = 255;
     		for (int i = 0; i < 6; i++) {
     			if (SCHEDULES_PERIODS[i] == key[1]) {
@@ -406,17 +413,22 @@ public:
     				//hour
     				String timeStr = String(value);
     				timeStr = (timeStr.length() == 4 ? "0" + timeStr : timeStr);
-    				byte hh = timeStr.substring(0, 2).toInt();
-    				byte mm = timeStr.substring(3, 5).toInt();
-    				schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 1] != hh);
-    				schedules[startAddr + period * 3 + 1] = hh;
-    				schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 0] != mm);
-    				schedules[startAddr + period * 3 + 0] = mm;
+            if (timeStr.length() == 5) {
+    				  byte hh = timeStr.substring(0, 2).toInt();
+    				  byte mm = timeStr.substring(3, 5).toInt();
+    				  schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 1] != hh);
+    				  schedules[startAddr + period * 3 + 1] = hh;
+    				  schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 0] != mm);
+    				  schedules[startAddr + period * 3 + 0] = mm;
+            }
     			} else if (key[2] == 't') {
     				//temperature
-    				byte tt = (int) (atof(value) * getTemperatureFactor());
-    				schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 2] != tt);
-    				schedules[startAddr + period * 3 + 2] = tt;
+            //it will fail, when temperature needs 2 bytes
+    				int tt = (int) (atof(value) * getTemperatureFactor());
+            if (tt < 0xFF) {
+    				  schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 2] != tt);
+    				  schedules[startAddr + period * 3 + 2] = tt;
+            }
     			}
     		}
     	}
@@ -961,6 +973,65 @@ private:
 			json.endObject();
 			network->publishMqtt(completeTopic.c_str(), response);
 		}
+
+    void printConfigSchedulesPage(ESP8266WebServer* webServer, WStringStream* page) {
+      network->notice(F("Schedules config page"));
+			page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), SCHEDULES);
+			page->print(F("<table  class='settingstable'>"));
+      page->print(F("<tr>"));
+        page->print(F("<th></th>"));
+        page->print(F("<th>Weekday</th>"));
+        page->print(F("<th>Weekend 1</th>"));
+        page->print(F("<th>Weekend 2</th>"));
+      page->print(F("</tr>"));
+      for (byte period = 0; period < 6; period++) {
+        page->print(F("<tr>"));
+        page->printAndReplace(F("<td>Period %s</td>"), String(period + 1).c_str());
+        for (byte sd = 0; sd < 3; sd++) {
+          int index = sd * 18 + period * 3;
+          char timeStr[6];
+          char keyH[4];
+          char keyT[4];
+					snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+					snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+          //hour
+          snprintf(timeStr, 6, "%02d:%02d", schedules[index + 1], schedules[index + 0]);
+          page->print(F("<td>"));
+          page->print(F("Time:"));
+          page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyH, "5", timeStr);
+          //temp
+          String tempStr((double) schedules[index + 2]	/ getTemperatureFactor(), 1);
+          page->print(F("Temp:"));
+          page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyT, "4", tempStr.c_str());
+          page->print(F("</td>"));
+        }
+        page->print(F("</tr>"));
+      }
+      page->print(F("</table>"));
+			page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
+		}
+
+    void submitConfigSchedulesPage(ESP8266WebServer* webServer, WStringStream* page) {
+      network->notice(F("Save schedules config page"));
+      schedulesChanged = false;
+			for (int period = 0; period < 6; period++) {
+				for (int sd = 0; sd < 3; sd++) {
+          char keyH[4];
+          char keyT[4];
+					snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+					snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+					processSchedulesKeyValue(keyH, webServer->arg(keyH).c_str());
+					processSchedulesKeyValue(keyT, webServer->arg(keyT).c_str());
+				}
+			}
+			if (schedulesChanged) {
+				network->notice(F("Some schedules changed. Write to MCU..."));
+				this->schedulesToMcu();
+				page->print(F("Changed schedules have been saved."));
+			} else {
+				page->print(F("Schedules have not changed."));
+			}
+    }
 
 };
 
