@@ -3,8 +3,8 @@
 #include "WBecaDevice.h"
 #include "WClock.h"
 
-#define APPLICATION "Thermostat Beca"
-#define VERSION "1.10"
+#define APPLICATION "Thermostat"
+#define VERSION "1.11"
 #define DEBUG false
 
 WNetwork* network;
@@ -30,8 +30,8 @@ void setup() {
 		//Switch blinking thermostat in normal operating mode back
 		becaDevice->cancelConfiguration();
 	});
-	//KaClock - time sync
-	wClock = new WClock(network);
+	//WClock - time sync
+	wClock = new WClock(network, false);
 	network->addDevice(wClock);
 	//Communication between ESP and Beca-Mcu
 	becaDevice = new WBecaDevice(network, wClock);

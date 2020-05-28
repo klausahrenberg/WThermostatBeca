@@ -22,13 +22,13 @@ const byte DST_WEEK = 5;
 const byte DST_WEEKDAY = 6;
 const byte DST_HOUR = 7;
 const byte *DEFAULT_DST_RULE = (const byte[]){10, 0, 0, 3, 3, 0, 0, 2};
-//const byte* DEFAULT_DST_RULE[] = {0x0A, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x02};
+const byte *DEFAULT_NIGHT_SWITCHES = (const byte[]){22, 00, 7, 00};
 
 class WClock: public WDevice {
 public:
 	typedef std::function<void(void)> THandlerFunction;
 
-	WClock(WNetwork* network)
+	WClock(WNetwork* network, bool supportNightMode)
 		: WDevice(network, "clock", "clock", DEVICE_TYPE_TEXT_DISPLAY) {
 		this->mainDevice = false;
 		this->visibility = MQTT;
@@ -88,36 +88,45 @@ public:
     network->addCustomPage(configPage);
 
 		lastTry = lastNtpSync = lastTimeZoneSync = ntpTime = dstStart = dstEnd = 0;
+		//enableNightMode
+		this->enableNightMode = nullptr;
+		this->nightMode = nullptr;
+		this->nightSwitches = nullptr;
+		if (supportNightMode) {
+			this->enableNightMode = network->getSettings()->setBoolean("enableNightMode", true);
+			this->nightMode = WProperty::createBooleanProperty("nightMode", "nightMode");
+			this->addProperty(this->nightMode);
+			this->nightSwitches = network->getSettings()->setByteArray("nightSwitches", 4, DEFAULT_NIGHT_SWITCHES);
+		}
 	}
 
 	void loop(unsigned long now) {
 		//Invalid after 3 hours
 		validTime->setBoolean((lastNtpSync > 0) && ((!this->useTimeZoneServer->getBoolean()) || (lastTimeZoneSync > 0)) && (now - lastTry < (3 * 60 * 60000)));
 
-		if (((!isValidTime()) && ((lastTry == 0) || (now - lastTry > 60000)))
-				&& (WiFi.status() == WL_CONNECTED)) {
+		if (((lastTry == 0) || (now - lastTry > 10000))
+		    && (WiFi.status() == WL_CONNECTED)) {
+			bool timeUpdated = false;
 			//1. Sync ntp
-			if ((lastNtpSync == 0) || (now - lastNtpSync > 60000)) {
+			if ((!isValidTime())
+			    && ((lastNtpSync == 0) || (now - lastNtpSync > 60000))) {
 				network->notice(F("Time via NTP server '%s'"), ntpServer->c_str());
 				WiFiUDP ntpUDP;
 				NTPClient ntpClient(ntpUDP, ntpServer->c_str());
-				//ntpClient.begin();
-
-				//delay(500);
 				if (ntpClient.update()) {
 					lastNtpSync = millis();
 					ntpTime = ntpClient.getEpochTime();
 					this->calculateDstStartAndEnd();
 					validTime->setBoolean(!this->useTimeZoneServer->getBoolean());
 					network->notice(F("NTP time synced: %s"), epochTimeFormatted->c_str());
-					notifyOnTimeUpdate();
+					timeUpdated = true;
 				} else {
 					network->error(F("NTP sync failed. "));
 				}
 			}
 			//2. Sync time zone
-			if (((lastNtpSync > 0) && ((lastTimeZoneSync == 0) || (now - lastTimeZoneSync > 60000)))
-					&& (WiFi.status() == WL_CONNECTED)
+			if ((!isValidTime())
+			    && ((lastNtpSync > 0) && ((lastTimeZoneSync == 0) || (now - lastTimeZoneSync > 60000)))
 					&& (useTimeZoneServer->getBoolean())
 				  && (!timeZoneServer->equalsString(""))) {
 				String request = timeZoneServer->c_str();
@@ -138,45 +147,20 @@ public:
 						lastTimeZoneSync = millis();
 						validTime->setBoolean(true);
 						network->notice(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
-						notifyOnTimeUpdate();
-												 /* {
-												 *  "week_number":19,
-												 *  "utc_offset":"+09:00",
-												 *  "utc_datetime":"2019-05-07T23:32:15.214725+00:00",
-												 *  "unixtime":1557271935,
-												 *  "timezone":"Asia/Seoul",
-												 *  "raw_offset":32400,
-												 *  "dst_until":null,
-												 *  "dst_offset":0,
-												 *  "dst_from":null,
-												 *  "dst":false,
-												 *  "day_of_year":128,
-												 *  "day_of_week":3,
-												 *  "datetime":"2019-05-08T08:32:15.214725+09:00",
-												 *  "abbreviation":"KST"}
-												 */
-												/*
-												 * {"week_number":19,
-												 *  "utc_offset":"+02:00",
-												 *  "utc_datetime":"2019-05-07T23:37:41.963463+00:00",
-												 *  "unixtime":1557272261,
-												 *  "timezone":"Europe/Berlin",
-												 *  "raw_offset":7200,
-												 *  "dst_until":"2019-10-27T01:00:00+00:00",
-												 *  "dst_offset":3600,
-												 *  "dst_from":"2019-03-31T01:00:00+00:00",
-												 *  "dst":true,
-												 *  "day_of_year":128,
-												 *  "day_of_week":3,
-												 *  "datetime":"2019-05-08T01:37:41.963463+02:00",
-												 *  "abbreviation":"CEST"}
-												 */
+						timeUpdated = true;
 					}
-
 				} else {
 					network->error(F("Time zone update failed: %s)"), httpCode);
 				}
-				http.end();   //Close connection
+				http.end();
+			}
+			//check nightMode
+			if ((validTime) && (this->enableNightMode) && (this->enableNightMode->getBoolean())) {
+				this->nightMode->setBoolean(this->isTimeBetween(this->nightSwitches->getByteArrayValue(0), this->nightSwitches->getByteArrayValue(1),
+																												this->nightSwitches->getByteArrayValue(2), this->nightSwitches->getByteArrayValue(3)));
+			}
+			if (timeUpdated) {
+				notifyOnTimeUpdate();
 			}
 			lastTry = millis();
 		}
@@ -249,16 +233,26 @@ public:
 		return day(epochTime);
 	}
 
+	static bool isTimeLaterThan(byte epochTimeHours, byte epochTimeMinutes, byte hours, byte minutes) {
+		return ((epochTimeHours > hours) || ((epochTimeHours == hours) && (epochTimeMinutes >= minutes)));
+	}
+
 	bool isTimeLaterThan(byte hours, byte minutes) {
-		return ((getHours() > hours) || ((getHours() == hours) && (getMinutes() >= minutes)));
+		return isTimeLaterThan(getHours(), getMinutes(), hours, minutes);
 	}
 
 	bool isTimeEarlierThan(byte hours, byte minutes) {
 		return ((getHours() < hours) || ((getHours() == hours) && (getMinutes() < minutes)));
 	}
 
-	bool isTimeBetween(byte hours1, byte minutes1, byte hours2, byte minutes2) {
-		return ((isTimeLaterThan(hours1, minutes1)) && (isTimeEarlierThan(hours2, minutes2)));
+	bool isTimeBetween(byte fromHours, byte fromMinutes, byte toHours, byte toMinutes) {
+		if (isTimeLaterThan(fromHours, fromMinutes, toHours, toMinutes)) {
+			//e.g. 22:00-06:00
+			return ((isTimeLaterThan(fromHours, fromMinutes)) || (isTimeEarlierThan(toHours, toMinutes)));
+		} else {
+			//e.g. 06:00-22:00
+			return ((isTimeLaterThan(fromHours, fromMinutes)) && (isTimeEarlierThan(toHours, toMinutes)));
+		}
 	}
 
 	void updateFormattedTime() {
@@ -329,6 +323,9 @@ public:
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
 			page->printAndReplace(FPSTR(HTTP_TOGGLE_GROUP_STYLE), "ga", (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gb", (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
 			page->printAndReplace(FPSTR(HTTP_TOGGLE_GROUP_STYLE), "gd", (useDaySavingTimes->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "ge", HTTP_NONE);
+			if (this->enableNightMode) {
+				page->printAndReplace(FPSTR(HTTP_TOGGLE_GROUP_STYLE), "gn", (enableNightMode->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gm", HTTP_NONE);
+			}
 			//NTP Server
 			page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "NTP server:", "ntp", "32", ntpServer->c_str());
 
@@ -397,7 +394,27 @@ public:
 			page->print(F("</table>"));
 			page->print(FPSTR(HTTP_DIV_END));
 			page->print(FPSTR(HTTP_DIV_END));
-
+			if (this->enableNightMode) {
+				//nightMode
+				page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "sn", "sn", (enableNightMode->getBoolean() ? HTTP_CHECKED : ""), "tn()", "Enable support for night mode");
+				page->printAndReplace(FPSTR(HTTP_DIV_ID_BEGIN), "gn");
+				page->print(F("<table  class='settingstable'>"));
+					page->print(F("<tr>"));
+						char timeFrom[6];
+						snprintf(timeFrom, 6, "%02d:%02d", this->nightSwitches->getByteArrayValue(0), this->nightSwitches->getByteArrayValue(1));
+						page->print(F("<td>from"));
+						page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "nf", "5", timeFrom);
+						page->print(F("</td>"));
+						char timeTo[6];
+						snprintf(timeTo, 6, "%02d:%02d", this->nightSwitches->getByteArrayValue(2), this->nightSwitches->getByteArrayValue(3));
+						page->print(F("<td>to"));
+						page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "nt", "5", timeTo);
+						page->print(F("</td>"));
+					page->print(F("</tr>"));
+				page->print(F("</table>"));
+				page->print(FPSTR(HTTP_DIV_END));
+				page->printAndReplace(FPSTR(HTTP_TOGGLE_FUNCTION_SCRIPT), "tn()", "sn", "gn", "gm");
+			}
 			page->printAndReplace(FPSTR(HTTP_TOGGLE_FUNCTION_SCRIPT), "tg()", "sa", "ga", "gb");
 			page->printAndReplace(FPSTR(HTTP_TOGGLE_FUNCTION_SCRIPT), "td()", "sd", "gd", "ge");
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
@@ -419,11 +436,18 @@ public:
 		this->dstRule->setByteArrayValue(DST_WEEK, atoi(webServer->arg("dw").c_str()));
 		this->dstRule->setByteArrayValue(DST_WEEKDAY, atoi(webServer->arg("dd").c_str()));
 		this->dstRule->setByteArrayValue(DST_HOUR, atoi(webServer->arg("dh").c_str()));
+		if (this->enableNightMode) {
+			this->enableNightMode->setBoolean(webServer->arg("sn") == HTTP_TRUE);
+			processNightModeTime(0, webServer->arg("nf").c_str());
+			processNightModeTime(2, webServer->arg("nt").c_str());
+		}
 	}
 
 	WProperty* getEpochTimeFormatted() {
 		return epochTimeFormatted;
 	}
+
+	WProperty* nightMode;
 
 private:
 	THandlerFunction onTimeUpdate;
@@ -440,6 +464,8 @@ private:
 	WProperty* dstOffset;
 	WProperty* useDaySavingTimes;
 	WProperty* dstRule;
+	WProperty* enableNightMode;
+	WProperty* nightSwitches;
 
 	void notifyOnTimeUpdate() {
 		if (onTimeUpdate) {
@@ -505,6 +531,16 @@ private:
 			}
 		} else {
 			return (dstOffset->getInteger() != 0);
+		}
+	}
+
+	void processNightModeTime(byte arrayIndex, String timeStr) {
+		timeStr = (timeStr.length() == 4 ? "0" + timeStr : timeStr);
+		if (timeStr.length() == 5) {
+			byte hh = timeStr.substring(0, 2).toInt();
+			byte mm = timeStr.substring(3, 5).toInt();
+			this->nightSwitches->setByteArrayValue(arrayIndex, hh);
+			this->nightSwitches->setByteArrayValue(arrayIndex + 1, mm);
 		}
 	}
 

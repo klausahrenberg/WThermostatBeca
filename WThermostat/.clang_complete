@@ -58,7 +58,7 @@
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/lib/gcc/xtensa-lx106-elf/4.8.2/include
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include
 -I/home/klausahrenberg/.platformio/packages/tool-unity
--DPLATFORMIO=40303
+-DPLATFORMIO=40304
 -DESP8266
 -DARDUINO_ARCH_ESP8266
 -DARDUINO_ESP8266_ESP01
@@ -67,7 +67,7 @@
 -DICACHE_FLASH
 -DARDUINO=10805
 -DARDUINO_BOARD="PLATFORMIO_ESP01_1M"
--DFLASHMODE_QIO
+-DFLASHMODE_DOUT
 -DLWIP_OPEN_SRC
 -DNONOSDK22x_190703=1
 -DTCP_MSS=536
