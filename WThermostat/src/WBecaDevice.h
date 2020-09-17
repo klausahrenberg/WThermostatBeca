@@ -7,11 +7,12 @@
 #include "WDevice.h"
 #include "WClock.h"
 
-#define COUNT_DEVICE_MODELS 4
+#define COUNT_DEVICE_MODELS 5
 #define MODEL_BHT_002_GBLW 0
 #define MODEL_BAC_002_ALW 1
 #define MODEL_ET_81_W 2
 #define MODEL_FLOUREON_HY08WE 3
+#define MODEL_ME_81H 4
 
 #define HEARTBEAT_INTERVAL 10000
 #define MINIMUM_INTERVAL 2000
@@ -41,15 +42,20 @@ const byte STORED_FLAG_BECA = 0x36;
 const char SCHEDULES_PERIODS[] = "123456";
 const char SCHEDULES_DAYS[] = "wau";
 
-const float MODEL_TEMPERATURE_FACTOR[]                  = { 2.0f, 2.0f, 10.0f, 10.0f };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_TARGET[]         = {0x02, 0x02, 0x02, 0x02 };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_ACTUAL[]         = {0x03, 0x03, 0x08, 0x03 };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_FLOOR[]          = {0x66, 0x00, 0x05, 0x66 };
-const byte  MODEL_MCU_BYTE_SYSTEM_MODE[]  			        = {0x00, 0x66, 0x00, 0x00 };
-const byte  MODEL_MCU_BYTE_SCHEDULES_MODE[]			        = {0x04, 0x04, 0x03, 0x04 };
-const byte  MODEL_MCU_BYTE_FAN_MODE[]  					        = {0x00, 0x67, 0x00, 0x00 };
-const byte  MODEL_MCU_BYTE_ECO_MODE[]  					        = {0x05, 0x05, 0x00, 0x00 };
-const byte  MODEL_MCU_BYTE_SCHEDULES[]                  = {0x65, 0x68, 0x00, 0x00 };
+const float MODEL_TEMPERATURE_FACTOR[]                  = {2.0f, 2.0f, 10.0f, 10.0f, 1.0f };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_TARGET[]         = {0x02, 0x02, 0x02, 0x02, 0x10 };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_ACTUAL[]         = {0x03, 0x03, 0x08, 0x03, 0x18 };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_FLOOR[]          = {0x66, 0x00, 0x05, 0x66, 0x2d };
+const byte  MODEL_MCU_BYTE_SYSTEM_MODE[]  			    = {0x00, 0x66, 0x00, 0x00, 0x24 };
+const byte  MODEL_MCU_BYTE_SCHEDULES_MODE[]			    = {0x04, 0x04, 0x03, 0x04, 0x02 };
+const byte  MODEL_MCU_BYTE_FAN_MODE[]  					= {0x00, 0x67, 0x00, 0x00, 0x00 };
+const byte  MODEL_MCU_BYTE_ECO_MODE[]  					= {0x05, 0x05, 0x00, 0x00, 0x00 };
+const byte  MODEL_MCU_BYTE_SCHEDULES[]                  = {0x65, 0x68, 0x00, 0x00, 0x26 };
+const byte  MODEL_MCU_BYTE_LOCKED[]                     = {0x06, 0x06, 0x06, 0x06, 0x28 };
+const int   MODEL_SCHEDULING_DAYS[]                     = {18,   18,   18,   18,   8 };
+const int   MODEL_SCHEDULING_HH_POS[]                   = {1,    1,    1,    1,    0 };
+const int   MODEL_SCHEDULING_MM_POS[]                   = {0,    0,    0,    0,    1 };
+
 
 class WBecaDevice: public WDevice {
 public:
@@ -114,10 +120,16 @@ public:
     }
 		if (MODEL_MCU_BYTE_SYSTEM_MODE[getThermostatModel()] != 0x00) {
     	this->systemMode = new WProperty("systemMode", "System Mode", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
-      this->systemMode->addEnumString(SYSTEM_MODE_COOL);
-      this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
-      this->systemMode->addEnumString(SYSTEM_MODE_FAN);
-			this->systemMode->setOnChange(std::bind(&WBecaDevice::systemModeToMcu, this, std::placeholders::_1));
+		if(getThermostatModel()==MODEL_ME_81H){
+			this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
+			this->systemMode->addEnumString(SYSTEM_MODE_COOL);
+			this->systemMode->addEnumString(SYSTEM_MODE_FAN);
+		}else{
+			this->systemMode->addEnumString(SYSTEM_MODE_COOL);
+			this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
+			this->systemMode->addEnumString(SYSTEM_MODE_FAN);
+		}
+		this->systemMode->setOnChange(std::bind(&WBecaDevice::systemModeToMcu, this, std::placeholders::_1));
       this->addProperty(systemMode);
 		} else {
       this->systemMode = nullptr;
@@ -176,11 +188,12 @@ public:
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Thermostat model:", "tm");
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "0", (getThermostatModel() == 0 ? HTTP_SELECTED : ""), "Floor heating (BHT-002-GBLW)");
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getThermostatModel() == 1 ? HTTP_SELECTED : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
-			page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "2", (getThermostatModel() == 2 ? HTTP_SELECTED : ""), "Floor heating (ET-81W)");
-			page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "3", (getThermostatModel() == 3 ? HTTP_SELECTED : ""), "Floor heating (Floureon HY08WE)");
+		page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "2", (getThermostatModel() == 2 ? HTTP_SELECTED : ""), "Floor heating (ET-81W)");
+		page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "3", (getThermostatModel() == 3 ? HTTP_SELECTED : ""), "Floor heating (Floureon HY08WE)");
+		page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "4", (getThermostatModel() == 4 ? HTTP_SELECTED : ""), "Floor heating (AVATTO ME81AH)");
     	page->print(FPSTR(HTTP_COMBOBOX_END));
       //Checkbox
-      page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change (not at model ET-81W)");
+      page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");
       //Checkbox with support for relay
 			page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "rs", "rs", (this->isSupportingHeatingRelay() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 *");
     	//ComboBox with weekday
@@ -392,6 +405,8 @@ public:
 
     void processSchedulesKeyValue(const char* key, const char* value) {
     	network->notice(F("Process key '%s', value '%s'"), key, value);
+		int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
+		int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
     	if (strlen(key) == 3) {
         byte startAddr = 255;
     		byte period = 255;
@@ -416,10 +431,10 @@ public:
             if (timeStr.length() == 5) {
     				  byte hh = timeStr.substring(0, 2).toInt();
     				  byte mm = timeStr.substring(3, 5).toInt();
-    				  schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 1] != hh);
-    				  schedules[startAddr + period * 3 + 1] = hh;
-    				  schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 0] != mm);
-    				  schedules[startAddr + period * 3 + 0] = mm;
+    				  schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + hh_Offset] != hh);
+    				  schedules[startAddr + period * 3 + hh_Offset] = hh;
+    				  schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + mm_Offset] != mm);
+    				  schedules[startAddr + period * 3 + mm_Offset] = mm;
             }
     			} else if (key[2] == 't') {
     				//temperature
@@ -448,6 +463,8 @@ public:
     virtual void toJsonSchedules(WJson* json, byte schedulesDay) {
     	byte startAddr = 0;
 		char dayChar = SCHEDULES_DAYS[0];
+		int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
+		int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
 		switch (schedulesDay) {
 		case 1 :
 			startAddr = 18;
@@ -465,7 +482,7 @@ public:
     	buffer[3] = '\0';
     	for (int i = 0; i < 6; i++) {
     		buffer[1] = SCHEDULES_PERIODS[i];
-    		sprintf(timeStr, "%02d:%02d", schedules[startAddr + i * 3 + 1], schedules[startAddr + i * 3 + 0]);
+    		sprintf(timeStr, "%02d:%02d", schedules[startAddr + i * 3 + hh_Offset], schedules[startAddr + i * 3 + mm_Offset]);
     		buffer[2] = 'h';
     		json->propertyString(buffer, timeStr);
     		buffer[2] = 't';
@@ -480,31 +497,35 @@ public:
 
     void schedulesToMcu() {
     	if (receivedSchedules()) {
-    		//Changed schedules from MQTT server, send to mcu
-    		//send the changed array to MCU
-    		//per unit |MM HH TT|
-    		//55 AA 00 06 00 3A 65 00 00 36|
-    		//00 06 28|00 08 1E|1E 0B 1E|1E 0D 1E|00 11 2C|00 16 1E|
-    		//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
-    		//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
-    		unsigned char scheduleCommand[64];
-    		scheduleCommand[0] = 0x55;
-    		scheduleCommand[1] = 0xaa;
-    		scheduleCommand[2] = 0x00;
-    		scheduleCommand[3] = 0x06;
-    		scheduleCommand[4] = 0x00;
-    		scheduleCommand[5] = 0x3a;
-    		scheduleCommand[6] = MODEL_MCU_BYTE_SCHEDULES[getThermostatModel()];
-    		scheduleCommand[7] = 0x00;
-    		scheduleCommand[8] = 0x00;
-    		scheduleCommand[9] = 0x36;
-    		for (int i = 0; i < 54; i++) {
-    			scheduleCommand[i + 10] = schedules[i];
-    		}
-    		commandCharsToSerial(64, scheduleCommand);
-    		//notify change
-    		this->notifySchedules();
-    	}
+			//Changed schedules from MQTT server, send to mcu
+			//send the changed array to MCU
+			//per unit |MM HH TT|
+			//55 AA 00 06 00 3A 65 00 00 36|
+			//00 06 28|00 08 1E|1E 0B 1E|1E 0D 1E|00 11 2C|00 16 1E|
+			//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
+			//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
+			int daysToSend = MODEL_SCHEDULING_DAYS[getThermostatModel()];
+			int functionLengthInt = (daysToSend * 3);
+			char functionL = (getThermostatModel()==MODEL_ME_81H ? 0x18 : 0x36);
+			char dataL = (getThermostatModel()==MODEL_ME_81H ? 0x1c : 0x3a);
+			unsigned char scheduleCommand[functionLengthInt+10];
+			scheduleCommand[0] = 0x55;
+			scheduleCommand[1] = 0xaa;
+			scheduleCommand[2] = 0x00;
+			scheduleCommand[3] = 0x06;
+			scheduleCommand[4] = 0x00;
+			scheduleCommand[5] = dataL; //0x3a; // dataLength
+			scheduleCommand[6] = MODEL_MCU_BYTE_SCHEDULES[getThermostatModel()];
+			scheduleCommand[7] = 0x00;
+			scheduleCommand[8] = 0x00;
+			scheduleCommand[9] = functionL;
+			for (int i = 0; i <functionLengthInt; i++) {
+				scheduleCommand[i + 10] = schedules[i];
+			}
+			commandCharsToSerial(functionLengthInt+10, scheduleCommand);
+			//notify change
+			this->notifySchedules();
+		}
     }
 
     void fanModeToMcu(WProperty* property) {
@@ -710,8 +731,12 @@ private:
     				if (commandLength == 0x08) {
     					//actual Temperature
     					//e.g. 23C: 55 aa 01 07 00 08 03 02 00 04 00 00 00 2e
-							unsigned long rawValue = WSettings::getUnsignedLong(receivedCommand[10], receivedCommand[11], receivedCommand[12], receivedCommand[13]);
-    					newValue = (float) rawValue / getTemperatureFactor();
+						unsigned long rawValue = WSettings::getUnsignedLong(receivedCommand[10], receivedCommand[11], receivedCommand[12], receivedCommand[13]);
+						if (getThermostatModel() == MODEL_ME_81H) {
+    					    newValue = (float) rawValue / 10.0f / getTemperatureFactor();
+						}else{
+							newValue = (float) rawValue / getTemperatureFactor();
+						}
     					changed = ((changed) || (!actualTemperature->equalsDouble(newValue)));
     					actualTemperature->setDouble(newValue);
     					notifyKnownCommand("actualTemperature %s");
@@ -720,12 +745,12 @@ private:
     			} else if ((cByte == MODEL_MCU_BYTE_SCHEDULES_MODE[thModel]) && (schedulesMode != nullptr)) {
     				if (commandLength == 0x05) {
     					//schedulesMode?
-              newS = schedulesMode->getEnumString(receivedCommand[10]);
-              if (newS != nullptr) {
-    					  changed = ((changed) || (schedulesMode->setString(newS)));
-							  if (changed) updateTargetTemperature();
-    					  notifyKnownCommand("schedulesMode %s");
-    					  knownCommand = true;
+						newS = schedulesMode->getEnumString(receivedCommand[10]);
+						if (newS != nullptr) {
+    					  	changed = ((changed) || (schedulesMode->setString(newS)));
+							if (changed) updateTargetTemperature();
+    					  	notifyKnownCommand("schedulesMode %s");
+    					  	knownCommand = true;
               }
     				}
     			} else if ((cByte == MODEL_MCU_BYTE_ECO_MODE[thModel]) && (ecoMode != nullptr)) {
@@ -755,6 +780,19 @@ private:
     					//00 06 28 00 08 28 1E 0B 28 1E 0D 28 00 11 28 00 16 1E
     					this->schedulesReceived = true;
     					for (int i = 0; i < 54; i++) {
+    						newByte = receivedCommand[i + 10];
+    						schedulesChangedMCU = ((schedulesChangedMCU) || (newByte != schedules[i]));
+    						schedules[i] = newByte;
+    					}
+    					notifyKnownCommand("schedules %s");
+    					knownCommand = true;
+    				}else if (commandLength == 0x1C) {
+    					//schedules for model ME81AH
+    					//55 AA 00 06 00 1C 65 00 00 18
+    					//06 00 14 08 00 0F 0B 1E 0F 0C 1E 0F 11 00 16 16 00 0F 
+						//08 00 16 17 00 0F
+    					this->schedulesReceived = true;
+    					for (int i = 0; i < 24; i++) {
     						newByte = receivedCommand[i + 10];
     						schedulesChangedMCU = ((schedulesChangedMCU) || (newByte != schedules[i]));
     						schedules[i] = newByte;
@@ -850,12 +888,14 @@ private:
 
     void updateCurrentSchedulePeriod() {
     	if ((receivedSchedules()) && (wClock->isValidTime())) {
+			int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
+			int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
     		byte weekDay = wClock->getWeekDay();
     		weekDay += schedulesDayOffset->getByte();
     		weekDay = weekDay % 7;
     		int startAddr = (weekDay == 0 ? 36 : (weekDay == 6 ? 18 : 0));
     		int period = 0;
-    		if (wClock->isTimeEarlierThan(schedules[startAddr + period * 3 + 1], schedules[startAddr + period * 3 + 0])) {
+    		if (wClock->isTimeEarlierThan(schedules[startAddr + period * 3 + hh_Offset], schedules[startAddr + period * 3 + mm_Offset])) {
     			//Jump back to day before and last schedule of day
     			weekDay = weekDay - 1;
     			weekDay = weekDay % 7;
@@ -865,12 +905,12 @@ private:
     			//check the schedules in same day
     			for (int i = 1; i < 6; i++) {
     				if (i < 5) {
-    					if (wClock->isTimeBetween(schedules[startAddr + i * 3 + 1], schedules[startAddr + i * 3 + 0],
-    							                  schedules[startAddr + (i + 1) * 3 + 1], schedules[startAddr + (i + 1) * 3 + 0])) {
+    					if (wClock->isTimeBetween(schedules[startAddr + i * 3 + hh_Offset], schedules[startAddr + i * 3 + mm_Offset],
+    							                  schedules[startAddr + (i + 1) * 3 + hh_Offset], schedules[startAddr + (i + 1) * 3 + mm_Offset])) {
     						period = i;
     						break;
     					}
-    				} else if (wClock->isTimeLaterThan(schedules[startAddr + 5 * 3 + 1], schedules[startAddr + 5 * 3 + 0])) {
+    				} else if (wClock->isTimeLaterThan(schedules[startAddr + 5 * 3 + hh_Offset], schedules[startAddr + 5 * 3 + mm_Offset])) {
     					period = 5;
     				}
     			}
@@ -899,11 +939,12 @@ private:
     	if (!this->receivingDataFromMcu) {
     		network->notice(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
     	    //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
-					byte ulValues[4];
-					WSettings::getUnsignedLongBytes((targetTemperatureManualMode * getTemperatureFactor()), ulValues);
+			byte ulValues[4];
+			WSettings::getUnsignedLongBytes((targetTemperatureManualMode * getTemperatureFactor()), ulValues);
+			byte thModel = this->getThermostatModel();
+			byte mcuTempTarget = MODEL_MCU_BYTE_TEMPERATURE_TARGET[thModel];
     	    unsigned char setTemperatureCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x08,
-    	    		0x02, 0x02, 0x00, 0x04,
-							ulValues[0], ulValues[1], ulValues[2], ulValues[3]};
+    	    		mcuTempTarget, 0x02, 0x00, 0x04, ulValues[0], ulValues[1], ulValues[2], ulValues[3]};
     	    commandCharsToSerial(14, setTemperatureCommand);
     	}
     }
@@ -975,49 +1016,54 @@ private:
 		}
 
     void printConfigSchedulesPage(ESP8266WebServer* webServer, WStringStream* page) {
-      network->notice(F("Schedules config page"));
-			page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), SCHEDULES);
-			page->print(F("<table  class='settingstable'>"));
-      page->print(F("<tr>"));
+		int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
+		int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
+      	network->notice(F("Schedules config page"));
+	  	page->print(F("<div>For Thermostat-Model ME81AH only Weekdays(period1 to period6) and <br>Weekend1 (period1 and period2) available<br></div>"));
+		page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), SCHEDULES);
+		page->print(F("<table  class='settingstable'>"));
+      	page->print(F("<tr>"));
         page->print(F("<th></th>"));
         page->print(F("<th>Weekday</th>"));
         page->print(F("<th>Weekend 1</th>"));
         page->print(F("<th>Weekend 2</th>"));
-      page->print(F("</tr>"));
-      for (byte period = 0; period < 6; period++) {
-        page->print(F("<tr>"));
-        page->printAndReplace(F("<td>Period %s</td>"), String(period + 1).c_str());
-        for (byte sd = 0; sd < 3; sd++) {
-          int index = sd * 18 + period * 3;
-          char timeStr[6];
-          char keyH[4];
-          char keyT[4];
-					snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
-					snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
-          //hour
-          snprintf(timeStr, 6, "%02d:%02d", schedules[index + 1], schedules[index + 0]);
-          page->print(F("<td>"));
-          page->print(F("Time:"));
-          page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyH, "5", timeStr);
-          //temp
-          String tempStr((double) schedules[index + 2]	/ getTemperatureFactor(), 1);
-          page->print(F("Temp:"));
-          page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyT, "4", tempStr.c_str());
-          page->print(F("</td>"));
-        }
-        page->print(F("</tr>"));
-      }
-      page->print(F("</table>"));
-			page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
-		}
+      	page->print(F("</tr>"));
+      	for (byte period = 0; period < 6; period++) {
+			page->print(F("<tr>"));
+			page->printAndReplace(F("<td>Period %s</td>"), String(period + 1).c_str());
+			for (byte sd = 0; sd < 3; sd++) {
+				int index = sd * 18 + period * 3;
+				char timeStr[6];
+				char keyH[4];
+				char keyT[4];
+				snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+				snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+        		//hour
+				snprintf(timeStr, 6, "%02d:%02d", schedules[index + hh_Offset], schedules[index + mm_Offset]);
+		  
+          
+				page->print(F("<td>"));
+				page->print(F("Time:"));
+				page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyH, "5", timeStr);
+				//temp
+				String tempStr((double) schedules[index + 2]	/ getTemperatureFactor(), 1);
+				page->print(F("Temp:"));
+				page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyT, "4", tempStr.c_str());
+				page->print(F("</td>"));
+        	}
+        	page->print(F("</tr>"));
+      	}
+      	page->print(F("</table>"));
+		page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
+	}
 
     void submitConfigSchedulesPage(ESP8266WebServer* webServer, WStringStream* page) {
       network->notice(F("Save schedules config page"));
       schedulesChanged = false;
 			for (int period = 0; period < 6; period++) {
 				for (int sd = 0; sd < 3; sd++) {
-          char keyH[4];
-          char keyT[4];
+					char keyH[4];
+					char keyT[4];
 					snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
 					snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
 					processSchedulesKeyValue(keyH, webServer->arg(keyH).c_str());
