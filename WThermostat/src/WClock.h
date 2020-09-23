@@ -318,7 +318,7 @@ public:
 		return (useTimeZoneServer->getBoolean() || isDaySavingTime() ? dstOffset->getInteger() : 0);
 	}
 
-	void printConfigPage(ESP8266WebServer* webServer, WStringStream* page) {
+	void printConfigPage(AsyncWebServerRequest* request, WStringStream* page) {
     	network->notice(F("Clock config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
 			page->printAndReplace(FPSTR(HTTP_TOGGLE_GROUP_STYLE), "ga", (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gb", (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
@@ -420,26 +420,26 @@ public:
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
 	}
 
-	void saveConfigPage(ESP8266WebServer* webServer, WStringStream* page) {
+	void saveConfigPage(AsyncWebServerRequest* request, WStringStream* page) {
 		network->notice(F("Save clock config page"));
-		this->ntpServer->setString(webServer->arg("ntp").c_str());
-		this->timeZoneServer->setString(webServer->arg("tz").c_str());
-		this->useTimeZoneServer->setBoolean(webServer->arg("sa") == HTTP_TRUE);
-		this->useDaySavingTimes->setBoolean(webServer->arg("sd") == HTTP_TRUE);
-		this->rawOffset->setInteger(atol(webServer->arg("ro").c_str()) * 60);
-		this->dstOffset->setInteger(atol(webServer->arg("do").c_str()) * 60);
-		this->dstRule->setByteArrayValue(STD_MONTH, atoi(webServer->arg("rm").c_str()));
-		this->dstRule->setByteArrayValue(STD_WEEK, atoi(webServer->arg("rw").c_str()));
-		this->dstRule->setByteArrayValue(STD_WEEKDAY, atoi(webServer->arg("rd").c_str()));
-		this->dstRule->setByteArrayValue(STD_HOUR, atoi(webServer->arg("rh").c_str()));
-		this->dstRule->setByteArrayValue(DST_MONTH, atoi(webServer->arg("dm").c_str()));
-		this->dstRule->setByteArrayValue(DST_WEEK, atoi(webServer->arg("dw").c_str()));
-		this->dstRule->setByteArrayValue(DST_WEEKDAY, atoi(webServer->arg("dd").c_str()));
-		this->dstRule->setByteArrayValue(DST_HOUR, atoi(webServer->arg("dh").c_str()));
+		this->ntpServer->setString(request->arg("ntp").c_str());
+		this->timeZoneServer->setString(request->arg("tz").c_str());
+		this->useTimeZoneServer->setBoolean(request->arg("sa") == HTTP_TRUE);
+		this->useDaySavingTimes->setBoolean(request->arg("sd") == HTTP_TRUE);
+		this->rawOffset->setInteger(atol(request->arg("ro").c_str()) * 60);
+		this->dstOffset->setInteger(atol(request->arg("do").c_str()) * 60);
+		this->dstRule->setByteArrayValue(STD_MONTH, atoi(request->arg("rm").c_str()));
+		this->dstRule->setByteArrayValue(STD_WEEK, atoi(request->arg("rw").c_str()));
+		this->dstRule->setByteArrayValue(STD_WEEKDAY, atoi(request->arg("rd").c_str()));
+		this->dstRule->setByteArrayValue(STD_HOUR, atoi(request->arg("rh").c_str()));
+		this->dstRule->setByteArrayValue(DST_MONTH, atoi(request->arg("dm").c_str()));
+		this->dstRule->setByteArrayValue(DST_WEEK, atoi(request->arg("dw").c_str()));
+		this->dstRule->setByteArrayValue(DST_WEEKDAY, atoi(request->arg("dd").c_str()));
+		this->dstRule->setByteArrayValue(DST_HOUR, atoi(request->arg("dh").c_str()));
 		if (this->enableNightMode) {
-			this->enableNightMode->setBoolean(webServer->arg("sn") == HTTP_TRUE);
-			processNightModeTime(0, webServer->arg("nf").c_str());
-			processNightModeTime(2, webServer->arg("nt").c_str());
+			this->enableNightMode->setBoolean(request->arg("sn") == HTTP_TRUE);
+			processNightModeTime(0, request->arg("nf").c_str());
+			processNightModeTime(2, request->arg("nt").c_str());
 		}
 	}
 
