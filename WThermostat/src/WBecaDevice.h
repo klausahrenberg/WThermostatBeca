@@ -181,7 +181,7 @@ public:
     return true;
   }
 
-  virtual void printConfigPage(ESP8266WebServer* webServer, WStringStream* page) {
+  virtual void printConfigPage(AsyncWebServerRequest* request, WStringStream* page) {
     	network->notice(F("Beca thermostat config page"));
     	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
     	//ComboBox with model selection
@@ -195,7 +195,7 @@ public:
       //Checkbox
       page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");
       //Checkbox with support for relay
-			page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "rs", "rs", (this->isSupportingHeatingRelay() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 *");
+			page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "rs", "rs", (this->isSupportingHeatingRelay() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 (not working without hardware mod)");
     	//ComboBox with weekday
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Workday schedules:", "ws");
     	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "0", (getSchedulesDayOffset() == 0 ? HTTP_SELECTED : ""), "Workday Mon-Fri; Weekend Sat-Sun");
@@ -212,13 +212,13 @@ public:
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
     }
 
-    void submitConfigPage(ESP8266WebServer* webServer, WStringStream* page) {
+    void submitConfigPage(AsyncWebServerRequest* request, WStringStream* page) {
         network->notice(F("Save Beca config page"));
-        this->thermostatModel->setByte(webServer->arg("tm").toInt());
-        this->schedulesDayOffset->setByte(webServer->arg("ws").toInt());
-        this->supportingHeatingRelay->setBoolean(webServer->arg("rs") == HTTP_TRUE);
-        this->switchBackToAuto->setBoolean(webServer->arg("sb") == HTTP_TRUE);
-				this->completeDeviceState->setBoolean(webServer->arg("cr") != HTTP_TRUE);
+        this->thermostatModel->setByte(request->arg("tm").toInt());
+        this->schedulesDayOffset->setByte(request->arg("ws").toInt());
+        this->supportingHeatingRelay->setBoolean(request->arg("rs") == HTTP_TRUE);
+        this->switchBackToAuto->setBoolean(request->arg("sb") == HTTP_TRUE);
+				this->completeDeviceState->setBoolean(request->arg("cr") != HTTP_TRUE);
     }
 
     void loop(unsigned long now) {
@@ -367,12 +367,12 @@ public:
     	commandCharsToSerial(14, cancelConfigCommand);
     }
 
-    void bindWebServerCalls(ESP8266WebServer* webServer) {
+    void bindWebServerCalls(AsyncWebServer* webServer) {
     	String deviceBase("/things/");
     	deviceBase.concat(getId());
     	deviceBase.concat("/");
     	deviceBase.concat(SCHEDULES);
-    	webServer->on(deviceBase.c_str(), HTTP_GET, std::bind(&WBecaDevice::sendSchedules, this, webServer));
+    	webServer->on(deviceBase.c_str(), HTTP_GET, std::bind(&WBecaDevice::sendSchedules, this, std::placeholders::_1));
     }
 
     void handleUnknownMqttCallback(bool getState, String completeTopic, String partialTopic, char *payload, unsigned int length) {
@@ -449,7 +449,7 @@ public:
     	}
     }
 
-    void sendSchedules(ESP8266WebServer* webServer) {
+    void sendSchedules(AsyncWebServerRequest* request) {
     	WStringStream* response = network->getResponseStream();
     	WJson json(response);
     	json.beginObject();
@@ -457,7 +457,7 @@ public:
     	this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
     	this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
     	json.endObject();
-    	webServer->send(200, APPLICATION_JSON, response->c_str());
+    	request->send(200, APPLICATION_JSON, response->c_str());
     }
 
     virtual void toJsonSchedules(WJson* json, byte schedulesDay) {
@@ -1003,7 +1003,7 @@ private:
 		void handleSchedulesChange(String completeTopic) {
 			network->notice(F("Send Schedules state..."));
 			if (completeTopic == "") {
-				completeTopic = String(network->getMqttBaseTopic()) + SLASH + String(this->getId()) + SLASH + String(network->getMqttStateTopic() + SLASH + SCHEDULES);
+				completeTopic = String(network->getMqttBaseTopic()) + SLASH + String(this->getId()) + SLASH + String(network->getMqttStateTopic()) + SLASH + SCHEDULES;
 			}
 			WStringStream* response = network->getResponseStream();
 			WJson json(response);
@@ -1015,14 +1015,14 @@ private:
 			network->publishMqtt(completeTopic.c_str(), response);
 		}
 
-    void printConfigSchedulesPage(ESP8266WebServer* webServer, WStringStream* page) {
-		int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
-		int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
-      	network->notice(F("Schedules config page"));
-	  	page->print(F("<div>For Thermostat-Model ME81AH only Weekdays(period1 to period6) and <br>Weekend1 (period1 and period2) available<br></div>"));
-		page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), SCHEDULES);
-		page->print(F("<table  class='settingstable'>"));
-      	page->print(F("<tr>"));
+    void printConfigSchedulesPage(AsyncWebServerRequest* request, WStringStream* page) {
+      int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
+		  int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
+      network->notice(F("Schedules config page"));
+      page->print(F("<div>For Thermostat-Model ME81AH only Weekdays(period1 to period6) and <br>Weekend1 (period1 and period2) available<br></div>"));
+			page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), SCHEDULES);
+			page->print(F("<table  class='settingstable'>"));
+      page->print(F("<tr>"));
         page->print(F("<th></th>"));
         page->print(F("<th>Weekday</th>"));
         page->print(F("<th>Weekend 1</th>"));
@@ -1057,7 +1057,7 @@ private:
 		page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
 	}
 
-    void submitConfigSchedulesPage(ESP8266WebServer* webServer, WStringStream* page) {
+    void submitConfigSchedulesPage(AsyncWebServerRequest* request, WStringStream* page) {
       network->notice(F("Save schedules config page"));
       schedulesChanged = false;
 			for (int period = 0; period < 6; period++) {
@@ -1066,8 +1066,8 @@ private:
 					char keyT[4];
 					snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
 					snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
-					processSchedulesKeyValue(keyH, webServer->arg(keyH).c_str());
-					processSchedulesKeyValue(keyT, webServer->arg(keyT).c_str());
+					processSchedulesKeyValue(keyH, request->arg(keyH).c_str());
+					processSchedulesKeyValue(keyT, request->arg(keyT).c_str());
 				}
 			}
 			if (schedulesChanged) {

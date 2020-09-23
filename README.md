@@ -92,4 +92,7 @@ Send a complete json structure with changed parameters to `<your_mqtt_topic>/the
 Send a json with changed schedules to `<your_mqtt_topic>/things/thermostat/schedules`.
 
 ### Build this firmware from source
-For build from sources you can use the Arduino-IDE, Atom IDE or other. All sources needed are inside the folder 'WThermostat' and my other library: https://github.com/klausahrenberg/WAdapter. Additionally you will need some other libraries: DNSServer, EEPROM (for esp8266), ESP8266HTTPClient, ESP8266mDNS, ESP8266WebServer, ESP8266WiFi, Hash, NTPClient, Time - It's all available via board and library manager inside of ArduinoIDE
+For build from sources you can use the Atom IDE (recommended), Arduino IDE or other. All sources needed are inside the folder 'WThermostat' and my other library: 
+https://github.com/klausahrenberg/WAdapter. 
+Additionally you will need some other libraries, which you can find listed here: 
+https://github.com/klausahrenberg/WThermostatBeca/blob/master/WThermostat/platformio.ini
