@@ -42,20 +42,22 @@ const byte STORED_FLAG_BECA = 0x36;
 const char SCHEDULES_PERIODS[] = "123456";
 const char SCHEDULES_DAYS[] = "wau";
 
-const float MODEL_TEMPERATURE_FACTOR[]                  = {2.0f, 2.0f, 10.0f, 10.0f, 1.0f };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_TARGET[]         = {0x02, 0x02, 0x02, 0x02, 0x10 };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_ACTUAL[]         = {0x03, 0x03, 0x08, 0x03, 0x18 };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_FLOOR[]          = {0x66, 0x00, 0x05, 0x66, 0x2d };
-const byte  MODEL_MCU_BYTE_SYSTEM_MODE[]  			    = {0x00, 0x66, 0x00, 0x00, 0x24 };
-const byte  MODEL_MCU_BYTE_SCHEDULES_MODE[]			    = {0x04, 0x04, 0x03, 0x04, 0x02 };
+const float MODEL_TEMPERATURE_FACTOR[]          = {2.0f, 2.0f, 10.0f, 10.0f, 1.0f };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_TARGET[] = {0x02, 0x02, 0x02, 0x02, 0x10 };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_ACTUAL[] = {0x03, 0x03, 0x08, 0x03, 0x18 };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_FLOOR[]  = {0x66, 0x00, 0x05, 0x66, 0x2d };
+const byte  MODEL_MCU_BYTE_SYSTEM_MODE[]  			= {0x00, 0x66, 0x00, 0x00, 0x24 };
+const byte  MODEL_MCU_BYTE_SCHEDULES_MODE[]			= {0x04, 0x04, 0x03, 0x04, 0x02 };
 const byte  MODEL_MCU_BYTE_FAN_MODE[]  					= {0x00, 0x67, 0x00, 0x00, 0x00 };
 const byte  MODEL_MCU_BYTE_ECO_MODE[]  					= {0x05, 0x05, 0x00, 0x00, 0x00 };
-const byte  MODEL_MCU_BYTE_SCHEDULES[]                  = {0x65, 0x68, 0x00, 0x00, 0x26 };
-const byte  MODEL_MCU_BYTE_LOCKED[]                     = {0x06, 0x06, 0x06, 0x06, 0x28 };
-const int   MODEL_SCHEDULING_DAYS[]                     = {18,   18,   18,   18,   8 };
-const int   MODEL_SCHEDULING_HH_POS[]                   = {1,    1,    1,    1,    0 };
-const int   MODEL_SCHEDULING_MM_POS[]                   = {0,    0,    0,    0,    1 };
-
+const byte  MODEL_MCU_BYTE_SCHEDULES[]          = {0x65, 0x68, 0x00, 0x00, 0x26 };
+const byte  MODEL_MCU_BYTE_LOCKED[]             = {0x06, 0x06, 0x06, 0x06, 0x28 };
+const byte  MODEL_SCHEDULING_DAYS[]             = {18,   18,   18,   18,   8 };
+const byte  MODEL_SCHEDULING_HH_POS[]           = {1,    1,    1,    1,    0 };
+const byte  MODEL_SCHEDULING_MM_POS[]           = {0,    0,    0,    0,    1 };
+const static char HTTP_SCHEDULE_NOTE[]           PROGMEM = R"=====(
+	<div><small>Note: For Thermostat-Model ME81AH only Weekdays(period1 to period6) and Weekend1 (period1 and period2) available<br></small></div>
+)=====";
 
 class WBecaDevice: public WDevice {
 public:
@@ -405,8 +407,8 @@ public:
 
     void processSchedulesKeyValue(const char* key, const char* value) {
     	network->notice(F("Process key '%s', value '%s'"), key, value);
-		int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
-		int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
+		  byte hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
+		  byte mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
     	if (strlen(key) == 3) {
         byte startAddr = 255;
     		byte period = 255;
@@ -462,19 +464,19 @@ public:
 
     virtual void toJsonSchedules(WJson* json, byte schedulesDay) {
     	byte startAddr = 0;
-		char dayChar = SCHEDULES_DAYS[0];
-		int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
-		int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
-		switch (schedulesDay) {
-		case 1 :
-			startAddr = 18;
-			dayChar = SCHEDULES_DAYS[1];
-			break;
-		case 2 :
-			startAddr = 36;
-			dayChar = SCHEDULES_DAYS[2];
-			break;
-		}
+		  char dayChar = SCHEDULES_DAYS[0];
+		  byte hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
+		  byte mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
+		  switch (schedulesDay) {
+		  case 1 :
+			  startAddr = 18;
+			  dayChar = SCHEDULES_DAYS[1];
+			  break;
+		  case 2 :
+			  startAddr = 36;
+			  dayChar = SCHEDULES_DAYS[2];
+			  break;
+		  }
     	char timeStr[6];
     	timeStr[5] = '\0';
     	char* buffer = new char[4];
@@ -789,7 +791,7 @@ private:
     				}else if (commandLength == 0x1C) {
     					//schedules for model ME81AH
     					//55 AA 00 06 00 1C 65 00 00 18
-    					//06 00 14 08 00 0F 0B 1E 0F 0C 1E 0F 11 00 16 16 00 0F 
+    					//06 00 14 08 00 0F 0B 1E 0F 0C 1E 0F 11 00 16 16 00 0F
 						//08 00 16 17 00 0F
     					this->schedulesReceived = true;
     					for (int i = 0; i < 24; i++) {
@@ -888,8 +890,8 @@ private:
 
     void updateCurrentSchedulePeriod() {
     	if ((receivedSchedules()) && (wClock->isValidTime())) {
-			int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
-			int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
+			  byte hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
+			  byte mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
     		byte weekDay = wClock->getWeekDay();
     		weekDay += schedulesDayOffset->getByte();
     		weekDay = weekDay % 7;
@@ -1015,47 +1017,48 @@ private:
 			network->publishMqtt(completeTopic.c_str(), response);
 		}
 
+
+
     void printConfigSchedulesPage(AsyncWebServerRequest* request, WStringStream* page) {
-      int hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
-		  int mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
+      byte hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
+		  byte mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
       network->notice(F("Schedules config page"));
-      page->print(F("<div>For Thermostat-Model ME81AH only Weekdays(period1 to period6) and <br>Weekend1 (period1 and period2) available<br></div>"));
+      page->print(FPSTR(HTTP_SCHEDULE_NOTE));
 			page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), SCHEDULES);
 			page->print(F("<table  class='settingstable'>"));
       page->print(F("<tr>"));
-        page->print(F("<th></th>"));
-        page->print(F("<th>Weekday</th>"));
-        page->print(F("<th>Weekend 1</th>"));
-        page->print(F("<th>Weekend 2</th>"));
+      page->print(F("<th></th>"));
+      page->print(F("<th>Weekday</th>"));
+      page->print(F("<th>Weekend 1</th>"));
+      page->print(F("<th>Weekend 2</th>"));
+      page->print(F("</tr>"));
+      for (byte period = 0; period < 6; period++) {
+			  page->print(F("<tr>"));
+			  page->printAndReplace(F("<td>Period %s</td>"), String(period + 1).c_str());
+			  for (byte sd = 0; sd < 3; sd++) {
+				  int index = sd * 18 + period * 3;
+				  char timeStr[6];
+				  char keyH[4];
+				  char keyT[4];
+				  snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+				  snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+        	//hour
+				  snprintf(timeStr, 6, "%02d:%02d", schedules[index + hh_Offset], schedules[index + mm_Offset]);
+
+				  page->print(F("<td>"));
+				  page->print(F("Time:"));
+				  page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyH, "5", timeStr);
+				  //temp
+				  String tempStr((double) schedules[index + 2]	/ getTemperatureFactor(), 1);
+				  page->print(F("Temp:"));
+				  page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyT, "4", tempStr.c_str());
+				  page->print(F("</td>"));
+        }
       	page->print(F("</tr>"));
-      	for (byte period = 0; period < 6; period++) {
-			page->print(F("<tr>"));
-			page->printAndReplace(F("<td>Period %s</td>"), String(period + 1).c_str());
-			for (byte sd = 0; sd < 3; sd++) {
-				int index = sd * 18 + period * 3;
-				char timeStr[6];
-				char keyH[4];
-				char keyT[4];
-				snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
-				snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
-        		//hour
-				snprintf(timeStr, 6, "%02d:%02d", schedules[index + hh_Offset], schedules[index + mm_Offset]);
-		  
-          
-				page->print(F("<td>"));
-				page->print(F("Time:"));
-				page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyH, "5", timeStr);
-				//temp
-				String tempStr((double) schedules[index + 2]	/ getTemperatureFactor(), 1);
-				page->print(F("Temp:"));
-				page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyT, "4", tempStr.c_str());
-				page->print(F("</td>"));
-        	}
-        	page->print(F("</tr>"));
-      	}
-      	page->print(F("</table>"));
-		page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
-	}
+      }
+      page->print(F("</table>"));
+		  page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
+	  }
 
     void submitConfigSchedulesPage(AsyncWebServerRequest* request, WStringStream* page) {
       network->notice(F("Save schedules config page"));
