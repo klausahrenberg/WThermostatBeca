@@ -318,30 +318,29 @@ public:
 		return (useTimeZoneServer->getBoolean() || isDaySavingTime() ? dstOffset->getInteger() : 0);
 	}
 
-	void printConfigPage(AsyncWebServerRequest* request, WStringStream* page) {
-    	network->notice(F("Clock config page"));
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
-			page->printAndReplace(FPSTR(HTTP_TOGGLE_GROUP_STYLE), "ga", (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gb", (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
-			page->printAndReplace(FPSTR(HTTP_TOGGLE_GROUP_STYLE), "gd", (useDaySavingTimes->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "ge", HTTP_NONE);
+	void printConfigPage(AsyncWebServerRequest* request, Print* page) {
+    	page->printf(HTTP_CONFIG_PAGE_BEGIN, getId());
+			page->printf(HTTP_TOGGLE_GROUP_STYLE, "ga", (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gb", (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
+			page->printf(HTTP_TOGGLE_GROUP_STYLE, "gd", (useDaySavingTimes->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "ge", HTTP_NONE);
 			if (this->enableNightMode) {
-				page->printAndReplace(FPSTR(HTTP_TOGGLE_GROUP_STYLE), "gn", (enableNightMode->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gm", HTTP_NONE);
+				page->printf(HTTP_TOGGLE_GROUP_STYLE, "gn", (enableNightMode->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gm", HTTP_NONE);
 			}
 			//NTP Server
-			page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "NTP server:", "ntp", "32", ntpServer->c_str());
+			page->printf(HTTP_TEXT_FIELD, "NTP server:", "ntp", "32", ntpServer->c_str());
 
 			page->print(FPSTR(HTTP_DIV_BEGIN));
-			page->printAndReplace(FPSTR(HTTP_RADIO_OPTION), "sa", "sa", HTTP_TRUE, (useTimeZoneServer->getBoolean() ? HTTP_CHECKED : ""), "tg()", "Get time zone via internet");
-			page->printAndReplace(FPSTR(HTTP_RADIO_OPTION), "sb", "sa", HTTP_FALSE, (useTimeZoneServer->getBoolean() ? "" : HTTP_CHECKED), "tg()", "Use fixed offset to UTC time");
+			page->printf(HTTP_RADIO_OPTION, "sa", "sa", HTTP_TRUE, (useTimeZoneServer->getBoolean() ? HTTP_CHECKED : ""), "tg()", "Get time zone via internet");
+			page->printf(HTTP_RADIO_OPTION, "sb", "sa", HTTP_FALSE, (useTimeZoneServer->getBoolean() ? "" : HTTP_CHECKED), "tg()", "Use fixed offset to UTC time");
 			page->print(FPSTR(HTTP_DIV_END));
 
-			page->printAndReplace(FPSTR(HTTP_DIV_ID_BEGIN), "ga");
-			page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "Time zone server:", "tz", "64", timeZoneServer->c_str());
+			page->printf(HTTP_DIV_ID_BEGIN, "ga");
+			page->printf(HTTP_TEXT_FIELD, "Time zone server:", "tz", "64", timeZoneServer->c_str());
 			page->print(FPSTR(HTTP_DIV_END));
-			page->printAndReplace(FPSTR(HTTP_DIV_ID_BEGIN), "gb");
-			page->printAndReplace(FPSTR(HTTP_TEXT_FIELD), "Fixed offset to UTC in minutes:", "ro", "5", String(rawOffset->getInteger() / 60).c_str());
+			page->printf(HTTP_DIV_ID_BEGIN, "gb");
+			page->printf(HTTP_TEXT_FIELD, "Fixed offset to UTC in minutes:", "ro", "5", String(rawOffset->getInteger() / 60).c_str());
 
-			page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "sd", "sd", (useDaySavingTimes->getBoolean() ? HTTP_CHECKED : ""), "td()", "Calculate day saving time (summer time)");
-			page->printAndReplace(FPSTR(HTTP_DIV_ID_BEGIN), "gd");
+			page->printf(HTTP_CHECKBOX_OPTION, "sd", "sd", (useDaySavingTimes->getBoolean() ? HTTP_CHECKED : ""), "td()", "Calculate day saving time (summer time)");
+			page->printf(HTTP_DIV_ID_BEGIN, "gd");
 			page->print(F("<table  class='settingstable'>"));
 				page->print(F("<tr>"));
 					page->print(F("<th></th>"));
@@ -352,43 +351,43 @@ public:
 					page->print(F("<td>Offset to standard time in minutes</td>"));
 					page->print(F("<td></td>"));
 					page->print(F("<td>"));
-					page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "do", "5", String(dstOffset->getInteger() / 60).c_str());
+					page->printf(HTTP_INPUT_FIELD, "do", "5", String(dstOffset->getInteger() / 60).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 				page->print(F("<tr>"));
 					page->print(F("<td>Month [1..12]</td>"));
 					page->print(F("<td>"));
-					page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "rm", "2", String(dstRule->getByteArrayValue(STD_MONTH)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "rm", "2", String(dstRule->getByteArrayValue(STD_MONTH)).c_str());
 					page->print(F("</td>"));
 					page->print(F("<td>"));
-					page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "dm", "2", String(dstRule->getByteArrayValue(DST_MONTH)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "dm", "2", String(dstRule->getByteArrayValue(DST_MONTH)).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 				page->print(F("<tr>"));
 					page->print(F("<td>Week [0: last week of month; 1..4]</td>"));
 					page->print(F("<td>"));
-					page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "rw", "1", String(dstRule->getByteArrayValue(STD_WEEK)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "rw", "1", String(dstRule->getByteArrayValue(STD_WEEK)).c_str());
 					page->print(F("</td>"));
 					page->print(F("<td>"));
-					page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "dw", "1", String(dstRule->getByteArrayValue(DST_WEEK)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "dw", "1", String(dstRule->getByteArrayValue(DST_WEEK)).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 				page->print(F("<tr>"));
 					page->print(F("<td>Weekday [0:sunday .. 6:saturday]</td>"));
 					page->print(F("<td>"));
-					page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "rd", "1", String(dstRule->getByteArrayValue(STD_WEEKDAY)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "rd", "1", String(dstRule->getByteArrayValue(STD_WEEKDAY)).c_str());
 					page->print(F("</td>"));
 					page->print(F("<td>"));
-					page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "dd", "1", String(dstRule->getByteArrayValue(DST_WEEKDAY)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "dd", "1", String(dstRule->getByteArrayValue(DST_WEEKDAY)).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 				page->print(F("<tr>"));
 					page->print(F("<td>Hour [0..23]</td>"));
 					page->print(F("<td>"));
-					page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "rh", "2", String(dstRule->getByteArrayValue(STD_HOUR)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "rh", "2", String(dstRule->getByteArrayValue(STD_HOUR)).c_str());
 					page->print(F("</td>"));
 					page->print(F("<td>"));
-					page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "dh", "2", String(dstRule->getByteArrayValue(DST_HOUR)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "dh", "2", String(dstRule->getByteArrayValue(DST_HOUR)).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 			page->print(F("</table>"));
@@ -396,32 +395,31 @@ public:
 			page->print(FPSTR(HTTP_DIV_END));
 			if (this->enableNightMode) {
 				//nightMode
-				page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "sn", "sn", (enableNightMode->getBoolean() ? HTTP_CHECKED : ""), "tn()", "Enable support for night mode");
-				page->printAndReplace(FPSTR(HTTP_DIV_ID_BEGIN), "gn");
+				page->printf(HTTP_CHECKBOX_OPTION, "sn", "sn", (enableNightMode->getBoolean() ? HTTP_CHECKED : ""), "tn()", "Enable support for night mode");
+				page->printf(HTTP_DIV_ID_BEGIN, "gn");
 				page->print(F("<table  class='settingstable'>"));
 					page->print(F("<tr>"));
 						char timeFrom[6];
 						snprintf(timeFrom, 6, "%02d:%02d", this->nightSwitches->getByteArrayValue(0), this->nightSwitches->getByteArrayValue(1));
 						page->print(F("<td>from"));
-						page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "nf", "5", timeFrom);
+						page->printf(HTTP_INPUT_FIELD, "nf", "5", timeFrom);
 						page->print(F("</td>"));
 						char timeTo[6];
 						snprintf(timeTo, 6, "%02d:%02d", this->nightSwitches->getByteArrayValue(2), this->nightSwitches->getByteArrayValue(3));
 						page->print(F("<td>to"));
-						page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), "nt", "5", timeTo);
+						page->printf(HTTP_INPUT_FIELD, "nt", "5", timeTo);
 						page->print(F("</td>"));
 					page->print(F("</tr>"));
 				page->print(F("</table>"));
 				page->print(FPSTR(HTTP_DIV_END));
-				page->printAndReplace(FPSTR(HTTP_TOGGLE_FUNCTION_SCRIPT), "tn()", "sn", "gn", "gm");
+				page->printf(HTTP_TOGGLE_FUNCTION_SCRIPT, "tn()", "sn", "gn", "gm");
 			}
-			page->printAndReplace(FPSTR(HTTP_TOGGLE_FUNCTION_SCRIPT), "tg()", "sa", "ga", "gb");
-			page->printAndReplace(FPSTR(HTTP_TOGGLE_FUNCTION_SCRIPT), "td()", "sd", "gd", "ge");
+			page->printf(HTTP_TOGGLE_FUNCTION_SCRIPT, "tg()", "sa", "ga", "gb");
+			page->printf(HTTP_TOGGLE_FUNCTION_SCRIPT, "td()", "sd", "gd", "ge");
     	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
 	}
 
-	void saveConfigPage(AsyncWebServerRequest* request, WStringStream* page) {
-		network->notice(F("Save clock config page"));
+	void saveConfigPage(AsyncWebServerRequest* request, Print* page) {
 		this->ntpServer->setString(request->arg("ntp").c_str());
 		this->timeZoneServer->setString(request->arg("tz").c_str());
 		this->useTimeZoneServer->setBoolean(request->arg("sa") == HTTP_TRUE);

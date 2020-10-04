@@ -4,7 +4,7 @@
 #include "WClock.h"
 
 #define APPLICATION "Thermostat"
-#define VERSION "1.17"
+#define VERSION "1.18"
 #define FLAG_SETTINGS 0x18
 #define DEBUG false
 

@@ -122,16 +122,16 @@ public:
     }
 		if (MODEL_MCU_BYTE_SYSTEM_MODE[getThermostatModel()] != 0x00) {
     	this->systemMode = new WProperty("systemMode", "System Mode", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
-		if(getThermostatModel()==MODEL_ME_81H){
-			this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
-			this->systemMode->addEnumString(SYSTEM_MODE_COOL);
-			this->systemMode->addEnumString(SYSTEM_MODE_FAN);
-		}else{
-			this->systemMode->addEnumString(SYSTEM_MODE_COOL);
-			this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
-			this->systemMode->addEnumString(SYSTEM_MODE_FAN);
-		}
-		this->systemMode->setOnChange(std::bind(&WBecaDevice::systemModeToMcu, this, std::placeholders::_1));
+			if(getThermostatModel()==MODEL_ME_81H){
+				this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
+				this->systemMode->addEnumString(SYSTEM_MODE_COOL);
+				this->systemMode->addEnumString(SYSTEM_MODE_FAN);
+			}else{
+				this->systemMode->addEnumString(SYSTEM_MODE_COOL);
+				this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
+				this->systemMode->addEnumString(SYSTEM_MODE_FAN);
+			}
+			this->systemMode->setOnChange(std::bind(&WBecaDevice::systemModeToMcu, this, std::placeholders::_1));
       this->addProperty(systemMode);
 		} else {
       this->systemMode = nullptr;
@@ -183,45 +183,42 @@ public:
     return true;
   }
 
-  virtual void printConfigPage(AsyncWebServerRequest* request, WStringStream* page) {
-    	network->notice(F("Beca thermostat config page"));
-    	page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), getId());
-    	//ComboBox with model selection
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Thermostat model:", "tm");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "0", (getThermostatModel() == 0 ? HTTP_SELECTED : ""), "Floor heating (BHT-002-GBLW)");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getThermostatModel() == 1 ? HTTP_SELECTED : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
-		page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "2", (getThermostatModel() == 2 ? HTTP_SELECTED : ""), "Floor heating (ET-81W)");
-		page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "3", (getThermostatModel() == 3 ? HTTP_SELECTED : ""), "Floor heating (Floureon HY08WE)");
-		page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "4", (getThermostatModel() == 4 ? HTTP_SELECTED : ""), "Floor heating (AVATTO ME81AH)");
-    	page->print(FPSTR(HTTP_COMBOBOX_END));
-      //Checkbox
-      page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");
-      //Checkbox with support for relay
-			page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "rs", "rs", (this->isSupportingHeatingRelay() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 (not working without hardware mod)");
-    	//ComboBox with weekday
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_BEGIN), "Workday schedules:", "ws");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "0", (getSchedulesDayOffset() == 0 ? HTTP_SELECTED : ""), "Workday Mon-Fri; Weekend Sat-Sun");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "1", (getSchedulesDayOffset() == 1 ? HTTP_SELECTED : ""), "Workday Sun-Thu; Weekend Fri-Sat");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "2", (getSchedulesDayOffset() == 2 ? HTTP_SELECTED : ""), "Workday Sat-Wed; Weekend Thu-Fri");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "3", (getSchedulesDayOffset() == 3 ? HTTP_SELECTED : ""), "Workday Fri-Tue; Weekend Wed-Thu");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "4", (getSchedulesDayOffset() == 4 ? HTTP_SELECTED : ""), "Workday Thu-Mon; Weekend Tue-Wed");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "5", (getSchedulesDayOffset() == 5 ? HTTP_SELECTED : ""), "Workday Wed-Sun; Weekend Mon-Tue");
-    	page->printAndReplace(FPSTR(HTTP_COMBOBOX_ITEM), "6", (getSchedulesDayOffset() == 6 ? HTTP_SELECTED : ""), "Workday Tue-Sat; Weekend Sun-Mon");
-    	page->print(FPSTR(HTTP_COMBOBOX_END));
+  virtual void printConfigPage(AsyncWebServerRequest* request, Print* page) {
+    page->printf(HTTP_CONFIG_PAGE_BEGIN, getId());
+    //ComboBox with model selection
+    page->printf(HTTP_COMBOBOX_BEGIN, "Thermostat model:", "tm");
+    page->printf(HTTP_COMBOBOX_ITEM, "0", (getThermostatModel() == 0 ? HTTP_SELECTED : ""), "Floor heating (BHT-002-GBLW)");
+    page->printf(HTTP_COMBOBOX_ITEM, "1", (getThermostatModel() == 1 ? HTTP_SELECTED : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
+		page->printf(HTTP_COMBOBOX_ITEM, "2", (getThermostatModel() == 2 ? HTTP_SELECTED : ""), "Floor heating (ET-81W)");
+		page->printf(HTTP_COMBOBOX_ITEM, "3", (getThermostatModel() == 3 ? HTTP_SELECTED : ""), "Floor heating (Floureon HY08WE)");
+		page->printf(HTTP_COMBOBOX_ITEM, "4", (getThermostatModel() == 4 ? HTTP_SELECTED : ""), "Floor heating (AVATTO ME81AH)");
+    page->print(FPSTR(HTTP_COMBOBOX_END));
+    //Checkbox
+    page->printf(HTTP_CHECKBOX_OPTION, "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");
+    //Checkbox with support for relay
+		page->printf(HTTP_CHECKBOX_OPTION, "rs", "rs", (this->isSupportingHeatingRelay() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 (not working without hardware mod)");
+    //ComboBox with weekday
+    page->printf(HTTP_COMBOBOX_BEGIN, "Workday schedules:", "ws");
+    page->printf(HTTP_COMBOBOX_ITEM, "0", (getSchedulesDayOffset() == 0 ? HTTP_SELECTED : ""), "Workday Mon-Fri; Weekend Sat-Sun");
+    page->printf(HTTP_COMBOBOX_ITEM, "1", (getSchedulesDayOffset() == 1 ? HTTP_SELECTED : ""), "Workday Sun-Thu; Weekend Fri-Sat");
+    page->printf(HTTP_COMBOBOX_ITEM, "2", (getSchedulesDayOffset() == 2 ? HTTP_SELECTED : ""), "Workday Sat-Wed; Weekend Thu-Fri");
+    page->printf(HTTP_COMBOBOX_ITEM, "3", (getSchedulesDayOffset() == 3 ? HTTP_SELECTED : ""), "Workday Fri-Tue; Weekend Wed-Thu");
+    page->printf(HTTP_COMBOBOX_ITEM, "4", (getSchedulesDayOffset() == 4 ? HTTP_SELECTED : ""), "Workday Thu-Mon; Weekend Tue-Wed");
+    page->printf(HTTP_COMBOBOX_ITEM, "5", (getSchedulesDayOffset() == 5 ? HTTP_SELECTED : ""), "Workday Wed-Sun; Weekend Mon-Tue");
+    page->printf(HTTP_COMBOBOX_ITEM, "6", (getSchedulesDayOffset() == 6 ? HTTP_SELECTED : ""), "Workday Tue-Sat; Weekend Sun-Mon");
+    page->print(FPSTR(HTTP_COMBOBOX_END));
+		page->printf(HTTP_CHECKBOX_OPTION, "cr", "cr", (this->sendCompleteDeviceState() ? "" : HTTP_CHECKED), "", "Send changes in separate MQTT messages");
 
-			page->printAndReplace(FPSTR(HTTP_CHECKBOX_OPTION), "cr", "cr", (this->sendCompleteDeviceState() ? "" : HTTP_CHECKED), "", "Send changes in separate MQTT messages");
+  	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
+  }
 
-    	page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
-    }
-
-    void submitConfigPage(AsyncWebServerRequest* request, WStringStream* page) {
-        network->notice(F("Save Beca config page"));
-        this->thermostatModel->setByte(request->arg("tm").toInt());
-        this->schedulesDayOffset->setByte(request->arg("ws").toInt());
-        this->supportingHeatingRelay->setBoolean(request->arg("rs") == HTTP_TRUE);
-        this->switchBackToAuto->setBoolean(request->arg("sb") == HTTP_TRUE);
-				this->completeDeviceState->setBoolean(request->arg("cr") != HTTP_TRUE);
-    }
+  void submitConfigPage(AsyncWebServerRequest* request, Print* page) {
+    this->thermostatModel->setByte(request->arg("tm").toInt());
+    this->schedulesDayOffset->setByte(request->arg("ws").toInt());
+    this->supportingHeatingRelay->setBoolean(request->arg("rs") == HTTP_TRUE);
+    this->switchBackToAuto->setBoolean(request->arg("sb") == HTTP_TRUE);
+		this->completeDeviceState->setBoolean(request->arg("cr") != HTTP_TRUE);
+  }
 
     void loop(unsigned long now) {
     	if (state != nullptr) {
@@ -661,7 +658,7 @@ private:
     }
 
 		void notifyUnknownCommand() {
-			network->error("Unknown MCU command", this->getCommandAsString().c_str());
+			network->error("Unknown MCU command: %s", this->getCommandAsString().c_str());
     }
 
     void processSerialCommand() {
@@ -1019,12 +1016,11 @@ private:
 
 
 
-    void printConfigSchedulesPage(AsyncWebServerRequest* request, WStringStream* page) {
+    void printConfigSchedulesPage(AsyncWebServerRequest* request, Print* page) {
       byte hh_Offset = MODEL_SCHEDULING_HH_POS[this->getThermostatModel()];
 		  byte mm_Offset = MODEL_SCHEDULING_MM_POS[this->getThermostatModel()];
-      network->notice(F("Schedules config page"));
       page->print(FPSTR(HTTP_SCHEDULE_NOTE));
-			page->printAndReplace(FPSTR(HTTP_CONFIG_PAGE_BEGIN), SCHEDULES);
+			page->printf(HTTP_CONFIG_PAGE_BEGIN, SCHEDULES);
 			page->print(F("<table  class='settingstable'>"));
       page->print(F("<tr>"));
       page->print(F("<th></th>"));
@@ -1034,7 +1030,7 @@ private:
       page->print(F("</tr>"));
       for (byte period = 0; period < 6; period++) {
 			  page->print(F("<tr>"));
-			  page->printAndReplace(F("<td>Period %s</td>"), String(period + 1).c_str());
+			  page->printf("<td>Period %s</td>", String(period + 1).c_str());
 			  for (byte sd = 0; sd < 3; sd++) {
 				  int index = sd * 18 + period * 3;
 				  char timeStr[6];
@@ -1047,11 +1043,11 @@ private:
 
 				  page->print(F("<td>"));
 				  page->print(F("Time:"));
-				  page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyH, "5", timeStr);
+				  page->printf(HTTP_INPUT_FIELD, keyH, "5", timeStr);
 				  //temp
 				  String tempStr((double) schedules[index + 2]	/ getTemperatureFactor(), 1);
 				  page->print(F("Temp:"));
-				  page->printAndReplace(FPSTR(HTTP_INPUT_FIELD), keyT, "4", tempStr.c_str());
+				  page->printf(HTTP_INPUT_FIELD, keyT, "4", tempStr.c_str());
 				  page->print(F("</td>"));
         }
       	page->print(F("</tr>"));
@@ -1060,8 +1056,7 @@ private:
 		  page->print(FPSTR(HTTP_CONFIG_SAVE_BUTTON));
 	  }
 
-    void submitConfigSchedulesPage(AsyncWebServerRequest* request, WStringStream* page) {
-      network->notice(F("Save schedules config page"));
+    void submitConfigSchedulesPage(AsyncWebServerRequest* request, Print* page) {
       schedulesChanged = false;
 			for (int period = 0; period < 6; period++) {
 				for (int sd = 0; sd < 3; sd++) {
@@ -1074,7 +1069,7 @@ private:
 				}
 			}
 			if (schedulesChanged) {
-				network->notice(F("Some schedules changed. Write to MCU..."));
+				//network->notice(F("Some schedules changed. Write to MCU..."));
 				this->schedulesToMcu();
 				page->print(F("Changed schedules have been saved."));
 			} else {

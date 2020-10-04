@@ -7,9 +7,9 @@
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/DNSServer/src
 -I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/PubSubClient/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266mDNS/src
--I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESPAsyncWebServer-esphome/src
+-I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESP Async WebServer/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/Hash/src
--I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESPAsyncTCP-esphome/src
+-I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESPAsyncTCP/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266WiFi/src
 -I/mnt/Daten/Users/klaus/Projects/Atom/WAdapter/WAdapter
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/tools/sdk/include
@@ -17,6 +17,8 @@
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/cores/esp8266
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/tools/sdk/lwip2/include
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/variants/generic
+-I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESPAsyncTCP-esphome/src
+-I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESPAsyncWebServer-esphome/src
 -I/home/klausahrenberg/.platformio/lib/Adafruit MPR121
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ArduinoOTA
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266AVRISP/src
