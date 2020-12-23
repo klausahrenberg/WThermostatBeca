@@ -7,15 +7,17 @@
 #include "WDevice.h"
 #include "WClock.h"
 
-#define COUNT_DEVICE_MODELS 5
+#define COUNT_DEVICE_MODELS 6
 #define MODEL_BHT_002_GBLW 0
 #define MODEL_BAC_002_ALW 1
 #define MODEL_ET_81_W 2
 #define MODEL_FLOUREON_HY08WE 3
 #define MODEL_ME_81H 4
+#define MODEL_MK70GB_H 5
 
 #define HEARTBEAT_INTERVAL 10000
 #define MINIMUM_INTERVAL 2000
+#define QUERY_INTERVAL 2000
 #define PIN_STATE_HEATING_RELAY 5
 #define PIN_STATE_COOLING_RELAY 4
 
@@ -42,21 +44,22 @@ const byte STORED_FLAG_BECA = 0x36;
 const char SCHEDULES_PERIODS[] = "123456";
 const char SCHEDULES_DAYS[] = "wau";
 
-const float MODEL_TEMPERATURE_FACTOR[]          = {2.0f, 2.0f, 10.0f, 10.0f, 1.0f };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_TARGET[] = {0x02, 0x02, 0x02, 0x02, 0x10 };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_ACTUAL[] = {0x03, 0x03, 0x08, 0x03, 0x18 };
-const byte  MODEL_MCU_BYTE_TEMPERATURE_FLOOR[]  = {0x66, 0x00, 0x05, 0x66, 0x2d };
-const byte  MODEL_MCU_BYTE_SYSTEM_MODE[]  			= {0x00, 0x66, 0x00, 0x00, 0x24 };
-const byte  MODEL_MCU_BYTE_SCHEDULES_MODE[]			= {0x04, 0x04, 0x03, 0x04, 0x02 };
-const byte  MODEL_MCU_BYTE_FAN_MODE[]  					= {0x00, 0x67, 0x00, 0x00, 0x00 };
-const byte  MODEL_MCU_BYTE_ECO_MODE[]  					= {0x05, 0x05, 0x00, 0x00, 0x00 };
-const byte  MODEL_MCU_BYTE_SCHEDULES[]          = {0x65, 0x68, 0x00, 0x00, 0x26 };
-const byte  MODEL_MCU_BYTE_LOCKED[]             = {0x06, 0x06, 0x06, 0x06, 0x28 };
-const byte  MODEL_SCHEDULING_DAYS[]             = {18,   18,   18,   18,   8 };
-const byte  MODEL_SCHEDULING_HH_POS[]           = {1,    1,    1,    1,    0 };
-const byte  MODEL_SCHEDULING_MM_POS[]           = {0,    0,    0,    0,    1 };
+const float MODEL_TEMPERATURE_FACTOR[]          = {2.0f, 2.0f, 10.0f, 10.0f, 1.0f, 10.0f };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_TARGET[] = {0x02, 0x02, 0x02, 0x02, 0x10, 0x02 };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_ACTUAL[] = {0x03, 0x03, 0x08, 0x03, 0x18, 0x03 };
+const byte  MODEL_MCU_BYTE_TEMPERATURE_FLOOR[]  = {0x66, 0x00, 0x05, 0x66, 0x2d, 0x00 };
+const byte  MODEL_MCU_BYTE_SYSTEM_MODE[]  		= {0x00, 0x66, 0x00, 0x00, 0x24, 0x00 };
+const byte  MODEL_MCU_BYTE_SCHEDULES_MODE[]		= {0x04, 0x04, 0x03, 0x04, 0x02, 0x04 };
+const byte  MODEL_MCU_BYTE_STATUS_MODE[]  		= {0x00, 0x00, 0x00, 0x00, 0x00, 0x05 };
+const byte  MODEL_MCU_BYTE_FAN_MODE[]  			= {0x00, 0x67, 0x00, 0x00, 0x00, 0x00 };
+const byte  MODEL_MCU_BYTE_ECO_MODE[]  			= {0x05, 0x05, 0x00, 0x00, 0x00, 0x00 };
+const byte  MODEL_MCU_BYTE_SCHEDULES[]          = {0x65, 0x68, 0x00, 0x00, 0x26, 0x2b };
+const byte  MODEL_MCU_BYTE_LOCKED[]             = {0x06, 0x06, 0x06, 0x06, 0x28, 0x08 };
+const byte  MODEL_SCHEDULING_DAYS[]             = {18,   18,   18,   18,   8,    8 };
+const byte  MODEL_SCHEDULING_HH_POS[]           = {1,    1,    1,    1,    0,    0 };
+const byte  MODEL_SCHEDULING_MM_POS[]           = {0,    0,    0,    0,    1,    1 }; 
 const static char HTTP_SCHEDULE_NOTE[]           PROGMEM = R"=====(
-	<div><small>Note: For Thermostat-Model ME81AH only Weekdays(period1 to period6) and Weekend1 (period1 and period2) available<br></small></div>
+	<div><small>Note: For Thermostat-Model ME81AH and MK70GB-H only Weekdays(period1 to period6) and Weekend1 (period1 and period2) available<br></small></div>
 )=====";
 
 class WBecaDevice: public WDevice {
@@ -88,24 +91,40 @@ public:
     //Model
     this->thermostatModel = network->getSettings()->setByte("thermostatModel", MODEL_BHT_002_GBLW);
     this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
-    if (getThermostatModel() != MODEL_ET_81_W) {
-      this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
+    this->statusMode = new WProperty("statusMode", "Status", STRING, TYPE_HEATING_COOLING_PROPERTY);	
+    if (getThermostatModel() == MODEL_MK70GB_H) {
       this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
-    } else {
-      this->schedulesMode->addEnumString(SCHEDULES_MODE_HOLIDAY);
       this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
       this->schedulesMode->addEnumString(SCHEDULES_MODE_HOLD);
+      this->statusMode->addEnumString(STATE_OFF);
+      this->statusMode->addEnumString(STATE_HEATING);
+    } else {
+        if (getThermostatModel() == MODEL_ET_81_W) {
+           this->schedulesMode->addEnumString(SCHEDULES_MODE_HOLIDAY);
+           this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
+           this->schedulesMode->addEnumString(SCHEDULES_MODE_HOLD);
+        } else {
+           this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
+           this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
+          }
     }
     this->switchBackToAuto = network->getSettings()->setBoolean("switchBackToAuto", true);
     this->schedulesMode->setOnChange(std::bind(&WBecaDevice::schedulesModeToMcu, this, std::placeholders::_1));
     this->addProperty(schedulesMode);
     if (MODEL_MCU_BYTE_ECO_MODE[getThermostatModel()] != 0x00) {
-      this->ecoMode = WProperty::createOnOffProperty("ecoMode", "Eco");
+        this->ecoMode = WProperty::createOnOffProperty("ecoMode", "Eco");
     	this->ecoMode->setOnChange(std::bind(&WBecaDevice::ecoModeToMcu, this, std::placeholders::_1));
     	this->ecoMode->setVisibility(MQTT);
     	this->addProperty(ecoMode);
     } else {
       this->ecoMode = nullptr;
+    }
+    if (MODEL_MCU_BYTE_STATUS_MODE[getThermostatModel()] != 0x00) {
+		this->statusMode->setReadOnly(true);
+    	this->statusMode->setVisibility(MQTT);
+    	this->addProperty(statusMode);
+    } else {
+      this->statusMode = nullptr;
     }
     this->locked = WProperty::createOnOffProperty("locked", "Lock");
     this->locked->setOnChange(std::bind(&WBecaDevice::lockedToMcu, this, std::placeholders::_1));
@@ -175,7 +194,7 @@ public:
     schedulesPage->setSubmittedPage(std::bind(&WBecaDevice::submitConfigSchedulesPage, this, std::placeholders::_1, std::placeholders::_2));
     network->addCustomPage(schedulesPage);
 
-    lastHeartBeat = lastNotify = lastScheduleNotify = 0;
+    lastHeartBeat = lastNotify = lastScheduleNotify = lastQueryStatus = 0;
     resetAll();
   }
 
@@ -192,6 +211,7 @@ public:
 		page->printf(HTTP_COMBOBOX_ITEM, "2", (getThermostatModel() == 2 ? HTTP_SELECTED : ""), "Floor heating (ET-81W)");
 		page->printf(HTTP_COMBOBOX_ITEM, "3", (getThermostatModel() == 3 ? HTTP_SELECTED : ""), "Floor heating (Floureon HY08WE)");
 		page->printf(HTTP_COMBOBOX_ITEM, "4", (getThermostatModel() == 4 ? HTTP_SELECTED : ""), "Floor heating (AVATTO ME81AH)");
+		page->printf(HTTP_COMBOBOX_ITEM, "5", (getThermostatModel() == 5 ? HTTP_SELECTED : ""), "Floor heating (Minco Heat MK70GB-H)");
     page->print(FPSTR(HTTP_COMBOBOX_END));
     //Checkbox
     page->printf(HTTP_CHECKBOX_OPTION, "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");
@@ -270,6 +290,12 @@ public:
     		commandCharsToSerial(6, heartBeatCommand);
     		//commandHexStrToSerial("55 aa 00 00 00 00");
     		lastHeartBeat = now;
+    	}
+    	//Query
+    	if ((now - lastHeartBeat > MINIMUM_INTERVAL)
+    			&& (now - lastQueryStatus > QUERY_INTERVAL)) {
+			queryState();			
+    		lastQueryStatus = now;
     	}
     	if (receivedSchedules()) {
     		//Notify schedules
@@ -505,8 +531,18 @@ public:
 			//00 06 28|00 08 28|1E 0B 28|1E 0D 28|00 11 28|00 16 1E|
 			int daysToSend = MODEL_SCHEDULING_DAYS[getThermostatModel()];
 			int functionLengthInt = (daysToSend * 3);
-			char functionL = (getThermostatModel()==MODEL_ME_81H ? 0x18 : 0x36);
-			char dataL = (getThermostatModel()==MODEL_ME_81H ? 0x1c : 0x3a);
+			char functionL;
+			char dataL;
+			if (getThermostatModel() == MODEL_ME_81H) {
+				functionL = 0x18;
+				dataL = 0x1c;
+			} else if (getThermostatModel() == MODEL_MK70GB_H) {
+				functionL = 0x20;
+				dataL = 0x24;
+			} else {
+				functionL = 0x36;
+				dataL = 0x3a;
+			}
 			unsigned char scheduleCommand[functionLengthInt+10];
 			scheduleCommand[0] = 0x55;
 			scheduleCommand[1] = 0xaa;
@@ -518,8 +554,30 @@ public:
 			scheduleCommand[7] = 0x00;
 			scheduleCommand[8] = 0x00;
 			scheduleCommand[9] = functionL;
-			for (int i = 0; i <functionLengthInt; i++) {
-				scheduleCommand[i + 10] = schedules[i];
+			if (getThermostatModel() == MODEL_MK70GB_H) {
+				int res = 1;
+				functionLengthInt = functionLengthInt + 8;
+				int ii = 0;				
+				for (int i = 0; i <functionLengthInt; i++) {
+					if (i == 2) {
+						scheduleCommand[i + 10] = 0x00;
+					} else if (i > 2) {
+								res = (i+2) % 4;
+								if (res != 0) {
+									scheduleCommand[i + 10] = schedules[ii];
+									ii++;
+								} else {
+									scheduleCommand[i + 10] = 0x00;
+								}
+							} else {
+								scheduleCommand[i + 10] = schedules[ii];
+								ii++;
+							}
+    			}	
+			} else {		
+				for (int i = 0; i <functionLengthInt; i++) {
+					scheduleCommand[i + 10] = schedules[i];
+			}
 			}
 			commandCharsToSerial(functionLengthInt+10, scheduleCommand);
 			//notify change
@@ -597,6 +655,7 @@ private:
     int receiveIndex;
     int commandLength;
     long lastHeartBeat;
+	long lastQueryStatus;
     unsigned char receivedCommand[1024];
     bool logMcu;
     boolean receivingDataFromMcu;
@@ -610,6 +669,7 @@ private:
     WProperty* systemMode;
     WProperty* fanMode;
     WProperty* ecoMode;
+    WProperty* statusMode;
     WProperty* locked;
     byte schedules[54];
     WProperty* thermostatModel;
@@ -761,7 +821,17 @@ private:
     					notifyKnownCommand("ecoMode %s");
     					knownCommand = true;
     				}
-    			} else if (cByte == 0x06) {
+    			} else if ((cByte == MODEL_MCU_BYTE_STATUS_MODE[thModel]) && (statusMode != nullptr)) {
+    				if (commandLength == 0x05) {
+    					//status
+						newS = statusMode->getEnumString(receivedCommand[10]);
+						if (newS != nullptr) {
+							changed = ((changed) || (statusMode->setString(newS)));
+							notifyKnownCommand("statusMode %s");
+							knownCommand = true;
+						}
+    				}
+    			} else if (cByte == MODEL_MCU_BYTE_LOCKED[thModel]) {
     				if (commandLength == 0x05) {
     					//locked
     					newB = (receivedCommand[10] == 0x01);
@@ -795,6 +865,25 @@ private:
     						newByte = receivedCommand[i + 10];
     						schedulesChangedMCU = ((schedulesChangedMCU) || (newByte != schedules[i]));
     						schedules[i] = newByte;
+    					}
+    					notifyKnownCommand("schedules %s");
+    					knownCommand = true;
+    				}else if (commandLength == 0x24) {
+    					//schedules for model MK70GB-H
+    					this->schedulesReceived = true;
+						int res = 1;
+						int ii = 0;
+    					for (int i = 0; i < 32; i++) {
+							newByte = receivedCommand[i + 10];
+							if (i != 2) {
+								if (i > 2)
+									res = (i+2) % 4;
+								if (res != 0) {
+									schedulesChangedMCU = ((schedulesChangedMCU) || (newByte != schedules[ii]));
+									schedules[ii] = newByte;
+									ii++;
+								}
+							}
     					}
     					notifyKnownCommand("schedules %s");
     					knownCommand = true;
@@ -847,7 +936,7 @@ private:
     				}
     			}
     			if (!knownCommand) {
-    				notifyUnknownCommand();
+    				//notifyUnknownCommand();
     			} else if (changed) {
     				notifyState();
     			} else if (schedulesChangedMCU) {
@@ -973,10 +1062,11 @@ private:
 
     void lockedToMcu(WProperty* property) {
        	if (!this->receivingDataFromMcu) {
-       		//55 AA 00 06 00 05 06 01 00 01 01
        		byte dt = (this->locked->getBoolean() ? 0x01 : 0x00);
+			byte thModel = this->getThermostatModel();
+			byte addr = MODEL_MCU_BYTE_LOCKED[thModel];
        		unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
-       		                                    0x06, 0x01, 0x00, 0x01, dt};
+       		                                    addr, 0x01, 0x00, 0x01, dt};
        		commandCharsToSerial(11, deviceOnCommand);
        		//notifyState();
        	}
