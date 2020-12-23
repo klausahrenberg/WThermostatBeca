@@ -49,7 +49,7 @@
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/lib/gcc/xtensa-lx106-elf/4.8.2/include-fixed
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include
 -I/home/klausahrenberg/.platformio/packages/tool-unity
--DPLATFORMIO=50001
+-DPLATFORMIO=50003
 -DESP8266
 -DARDUINO_ARCH_ESP8266
 -DARDUINO_ESP8266_ESP01
