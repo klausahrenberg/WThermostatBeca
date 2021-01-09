@@ -2,8 +2,14 @@
 #define __WCLOCK_H__
 
 #include "Arduino.h"
+#ifdef ESP8266
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#elif ESP32
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#endif
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <Time.h>
@@ -88,6 +94,7 @@ public:
     network->addCustomPage(configPage);
 
 		lastTry = lastNtpSync = lastTimeZoneSync = ntpTime = dstStart = dstEnd = 0;
+		failedTimeZoneSync = 0;
 		//enableNightMode
 		this->enableNightMode = nullptr;
 		this->nightMode = nullptr;
@@ -144,15 +151,24 @@ public:
 					this->rawOffset->setReadOnly(true);
 					this->dstOffset->setReadOnly(true);
 					if (property != nullptr) {
+						failedTimeZoneSync = 0;
 						lastTimeZoneSync = millis();
 						validTime->setBoolean(true);
 						network->notice(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
 						timeUpdated = true;
+					} else {
+						failedTimeZoneSync++;
+						network->error(F("Time zone update failed. (%d. attempt): Wrong html response."), failedTimeZoneSync);
 					}
 				} else {
-					network->error(F("Time zone update failed: %s)"), httpCode);
+					failedTimeZoneSync++;
+					network->error(F("Time zone update failed (%d. attempt): http code %d"), failedTimeZoneSync, httpCode);
 				}
 				http.end();
+				if (failedTimeZoneSync == 3) {
+					failedTimeZoneSync = 0;
+					lastTimeZoneSync = millis();
+				}
 			}
 			//check nightMode
 			if ((validTime) && (this->enableNightMode) && (this->enableNightMode->getBoolean())) {
@@ -451,6 +467,7 @@ private:
 	THandlerFunction onTimeUpdate;
 	unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime;
 	unsigned long dstStart, dstEnd;
+	byte failedTimeZoneSync;
 	WProperty* epochTime;
 	WProperty* epochTimeFormatted;
 	WProperty* validTime;

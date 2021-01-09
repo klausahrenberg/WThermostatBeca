@@ -4,7 +4,7 @@
 #include "WClock.h"
 
 #define APPLICATION "Thermostat"
-#define VERSION "1.18"
+#define VERSION "1.19"
 #define FLAG_SETTINGS 0x18
 #define DEBUG false
 
@@ -34,13 +34,9 @@ void setup() {
 	//WClock - time sync
 	wClock = new WClock(network, false);
 	network->addDevice(wClock);
-	//Communication between ESP and Beca-Mcu
+	//Thermostat device
 	becaDevice = new WBecaDevice(network, wClock);
 	network->addDevice(becaDevice);
-	becaDevice->setOnConfigurationRequest([]() {
-		network->startWebServer();
-		return true;
-	});
 }
 
 void loop() {
