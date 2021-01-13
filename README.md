@@ -1,4 +1,17 @@
 # ThermostatBecaWifi
+
+## Attention
+For productive use only stable version 1.19. Version 1.20a is rewritten to make the support of different models more easily in future. The version needs further testing for follwing models:
+* BHT-002-GBLW: tested, ok
+* BAC-002-ALW: needs testing
+* BHT-002-GCLW: needs testing
+* ET-81W: needs testing
+* HY08WE: needs testing
+* ME81AH: needs testing
+* ME102H: needs testing
+
+Any testing and feedback is welcome.
+
 Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The firmware is tested with following devices:
 * BHT-002-GBLW, BHT-6000 (floor heating)
 * BAC-002-ALW (heater, cooling, ventilation)

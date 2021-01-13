@@ -1,0 +1,92 @@
+#ifndef THERMOSTAT_ME81H_H
+#define	THERMOSTAT_ME81H_H
+
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include "WThermostat.h"
+#include "WThermostat_BAC_002_ALW.h"
+
+class WThermostat_ME81H : public WThermostat {
+public :
+  WThermostat_ME81H(WNetwork* network, WProperty* thermostatModel, WClock* wClock)
+    : WThermostat(network, thermostatModel, wClock) {
+    network->debug(F("WThermostat_ME81H created"));
+  }
+
+  virtual void configureCommandBytes() {
+    this->byteDeviceOn = 0x01;
+    this->byteTemperatureActual = 0x18;
+    this->byteTemperatureTarget = 0x10;
+    this->byteTemperatureFloor = 0x2d;
+    this->temperatureFactor = 10.0f;
+    this->byteSchedulesMode = 0x02;
+    this->byteLocked = 0x28;
+    this->byteSchedules = 0x26;
+    this->byteSchedulingPosHour = 0;
+    this->byteSchedulingPosMinute = 1;
+    this->byteSchedulingDays = 8;
+    //custom
+    this->byteSystemMode = 0x24;
+  }
+
+  virtual void initializeProperties() {
+    WThermostat::initializeProperties();
+    //systemMode
+    this->systemMode = new WProperty("systemMode", "System Mode", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
+    this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
+    this->systemMode->addEnumString(SYSTEM_MODE_COOL);
+    this->systemMode->addEnumString(SYSTEM_MODE_FAN);
+    this->systemMode->setOnChange(std::bind(&WThermostat_ME81H::systemModeToMcu, this, std::placeholders::_1));
+    this->addProperty(systemMode);
+  }
+
+protected :
+
+  virtual bool processStatusCommand(byte cByte, byte commandLength) {
+		//Status report from MCU
+		bool changed = false;
+		bool knownCommand = WThermostat::processStatusCommand(cByte, commandLength);
+
+		if (!knownCommand) {
+      const char* newS;
+      if (cByte == this->byteSystemMode) {
+        if (commandLength == 0x05) {
+          //MODEL_BAC_002_ALW - systemMode
+          //cooling:     55 AA 00 06 00 05 66 04 00 01 00
+          //heating:     55 AA 00 06 00 05 66 04 00 01 01
+          //ventilation: 55 AA 00 06 00 05 66 04 00 01 02
+          newS = systemMode->getEnumString(receivedCommand[10]);
+          if (newS != nullptr) {
+            changed = ((changed) || (systemMode->setString(newS)));
+            knownCommand = true;
+          }
+        }
+			}
+    }
+		if (changed) {
+			notifyState();
+		}
+	  return knownCommand;
+  }
+
+  void systemModeToMcu(WProperty* property) {
+    if (!isReceivingDataFromMcu()) {
+      byte sm = property->getEnumIndex();
+      if (sm != 0xFF) {
+        //send to device
+        //cooling:     55 AA 00 06 00 05 66 04 00 01 00
+        //heating:     55 AA 00 06 00 05 66 04 00 01 01
+        //ventilation: 55 AA 00 06 00 05 66 04 00 01 02
+        unsigned char cm[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
+                                            this->byteSystemMode, 0x04, 0x00, 0x01, sm};
+        commandCharsToSerial(11, cm);
+      }
+    }
+  }
+
+private :
+  WProperty* systemMode;
+  byte byteSystemMode;
+};
+
+#endif
