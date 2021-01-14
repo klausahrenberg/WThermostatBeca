@@ -28,6 +28,12 @@ public :
 
   virtual void initializeProperties() {
     WThermostat::initializeProperties();
+    //2021-01-14 - schedulesMode
+    this->schedulesMode->clearEnums();
+    this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
+    this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
+    this->schedulesMode->addEnumString(SCHEDULES_MODE_HOLIDAY);
+    this->schedulesMode->addEnumString(SCHEDULES_MODE_HOLD);
   }
 
 protected :

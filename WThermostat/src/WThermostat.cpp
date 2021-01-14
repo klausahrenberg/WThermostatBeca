@@ -12,7 +12,7 @@
 #include "WThermostat_ME102H.h"
 
 #define APPLICATION "Thermostat"
-#define VERSION "1.20a"
+#define VERSION "1.20b"
 #define FLAG_SETTINGS 0x20
 #define DEBUG false
 
