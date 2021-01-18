@@ -1,23 +1,28 @@
 # ThermostatBecaWifi
-
-## Attention
-For productive use only stable version 1.19. Version 1.20a is rewritten to make the support of different models more easily in future. The version needs further testing for follwing models:
-* BHT-002-GBLW: tested, ok
-* BAC-002-ALW: needs testing
-* BHT-002-GCLW: needs testing
-* ET-81W: needs testing
-* HY08WE: needs testing
-* ME81AH: needs testing
-* ME102H: needs testing
-
-Any testing and feedback is welcome.
-
 Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The firmware is tested with following devices:
 * BHT-002-GBLW, BHT-6000 (floor heating)
 * BAC-002-ALW (heater, cooling, ventilation)
 * BHT-002-GCLW (Water/Gas Boiler)
-* ET-81W and Floureon HY08WE (floor heating, experimental only)
+* ET-81W and Floureon HY08WE (floor heating, experimental)
 * AVATTO ME81AH (floor heating, thanks to @lozb36 for implementation)
+* MK70GB-H (floor heating, thanks to @indimouse for implementation)
+
+## Function support since 1.20 (alpha status)
+For productive use only stable version 1.19. Version 1.20x_alpha is rewritten to make the support of different models more easily in future. For model BHT-002-GBLW and ME102H the new version is tested and should work reliable already.
+
+| Function           | BHT-002-GBLW | ME102H    | BAC-002-ALW*         | ET-81W*             | HY08WE*                  | ME81AH*         | MK70GBH*        |
+| :---:              | :---:        | :---:     | :---:                | :---:               | :---:                    | :---:           | :---:           |
+| actual temperature | yes          | yes       | yes                  | yes                 | yes                      | yes             | yes             |
+| target temperature | yes          | yes       | yes                  | yes                 | yes                      | yes             | yes             |
+| floor temperature  | yes          | yes       | no                   | yes                 | yes                      | yes             | no              |
+| schedules mode     | auto, off    | auto, off | auto, off            | holiday, auto, hold | off, auto, holiday, hold | auto, off       | off, auto, hold |
+| locked             | yes          | yes       | yes                  | yes                 | yes                      | yes             | yes             |
+| schedules          | 18           | 8         | 18                   | no                  | no                       | 8               | 8               |
+| system mode        | no           | no        | cool, heat, fan      | no                  | no                       | heat, cool, fan | no              |
+| fan mode           | no           | no        | auto, high, med, low | no                  | no                       | no              | no              |
+
+'* needs testing
+
 ## Features
 * No Tuya cloud connection anymore
 * Enables thermostat to communicate via MQTT and/or Mozilla Webthings
