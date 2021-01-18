@@ -17,9 +17,17 @@ public :
     : WDevice(network, id, name, type) {
       resetAll();
       this->receivingDataFromMcu = false;
+      this->firstHeartBeatReceived = false;
       lastHeartBeat = lastQueryStatus = 0;
       //notifyAllMcuCommands
   		this->notifyAllMcuCommands = network->getSettings()->setBoolean("notifyAllMcuCommands", false);
+  }
+
+  virtual void queryWorkingModeWiFi() {
+    //55 AA 00 08 00 00
+    //55 AA 00 02 00 00
+    unsigned char queryStateCommand[] = { 0x55, 0xAA, 0x00, 0x02, 0x00, 0x00 };
+    commandCharsToSerial(6, queryStateCommand);
   }
 
   virtual void loop(unsigned long now) {
@@ -137,19 +145,36 @@ protected :
       //55 aa 00 00 00 00
       this->receivingDataFromMcu = true;
       if (notifyAllMcuCommands->getBoolean()) {
-        network->error(F("MCU: %s"), this->getCommandAsString().c_str());
+        network->notice(F("MCU: %s"), this->getCommandAsString().c_str());
       }
       bool knownCommand = false;
       if (receivedCommand[3] == 0x00) {
+        //heartbeat signal from MCU
         switch (receivedCommand[6]) {
-          case 0x00:
-          case 0x01:
-            //ignore, heartbeat MCU
-            //55 aa 01 00 00 01 01
-            //55 aa 01 00 00 01 00
+          case 0x00 : //55 aa 01 00 00 01 00: first packet
+          case 0x01 : //55 aa 01 00 00 01 01: every packet after
+            knownCommand = true;
             break;
         }
+        if ((knownCommand) && ((!this->firstHeartBeatReceived) || (receivedCommand[6] == 0x00))) {
+          //At first packet from MCU or first heart received by ESP, configure WIFI
+          network->notice(F("first heart beat received: %s"), this->getCommandAsString().c_str());
+          queryWorkingModeWiFi();
+          this->firstHeartBeatReceived = true;
+        }
         knownCommand = true;
+
+
+
+      } else if (receivedCommand[3] == 0x02) {
+        network->notice(F("MCU: Working mode of Wifi: %s"), this->getCommandAsString().c_str());
+        //Working mode of Wifi
+        if (receivedCommand[5] == 0x02) {
+          //ME102H resonds: 55 AA 03 02 00 02 0E 00 14; GPIO 0E - Wifi status; 00 - Reset button
+          network->setStatusLedPin(receivedCommand[6], true);
+          //pinMode(0x0E, OUTPUT);
+          //digitalWrite(0x0E, LOW);
+        }
       } else if (receivedCommand[3] == 0x07) {
         knownCommand = processStatusCommand(receivedCommand[6], receivedCommand[5]);
       } else {
@@ -173,7 +198,9 @@ protected :
 private :
   int receiveIndex;
   int commandLength;
-  boolean receivingDataFromMcu;
+  bool receivingDataFromMcu;
+  bool firstHeartBeatReceived;
+
   unsigned long lastHeartBeat;
   unsigned long lastQueryStatus;
 

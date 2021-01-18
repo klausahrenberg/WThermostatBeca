@@ -28,6 +28,10 @@ public :
 
   virtual void initializeProperties() {
     WThermostat::initializeProperties();
+    //schedules mode
+    this->schedulesMode->clearEnums();
+    this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
+    this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
   }
 
 protected :
@@ -63,6 +67,10 @@ protected :
           break;
         case 0x2b :
           //sensor selection - in / MCU: 55 aa 03 07 00 05 2b 04 00 01 00
+          knownCommand = true;
+          break;
+        case 0x67 :
+          //freeze / MCU: 55 aa 03 07 00 05 67 01 00 01 00
           knownCommand = true;
           break;
         case 0x68 :

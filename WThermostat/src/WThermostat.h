@@ -188,14 +188,14 @@ public :
           handleSchedulesChange(completeTopic);
         } else if (length > 0) {
           //Set schedules
-          network->notice(F("Payload for schedules -> set schedules..."));
+          network->debug(F("Payload for schedules -> set schedules..."));
           WJsonParser* parser = new WJsonParser();
           schedulesChanged = false;
           parser->parse(payload, std::bind(&WThermostat::processSchedulesKeyValue, this,
                 std::placeholders::_1, std::placeholders::_2));
           delete parser;
           if (schedulesChanged) {
-            network->notice(F("Some schedules changed. Write to MCU..."));
+            network->debug(F("Some schedules changed. Write to MCU..."));
             this->schedulesToMcu();
           }
         }
@@ -204,7 +204,6 @@ public :
   }
 
   void processSchedulesKeyValue(const char* key, const char* value) {
-    network->notice(F("Process key '%s', value '%s'"), key, value);
     byte hh_Offset = byteSchedulingPosHour;
     byte mm_Offset = byteSchedulingPosMinute;
     if (strlen(key) == 3) {
@@ -224,27 +223,30 @@ public :
         startAddr = 36;
       }
       if ((startAddr != 255) && (period != 255)) {
-        if (key[2] == 'h') {
-          //hour
-          String timeStr = String(value);
-          timeStr = (timeStr.length() == 4 ? "0" + timeStr : timeStr);
-          if (timeStr.length() == 5) {
-            byte hh = timeStr.substring(0, 2).toInt();
-            byte mm = timeStr.substring(3, 5).toInt();
-            schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + hh_Offset] != hh);
-            schedules[startAddr + period * 3 + hh_Offset] = hh;
-            schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + mm_Offset] != mm);
-            schedules[startAddr + period * 3 + mm_Offset] = mm;
-          }
-        } else if (key[2] == 't') {
-          //temperature
-          //it will fail, when temperature needs 2 bytes
-          int tt = (int) (atof(value) * this->temperatureFactor);
-          if (tt < 0xFF) {
-            schedulesChanged = schedulesChanged || (schedules[startAddr + period * 3 + 2] != tt);
-            schedules[startAddr + period * 3 + 2] = tt;
-          }
-        }
+				byte index = startAddr + period * 3;
+				if (index < this->byteSchedulingDays * 3) {
+        	if (key[2] == 'h') {
+          	//hour
+          	String timeStr = String(value);
+          	timeStr = (timeStr.length() == 4 ? "0" + timeStr : timeStr);
+          	if (timeStr.length() == 5) {
+            	byte hh = timeStr.substring(0, 2).toInt();
+            	byte mm = timeStr.substring(3, 5).toInt();
+            	schedulesChanged = schedulesChanged || (schedules[index + hh_Offset] != hh);
+            	schedules[index + hh_Offset] = hh;
+            	schedulesChanged = schedulesChanged || (schedules[index + mm_Offset] != mm);
+            	schedules[index + mm_Offset] = mm;
+          	}
+        	} else if (key[2] == 't') {
+          	//temperature
+          	//it will fail, when temperature needs 2 bytes
+          	int tt = (int) (atof(value) * this->temperatureFactor);
+          	if (tt < 0xFF) {
+            	schedulesChanged = schedulesChanged || (schedules[index + 2] != tt);
+            	schedules[index + 2] = tt;
+          	}
+        	}
+				}
       }
     }
   }
@@ -254,8 +256,8 @@ public :
     WJson json(response);
     json.beginObject();
     this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
-    this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
-    this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
+    this->toJsonSchedules(&json, 1);// SCHEDULE_WEEKEND_1);
+    this->toJsonSchedules(&json, 2);// SCHEDULE_WEEKEND_2);
     json.endObject();
     request->send(200, APPLICATION_JSON, response->c_str());
   }
@@ -281,12 +283,17 @@ public :
     buffer[0] = dayChar;
     buffer[3] = '\0';
     for (int i = 0; i < 6; i++) {
-      buffer[1] = SCHEDULES_PERIODS[i];
-      sprintf(timeStr, "%02d:%02d", schedules[startAddr + i * 3 + hh_Offset], schedules[startAddr + i * 3 + mm_Offset]);
-      buffer[2] = 'h';
-      json->propertyString(buffer, timeStr);
-      buffer[2] = 't';
-      json->propertyDouble(buffer, (double) schedules[startAddr + i * 3 + 2]	/ this->temperatureFactor);
+			byte index = startAddr + i * 3;
+			if (index < this->byteSchedulingDays * 3) {
+      	buffer[1] = SCHEDULES_PERIODS[i];
+      	sprintf(timeStr, "%02d:%02d", schedules[index + hh_Offset], schedules[index + mm_Offset]);
+      	buffer[2] = 'h';
+      	json->propertyString(buffer, timeStr);
+      	buffer[2] = 't';
+      	json->propertyDouble(buffer, (double) schedules[index + 2]	/ this->temperatureFactor);
+			} else {
+				break;
+			}
     }
     delete[] buffer;
   }
@@ -386,6 +393,7 @@ protected :
 		if (commandByte == 0x03) {
 			//ignore, MCU response to wifi state
 			//55 aa 01 03 00 00
+
 		} else if (commandByte == 0x04) {
 			//Setup initialization request
 			//received: 55 aa 01 04 00 00
@@ -422,11 +430,12 @@ protected :
       if (commandLength == 0x08) {
         //target Temperature for manual mode
         //e.g. 24.5C: 55 aa 01 07 00 08 02 02 00 04 00 00 00 31
+
         unsigned long rawValue = WSettings::getUnsignedLong(receivedCommand[10], receivedCommand[11], receivedCommand[12], receivedCommand[13]);
         newValue = (float) rawValue / this->temperatureFactor;
-        changed = ((changed) || (WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
+        changed = ((changed) || (!WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
         targetTemperatureManualMode = newValue;
-        if (changed) updateTargetTemperature();
+				if (changed) updateTargetTemperature();
         knownCommand = true;
       }
     } else if (cByte == byteTemperatureActual) {
@@ -478,7 +487,7 @@ protected :
   }
 
   virtual bool processStatusSchedules(byte commandLength) {
-    bool result = (commandLength == 0x3A);
+    bool result = (commandLength == (this->byteSchedulingDays * 3 + 4));
     if (result) {
       bool changed = false;
       //schedules 0x65 at heater model, 0x68 at fan model, example
@@ -552,7 +561,7 @@ protected :
 
   void targetTemperatureManualModeToMcu() {
     if (!isReceivingDataFromMcu()) {
-      network->notice(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
+      network->debug(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
       //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
       byte ulValues[4];
       WSettings::getUnsignedLongBytes((targetTemperatureManualMode * this->temperatureFactor), ulValues);
@@ -605,17 +614,17 @@ protected :
     	scheduleCommand[7] = 0x00;
     	scheduleCommand[8] = 0x00;
     	scheduleCommand[9] = functionLength;
-    	for (int i = 0; i < 54; i++) {
+    	for (int i = 0; i < functionLength; i++) {
     		scheduleCommand[i + 10] = schedules[i];
     	}
-    	commandCharsToSerial(64, scheduleCommand);
+    	commandCharsToSerial(functionLength + 10, scheduleCommand);
     	//notify change
     	this->notifySchedules();
     }
   }
 
   void handleSchedulesChange(String completeTopic) {
-    network->notice(F("Send Schedules state..."));
+    network->debug(F("Send Schedules state..."));
     if (completeTopic == "") {
       completeTopic = String(network->getMqttBaseTopic()) + SLASH + String(this->getId()) + SLASH + String(network->getMqttStateTopic()) + SLASH + SCHEDULES;
     }
@@ -638,30 +647,38 @@ protected :
     page->print(F("<tr>"));
     page->print(F("<th></th>"));
     page->print(F("<th>Weekday</th>"));
-    page->print(F("<th>Weekend 1</th>"));
-    page->print(F("<th>Weekend 2</th>"));
+		if (this->byteSchedulingDays > 6) {
+    	page->print(F("<th>Weekend 1</th>"));
+		}
+		if (this->byteSchedulingDays > 12) {
+    	page->print(F("<th>Weekend 2</th>"));
+		}
     page->print(F("</tr>"));
     for (byte period = 0; period < 6; period++) {
       page->print(F("<tr>"));
       page->printf("<td>Period %s</td>", String(period + 1).c_str());
       for (byte sd = 0; sd < 3; sd++) {
         int index = sd * 18 + period * 3;
-        char timeStr[6];
-        char keyH[4];
-        char keyT[4];
-        snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
-        snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
-        //hour
-        snprintf(timeStr, 6, "%02d:%02d", schedules[index + hh_Offset], schedules[index + mm_Offset]);
+				if (index < this->byteSchedulingDays * 3) {
+        	char timeStr[6];
+        	char keyH[4];
+        	char keyT[4];
+        	snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+        	snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
+        	//hour
+        	snprintf(timeStr, 6, "%02d:%02d", schedules[index + hh_Offset], schedules[index + mm_Offset]);
 
-        page->print(F("<td>"));
-        page->print(F("Time:"));
-        page->printf(HTTP_INPUT_FIELD, keyH, "5", timeStr);
-        //temp
-        String tempStr((double) schedules[index + 2]	/ this->temperatureFactor, 1);
-        page->print(F("Temp:"));
-        page->printf(HTTP_INPUT_FIELD, keyT, "4", tempStr.c_str());
-        page->print(F("</td>"));
+        	page->print(F("<td>"));
+        	page->print(F("Time:"));
+        	page->printf(HTTP_INPUT_FIELD, keyH, "5", timeStr);
+        	//temp
+        	String tempStr((double) schedules[index + 2]	/ this->temperatureFactor, 1);
+        	page->print(F("Temp:"));
+        	page->printf(HTTP_INPUT_FIELD, keyT, "4", tempStr.c_str());
+        	page->print(F("</td>"));
+				} else {
+					break;
+				}
       }
       page->print(F("</tr>"));
     }
@@ -677,12 +694,14 @@ protected :
         char keyT[4];
         snprintf(keyH, 4, "%c%ch", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
         snprintf(keyT, 4, "%c%ct", SCHEDULES_DAYS[sd], SCHEDULES_PERIODS[period]);
-        processSchedulesKeyValue(keyH, request->arg(keyH).c_str());
-        processSchedulesKeyValue(keyT, request->arg(keyT).c_str());
+				if ((request->hasArg(keyH)) && (request->hasArg(keyT))) {
+        	processSchedulesKeyValue(keyH, request->arg(keyH).c_str());
+        	processSchedulesKeyValue(keyT, request->arg(keyT).c_str());
+				}
       }
     }
     if (schedulesChanged) {
-      //network->notice(F("Some schedules changed. Write to MCU..."));
+      network->debug(F("Some schedules changed. Write to MCU..."));
       this->schedulesToMcu();
       page->print(F("Changed schedules have been saved."));
     } else {
@@ -701,7 +720,6 @@ protected :
   void updateTargetTemperature() {
     if ((this->currentSchedulePeriod != -1) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
       double temp = (double) schedules[this->currentSchedulePeriod + 2] / this->temperatureFactor;
-      network->notice(F("Schedule temperature is: %D"), temp);
       targetTemperature->setDouble(temp);
     } else {
       targetTemperature->setDouble(targetTemperatureManualMode);

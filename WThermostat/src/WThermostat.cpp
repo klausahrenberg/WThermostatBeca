@@ -12,7 +12,7 @@
 #include "WThermostat_ME102H.h"
 
 #define APPLICATION "Thermostat"
-#define VERSION "1.20c"
+#define VERSION "1.20d"
 #define FLAG_SETTINGS 0x20
 #define DEBUG false
 
@@ -24,7 +24,7 @@ WClock* wClock;
 void setup() {
 	Serial.begin(9600);
 	//Wifi and Mqtt connection
-	network = new WNetwork(DEBUG, APPLICATION, VERSION, true, NO_LED, FLAG_SETTINGS);
+	network = new WNetwork(DEBUG, APPLICATION, VERSION, NO_LED, FLAG_SETTINGS);
 	network->setOnNotify([]() {
 		if (network->isWifiConnected()) {
 			//nothing to do
