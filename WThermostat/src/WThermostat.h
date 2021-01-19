@@ -438,7 +438,7 @@ protected :
 				if (changed) updateTargetTemperature();
         knownCommand = true;
       }
-    } else if (cByte == byteTemperatureActual) {
+    } else if ((byteTemperatureActual != 0x00) && (cByte == byteTemperatureActual)) {
       if (commandLength == 0x08) {
         //actual Temperature
         //e.g. 23C: 55 aa 01 07 00 08 03 02 00 04 00 00 00 2e

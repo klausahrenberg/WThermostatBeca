@@ -15,10 +15,10 @@ public :
 
   virtual void configureCommandBytes() {
     this->byteDeviceOn = 0x01;
-    this->byteTemperatureActual = 0x18;
+    this->byteTemperatureActual = 0x00; //actual temperature must be handled different at this model
     this->byteTemperatureTarget = 0x10;
     this->byteTemperatureFloor = 0x2d;
-    this->temperatureFactor = 10.0f;
+    this->temperatureFactor = 1.0f;
     this->byteSchedulesMode = 0x02;
     this->byteLocked = 0x28;
     this->byteSchedules = 0x26;
@@ -49,7 +49,16 @@ protected :
 
 		if (!knownCommand) {
       const char* newS;
-      if (cByte == this->byteSystemMode) {
+      if (cByte == 0x18) {
+        if (commandLength == 0x08) {
+          //actual Temperature at this model has a different divider of 10
+					unsigned long rawValue = WSettings::getUnsignedLong(receivedCommand[10], receivedCommand[11], receivedCommand[12], receivedCommand[13]);
+				  float newValue = (float) rawValue / 10.0f;
+    			changed = ((changed) || (!actualTemperature->equalsDouble(newValue)));
+    			actualTemperature->setDouble(newValue);
+    			knownCommand = true;
+        }
+      } else if (cByte == this->byteSystemMode) {
         if (commandLength == 0x05) {
           //MODEL_BAC_002_ALW - systemMode
           //cooling:     55 AA 00 06 00 05 66 04 00 01 00
