@@ -30,6 +30,12 @@ public :
     commandCharsToSerial(6, queryStateCommand);
   }
 
+  virtual void queryDeviceState() {
+    //55 AA 00 08 00 00
+    unsigned char queryStateCommand[] = { 0x55, 0xAA, 0x00, 0x08, 0x00, 0x00 };
+    commandCharsToSerial(6, queryStateCommand);
+  }
+
   virtual void loop(unsigned long now) {
     while (Serial.available() > 0) {
       receiveIndex++;
@@ -151,30 +157,33 @@ protected :
       if (receivedCommand[3] == 0x00) {
         //heartbeat signal from MCU
         switch (receivedCommand[6]) {
-          case 0x00 : //55 aa 01 00 00 01 00: first packet
-          case 0x01 : //55 aa 01 00 00 01 01: every packet after
+          case 0x00 : //55 aa 01 00 00 01 00: first heartbeat
+          case 0x01 : //55 aa 01 00 00 01 01: every heartbeat after
             knownCommand = true;
             break;
         }
         if ((knownCommand) && ((!this->firstHeartBeatReceived) || (receivedCommand[6] == 0x00))) {
           //At first packet from MCU or first heart received by ESP, configure WIFI
-          network->notice(F("first heart beat received: %s"), this->getCommandAsString().c_str());
-          queryWorkingModeWiFi();
+          network->debug(F("first heart beat received: %s"), this->getCommandAsString().c_str());
           this->firstHeartBeatReceived = true;
+          queryWorkingModeWiFi();
         }
         knownCommand = true;
-
-
-
       } else if (receivedCommand[3] == 0x02) {
-        network->notice(F("MCU: Working mode of Wifi: %s"), this->getCommandAsString().c_str());
+        network->debug(F("MCU: Working mode of Wifi: %s"), this->getCommandAsString().c_str());
         //Working mode of Wifi
-        if (receivedCommand[5] == 0x02) {
+        if (receivedCommand[5] == 0x00) {
+          knownCommand = true;
+          //nothing to do
+        } else if (receivedCommand[5] == 0x02) {
           //ME102H resonds: 55 AA 03 02 00 02 0E 00 14; GPIO 0E - Wifi status; 00 - Reset button
           network->setStatusLedPin(receivedCommand[6], true);
-          //pinMode(0x0E, OUTPUT);
-          //digitalWrite(0x0E, LOW);
+          knownCommand = true;
         }
+        //after that, query the product info from MCU
+        //..skipped
+        //finally query the current state of device
+        queryDeviceState();
       } else if (receivedCommand[3] == 0x07) {
         knownCommand = processStatusCommand(receivedCommand[6], receivedCommand[5]);
       } else {

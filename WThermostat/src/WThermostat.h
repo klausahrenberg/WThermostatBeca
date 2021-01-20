@@ -24,9 +24,6 @@ const char* STATE_OFF = SCHEDULES_MODE_OFF;
 const char* STATE_HEATING = "heating";
 const char SCHEDULES_PERIODS[] = "123456";
 const char SCHEDULES_DAYS[] = "wau";
-const static char HTTP_SCHEDULE_NOTE[]           PROGMEM = R"=====(
-	<div><small>Note: For Thermostat-Model ME81AH and MK70GB-H only Weekdays(period1 to period6) and Weekend1 (period1 and period2) available<br></small></div>
-)=====";
 
 class WThermostat : public WTuyaDevice {
 public :
@@ -166,12 +163,6 @@ public :
 
   virtual void submitConfigPageCustomParameters(AsyncWebServerRequest* request, Print* page) {
 
-  }
-
-  virtual void queryState() {
-    //55 AA 00 08 00 00
-    unsigned char queryStateCommand[] = { 0x55, 0xAA, 0x00, 0x08, 0x00, 0x00 };
-    commandCharsToSerial(6, queryStateCommand);
   }
 
   void cancelConfiguration() {
@@ -640,8 +631,7 @@ protected :
 
   void printConfigSchedulesPage(AsyncWebServerRequest* request, Print* page) {
     byte hh_Offset = this->byteSchedulingPosHour;
-    byte mm_Offset = this->byteSchedulingPosMinute;
-    page->print(FPSTR(HTTP_SCHEDULE_NOTE));
+    byte mm_Offset = this->byteSchedulingPosMinute;    
     page->printf(HTTP_CONFIG_PAGE_BEGIN, SCHEDULES);
     page->print(F("<table  class='settingstable'>"));
     page->print(F("<tr>"));

@@ -2,7 +2,6 @@
 #include "WNetwork.h"
 #include "WClock.h"
 #include "WThermostat.h"
-#include "WBecaDevice.h"
 #include "WThermostat_BHT_002_GBLW.h"
 #include "WThermostat_BAC_002_ALW.h"
 #include "WThermostat_ET81W.h"
@@ -12,7 +11,7 @@
 #include "WThermostat_ME102H.h"
 
 #define APPLICATION "Thermostat"
-#define VERSION "1.20e"
+#define VERSION "1.20f"
 #define FLAG_SETTINGS 0x20
 #define DEBUG false
 
@@ -25,14 +24,6 @@ void setup() {
 	Serial.begin(9600);
 	//Wifi and Mqtt connection
 	network = new WNetwork(DEBUG, APPLICATION, VERSION, NO_LED, FLAG_SETTINGS);
-	network->setOnNotify([]() {
-		if (network->isWifiConnected()) {
-			//nothing to do
-		}
-		if (network->isMqttConnected()) {
-			device->queryState();
-		}
-	});
 	network->setOnConfigurationFinished([]() {
 		//Switch blinking thermostat in normal operating mode back
 		device->cancelConfiguration();

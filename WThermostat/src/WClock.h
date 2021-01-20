@@ -117,7 +117,7 @@ public:
 			//1. Sync ntp
 			if ((!isValidTime())
 			    && ((lastNtpSync == 0) || (now - lastNtpSync > 60000))) {
-				network->notice(F("Time via NTP server '%s'"), ntpServer->c_str());
+				network->debug(F("Time via NTP server '%s'"), ntpServer->c_str());
 				WiFiUDP ntpUDP;
 				NTPClient ntpClient(ntpUDP, ntpServer->c_str());
 				if (ntpClient.update()) {
@@ -125,7 +125,7 @@ public:
 					ntpTime = ntpClient.getEpochTime();
 					this->calculateDstStartAndEnd();
 					validTime->setBoolean(!this->useTimeZoneServer->getBoolean());
-					network->notice(F("NTP time synced: %s"), epochTimeFormatted->c_str());
+					network->debug(F("NTP time synced: %s"), epochTimeFormatted->c_str());
 					timeUpdated = true;
 				} else {
 					network->error(F("NTP sync failed. "));
@@ -137,7 +137,7 @@ public:
 					&& (useTimeZoneServer->getBoolean())
 				  && (!timeZoneServer->equalsString(""))) {
 				String request = timeZoneServer->c_str();
-				network->notice(F("Time zone update via '%s'"), request.c_str());
+				network->debug(F("Time zone update via '%s'"), request.c_str());
 				HTTPClient http;
 				http.begin(request);
 				int httpCode = http.GET();
@@ -154,7 +154,7 @@ public:
 						failedTimeZoneSync = 0;
 						lastTimeZoneSync = millis();
 						validTime->setBoolean(true);
-						network->notice(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
+						network->debug(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
 						timeUpdated = true;
 					} else {
 						failedTimeZoneSync++;
@@ -520,11 +520,11 @@ private:
 			int year = getYear(getEpochTime(false));
 			dstStart = getEpochTime(year, dstRule->getByteArrayValue(DST_MONTH), dstRule->getByteArrayValue(DST_WEEK), dstRule->getByteArrayValue(DST_WEEKDAY), dstRule->getByteArrayValue(DST_HOUR));
 			WStringStream* stream = updateFormattedTime(dstStart);
-			network->notice(F("DST start is: %s"), stream->c_str());
+			network->debug(F("DST start is: %s"), stream->c_str());
 			delete stream;
 			dstEnd = getEpochTime(year, dstRule->getByteArrayValue(STD_MONTH), dstRule->getByteArrayValue(STD_WEEK), dstRule->getByteArrayValue(STD_WEEKDAY), dstRule->getByteArrayValue(STD_HOUR));
 			stream = updateFormattedTime(dstEnd);
-			network->notice(F("STD start is: %s"), stream->c_str());
+			network->debug(F("STD start is: %s"), stream->c_str());
 			delete stream;
 		}
 	}
