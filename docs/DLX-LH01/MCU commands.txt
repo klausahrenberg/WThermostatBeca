@@ -1,0 +1,288 @@
+
+//device On
+55 aa 03 07 00 05 01 01 00 01 00
+55 aa 03 07 00 05 01 01 00 01 00
+
+
+verbose: MCU: targetTemperature_x02:5.00/5.00; 55 aa 03 07 00 08 >02 02 00 04 00 00 00 0a
+
+verbose: MCU: manualMode_x04;                  55 aa 03 07 00 05 >04 04 00 01 00
+
+warning: MCU: unknown;                         55 aa 03 07 00 05 >13 04 00 01 00
+
+warning: MCU: unknown;                         55 aa 03 07 00 05 >07 01 00 01 00
+
+warning: MCU: unknown;                         55 aa 03 07 00 05 >0b 04 00 01 00
+
+warning: MCU: unknown;                         55 aa 03 07 00 08 >0c 02 00 04 00 00 00 00
+
+warning: MCU: unknown;                         55 aa 03 07 00 05 >0d 05 00 01 00
+
+warning: MCU: unknown;                         55 aa 03 07 00 05 >0e 04 00 01 00
+
+verbose: MCU: actualTemperature_x03;           55 aa 03 07 00 08 >03 02 00 04 00 00 00 11
+
+trace: MCU: deviceOn_x01;                      55 aa 03 07 00 05 >01 01 00 01 01
+
+verbose: MCU: targetTemperature_x02:5.00/5.00; 55 aa 03 07 00 08 >02 02 00 04 00 00 00 0a
+
+verbose: MCU: manualMode_x04;                  55 aa 03 07 00 05 >04 04 00 01 00
+
+warning: MCU: unknown;                         55 aa 03 07 00 05 >13 04 00 01 00
+
+warning: MCU: unknown;                         55 aa 03 07 00 05 >07 01 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 0b 04 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 08 0c 02 00 04 00 00 00 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 0d 05 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 0e 04 00 01 01
+
+verbose: MCU: actualTemperature_x03;55 aa 03 07 00 08 03 02 00 04 00 00 00 11
+
+trace: MCU: deviceOn_x01;55 aa 03 07 00 05 01 01 00 01 00
+
+
+verbose: MCU: targetTemperature_x02:5.00/5.00;55 aa 03 07 00 08 02 02 00 04 00 00 00 0a
+
+verbose: MCU: manualMode_x04;55 aa 03 07 00 05 04 04 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 13 04 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 07 01 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 0b 04 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 08 0c 02 00 04 00 00 00 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 0d 05 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 0e 04 00 01 00
+
+verbose: MCU: actualTemperature_x03;55 aa 03 07 00 08 03 02 00 04 00 00 00 11
+
+trace: MCU: deviceOn_x01;55 aa 03 07 00 05 01 01 00 01 01
+
+
+verbose: MCU: targetTemperature_x02:5.00/5.00;55 aa 03 07 00 08 02 02 00 04 00 00 00 0a
+
+verbose: MCU: manualMode_x04;55 aa 03 07 00 05 04 04 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 13 04 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 07 01 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 0b 04 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 08 0c 02 00 04 00 00 00 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 0d 05 00 01 00
+
+warning: MCU: unknown;55 aa 03 07 00 05 0e 04 00 01 01
+
+verbose: MCU: actualTemperature_x03;55 aa 03 07 00 08 03 02 00 04 00 00 00 11
+
+
+trace: MCU: targetTemperature_x02:4.50/4.50;55 aa 03 07 00 08 02 02 00 04 00 00 00 09
+
+trace: MCU: targetTemperature_x02:4.00/4.00;55 aa 03 07 00 08 02 02 00 04 00 00 00 08
+
+
+trace: MCU: targetTemperature_x02:3.50/3.50;55 aa 03 07 00 08 02 02 00 04 00 00 00 07
+
+verbose: MCU: processSerial;55 aa 03 07 00 08 02 02 00 04 00 00 00 08
+
+trace: MCU: targetTemperature_x02:4.00/4.00;55 aa 03 07 00 08 02 02 00 04 00 00 00 08
+
+verbose: MCU: processSerial;55 aa 03 07 00 08 02 02 00 04 00 00 00 09
+
+trace: MCU: targetTemperature_x02:4.50/4.50;55 aa 03 07 00 08 02 02 00 04 00 00 00 09
+
+verbose: MCU: processSerial;55 aa 03 07 00 08 02 02 00 04 00 00 00 0a
+
+trace: MCU: targetTemperature_x02:5.00/5.00;55 aa 03 07 00 08 02 02 00 04 00 00 00 0a
+
+verbose: MCU: processSerial;55 aa 03 07 00 08 02 02 00 04 00 00 00 0b
+
+
+trace: MCU: targetTemperature_x02:5.50/5.50;55 aa 03 07 00 08 02 02 00 04 00 00 00 0b
+
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+verbose: MCU: processSerial;55 aa 03 07 00 05 04 04 00 01 01
+verbose: MCU: manualMode_x04;55 aa 03 07 00 05 04 04 00 01 01
+verbose: MCU: processSerial;55 aa 03 07 00 05 0e 04 00 01 00
+warning: MCU: unknown;55 aa 03 07 00 05 0e 04 00 01 00
+verbose: MCU: processSerial;55 aa 03 07 00 05 04 04 00 01 00
+trace: Manual Mode newChanged to off
+trace: MCU: manualMode_x04;55 aa 03 07 00 05 04 04 00 01 00
+notice: ReceivedSerial/Changed
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 20016
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 07 00 05 0e 04 00 01 01
+warning: MCU: unknown;55 aa 03 07 00 05 0e 04 00 01 01
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 20016
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+notice: Notify interval is up -> Device state changed...
+notice: Device state changed -> send device state... home/soggiorno/stat/things/network/properties
+notice: Send actual device state via MQTT home/soggiorno/stat/things/network/properties
+verbose: MQTT sent
+trace: Received MQTT callback: 'home/soggiorno/cmnd/things/thermostat/properties/mode'->'off'
+trace: look for device id 'thermostat'
+notice: Set property 'mode' for device thermostat
+trace: modeToMcu off
+trace: commandCharsToSerial: 55 aa 00 06 00 05 01 01 00 01 00, ChckSum 0x0d
+trace: schedulesModeToMcu off
+trace: commandCharsToSerial: 55 aa 00 06 00 05 04 04 00 01 01, ChckSum 0x14
+trace: Property updated.
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+trace: Received MQTT callback: 'home/soggiorno/cmnd/things/thermostat/properties/mode'->'off'
+trace: look for device id 'thermostat'
+notice: Set property 'mode' for device thermostat
+trace: Property updated.
+verbose: MQTT... 'home/soggiorno/stat/things/thermostat/mode'
+verbose: MQTT  .. 'off'
+verbose: MQTT connected... 
+verbose: MQTT sent. Topic: 'home/soggiorno/stat/things/thermostat/mode'
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+trace: Received MQTT callback: 'home/soggiorno/cmnd/things/thermostat/properties/mode'->'heat'
+trace: look for device id 'thermostat'
+notice: Set property 'mode' for device thermostat
+trace: modeToMcu heat
+trace: commandCharsToSerial: 55 aa 00 06 00 05 01 01 00 01 01, ChckSum 0x0e
+trace: Property updated.
+verbose: MQTT... 'home/soggiorno/stat/things/thermostat/mode'
+verbose: MQTT  .. 'heat'
+verbose: MCU: processSerial;55 aa 03 07 00 05 01 01 00 01 01
+verbose: MCU: processSerial;55 aa 03 07 00 08 02 02 00 04 00 00 00 0b
+verbose: MCU: targetTemperature_x02:5.50/5.50;55 aa 03 07 00 08 02 02 00 04 00 00 00 0b
+verbose: MCU: processSerial;55 aa 03 07 00 05 04 04 00 01 00
+trace: Manual Mode newChanged to off
+trace: modeToMcu auto
+verbose: MCU: processSerial;55 aa 03 07 00 05 13 04 00 01 00
+warning: MCU: unknown;55 aa 03 07 00 05 13 04 00 01 00
+verbose: MCU: processSerial;55 aa 03 07 00 05 07 01 00 01 00
+warning: MCU: unknown;55 aa 03 07 00 05 07 01 00 01 00
+verbose: MCU: processSerial;55 aa 03 07 00 05 0b 04 00 01 00
+warning: MCU: unknown;55 aa 03 07 00 05 0b 04 00 01 00
+verbose: MCU: processSerial;55 aa 03 07 00 08 0c 02 00 04 00 00 00 00
+warning: MCU: unknown;55 aa 03 07 00 08 0c 02 00 04 00 00 00 00
+verbose: MCU: processSerial;55 aa 03 07 00 05 0d 05 00 01 00
+warning: MCU: unknown;55 aa 03 07 00 05 0d 05 00 01 00
+verbose: MCU: processSerial;55 aa 03 07 00 05 0e 04 00 01 01
+warning: MCU: unknown;55 aa 03 07 00 05 0e 04 00 01 01
+verbose: MCU: processSerial;55 aa 03 07 00 08 03 02 00 04 00 00 00 11
+verbose: MCU: actualTemperature_x03;55 aa 03 07 00 08 03 02 00 04 00 00 00 11
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+notice: Notify interval is up -> Device state changed...
+notice: Device state changed -> send device state... home/soggiorno/stat/things/network/properties
+notice: Send actual device state via MQTT home/soggiorno/stat/things/network/properties
+verbose: MQTT sent
+trace: Received MQTT callback: 'home/soggiorno/cmnd/things/thermostat/properties/mode'->'off'
+trace: look for device id 'thermostat'
+notice: Set property 'mode' for device thermostat
+trace: modeToMcu off
+trace: commandCharsToSerial: 55 aa 00 06 00 05 01 01 00 01 00, ChckSum 0x0d
+trace: schedulesModeToMcu off
+trace: commandCharsToSerial: 55 aa 00 06 00 05 04 04 00 01 01, ChckSum 0x14
+trace: Property updated.
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+trace: Received MQTT callback: 'home/soggiorno/cmnd/things/thermostat/properties/mode'->'off'
+trace: look for device id 'thermostat'
+notice: Set property 'mode' for device thermostat
+trace: Property updated.
+verbose: MQTT... 'home/soggiorno/stat/things/thermostat/mode'
+verbose: MQTT  .. 'off'
+verbose: MQTT connected... 
+verbose: MQTT sent. Topic: 'home/soggiorno/stat/things/thermostat/mode'
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+notice: Notify interval is up -> Device state changed...
+notice: Device state changed -> send device state... home/soggiorno/stat/things/network/properties
+notice: Send actual device state via MQTT home/soggiorno/stat/things/network/properties
+verbose: MQTT sent
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+trace: Received MQTT callback: 'home/soggiorno/cmnd/things/thermostat/properties/targetTemperature'->'6.5'
+trace: look for device id 'thermostat'
+notice: Set property 'targetTemperature' for device thermostat
+trace: Got new targetTemperature
+trace: onChangeTargetTemperature, temp: 6.50
+notice: Set target Temperature (manual mode) to 6.50
+trace: commandCharsToSerial: 55 aa 00 06 00 08 02 02 00 04 00 00 00 0d, ChckSum 0x22
+trace: Property updated.
+verbose: MCU: processSerial;55 aa 03 07 00 08 02 02 00 04 00 00 00 0d
+verbose: MCU: targetTemperature_x02:6.50/6.50;55 aa 03 07 00 08 02 02 00 04 00 00 00 0d
+verbose: MCU: processSerial;55 aa 03 07 00 05 04 04 00 01 00
+trace: Manual Mode newChanged to off
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+notice: Notify interval is up -> Device state changed...
+notice: Device state changed -> send device state... home/soggiorno/stat/things/network/properties
+notice: Send actual device state via MQTT home/soggiorno/stat/things/network/properties
+verbose: MQTT sent
+trace: Received MQTT callback: 'home/soggiorno/cmnd/things/thermostat/properties/targetTemperature'->'5.0'
+trace: look for device id 'thermostat'
+notice: Set property 'targetTemperature' for device thermostat
+trace: Got new targetTemperature
+trace: Got new targetTemperature: Switching from Schdule to Manual
+trace: onChangeTargetTemperature, temp: 5.00
+notice: Set target Temperature (manual mode) to 5.00
+trace: commandCharsToSerial: 55 aa 00 06 00 08 02 02 00 04 00 00 00 0a, ChckSum 0x1f
+verbose: MCU: processSerial;55 aa 03 07 00 05 04 04 00 01 00
+trace: Manual Mode newChanged to off
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+verbose: MCU: processSerial;55 aa 03 07 00 08 03 02 00 04 00 00 00 12
+trace: MCU: actualTemperature_x03;55 aa 03 07 00 08 03 02 00 04 00 00 00 12
+notice: ReceivedSerial/Changed
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+notice: Notify interval is up -> Device state changed...
+notice: Device state changed -> send device state... home/soggiorno/stat/things/network/properties
+notice: Send actual device state via MQTT home/soggiorno/stat/things/network/properties
+verbose: MQTT sent
+trace: sending heartBeatCommand
+trace: Heap Info HeartBeat: MaxFree: 19784
+trace: commandCharsToSerial: 55 aa 00 00 00 00, ChckSum 0xff
+verbose: MCU: processSerial;55 aa 03 00 00 01 01
+WebSocket Connection Closed! 

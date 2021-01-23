@@ -10,9 +10,10 @@
 #include "WThermostat_MK70GBH.h"
 #include "WThermostat_ME102H.h"
 #include "WThermostat_CalypsoW.h"
+#include "WThermostat_DLX_LH01.h"
 
 #define APPLICATION "Thermostat"
-#define VERSION "1.20h"
+#define VERSION "1.20i"
 #define FLAG_SETTINGS 0x20
 #define DEBUG false
 
@@ -60,6 +61,9 @@ void setup() {
 			break;
 		case MODEL_CALYPSOW :
 			device = new WThermostat_CalypsoW(network, thermostatModel, wClock);
+			break;
+		case MODEL_DLX_LH01 :
+			device = new WThermostat_DLX_LH01(network, thermostatModel, wClock);
 			break;
 		default :
 		  network->error(F("Can't start device. Wrong thermostatModel (%d)"), thermostatModel->getByte());
