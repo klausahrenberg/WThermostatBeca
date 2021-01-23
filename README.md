@@ -9,6 +9,8 @@ Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The
 * Minco Heat MK70GB-H (floor heating, thanks to @indimouse for implementation)
 * VH Control Calypso-W
 
+![BAC-002](docs/BAC-002/front_bac-002.jpg) ![ME102H](docs/ME102H/front_me102h.png)
+
 ## Function support since 1.20 (beta status)
 For productive use only stable version 1.19. Version 1.20x_beta is rewritten to make the support of different models more easily in future. For model BHT-002 and ME102H the new version is tested and should work reliable already.
 
