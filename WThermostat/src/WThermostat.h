@@ -303,7 +303,7 @@ public :
     updateCurrentSchedulePeriod();
     if (receivedSchedules()) {
       //Notify schedules
-      if ((lastScheduleNotify == 0) && (now - lastScheduleNotify > MINIMUM_INTERVAL)) {
+      if ((network->isMqttConnected()) && (lastScheduleNotify == 0) && (now - lastScheduleNotify > MINIMUM_INTERVAL)) {
         handleSchedulesChange("");
         schedulesChanged = false;
         lastScheduleNotify = now;

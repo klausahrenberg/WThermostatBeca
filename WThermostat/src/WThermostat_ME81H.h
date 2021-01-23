@@ -5,6 +5,7 @@
 #include <ESP8266WiFi.h>
 #include "WThermostat.h"
 #include "WThermostat_BAC_002_ALW.h"
+#include "WThermostat_ME102H.h"
 
 class WThermostat_ME81H : public WThermostat {
 public :
@@ -27,6 +28,7 @@ public :
     this->byteSchedulingDays = 8;
     //custom
     this->byteSystemMode = 0x24;
+    this->byteSensorSelection = 0x2d;
   }
 
   virtual void initializeProperties() {
@@ -38,6 +40,14 @@ public :
     this->systemMode->addEnumString(SYSTEM_MODE_FAN);
     this->systemMode->setOnChange(std::bind(&WThermostat_ME81H::systemModeToMcu, this, std::placeholders::_1));
     this->addProperty(systemMode);
+    //sensorSelection
+    this->sensorSelection = new WProperty("sensorSelection", "Sensor Selection", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
+    this->sensorSelection->addEnumString(SENSOR_SELECTION_INTERNAL);
+    this->sensorSelection->addEnumString(SENSOR_SELECTION_FLOOR);
+    this->sensorSelection->addEnumString(SENSOR_SELECTION_BOTH);
+    this->sensorSelection->setVisibility(MQTT);
+    this->sensorSelection->setOnChange(std::bind(&WThermostat_ME81H::sensorSelectionToMcu, this, std::placeholders::_1));
+    this->addProperty(this->sensorSelection);
   }
 
 protected :
@@ -70,7 +80,19 @@ protected :
             knownCommand = true;
           }
         }
-			}
+			} else if (cByte == this->byteSensorSelection) {
+        if (commandLength == 0x05) {
+          //sensor selection -
+          //internal: 55 aa 03 07 00 05 2d 05 00 01 00
+          //floor:    55 aa 03 07 00 05 2d 05 00 01 01
+          //both:     55 aa 03 07 00 05 2d 05 00 01 02
+          newS = this->sensorSelection->getEnumString(receivedCommand[10]);
+          if (newS != nullptr) {
+            changed = ((changed) || (this->sensorSelection->setString(newS)));
+            knownCommand = true;
+          }
+        }
+      }
     }
 		if (changed) {
 			notifyState();
@@ -93,9 +115,26 @@ protected :
     }
   }
 
+  void sensorSelectionToMcu(WProperty* property) {
+    if (!isReceivingDataFromMcu()) {
+      byte sm = property->getEnumIndex();
+      if (sm != 0xFF) {
+        //send to device
+        //internal: 55 aa 03 07 00 05 2d 05 00 01 00
+        //floor:    55 aa 03 07 00 05 2d 05 00 01 01
+        //both:     55 aa 03 07 00 05 2d 05 00 01 02
+        unsigned char cm[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
+                               this->byteSensorSelection, 0x05, 0x00, 0x01, sm};
+        commandCharsToSerial(11, cm);
+      }
+    }
+  }
+
 private :
   WProperty* systemMode;
   byte byteSystemMode;
+  WProperty* sensorSelection;
+  byte byteSensorSelection;
 };
 
 #endif

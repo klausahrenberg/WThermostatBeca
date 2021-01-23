@@ -44,7 +44,7 @@ protected :
 				if (receivedCommand[5] == 0x05) {
 					//Unknown permanently sent from MCU
 					//55 aa 01 07 00 05 68 01 00 01 01
-					knownCommand = true;
+					//knownCommand = true;
 				}
 			} else if (cByte == this->byteEcoMode) {
         if (commandLength == 0x05) {
