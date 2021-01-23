@@ -18,7 +18,7 @@ public :
     this->byteDeviceOn = 0x01;
     this->byteTemperatureActual = 0x00; //actual temperature must be handled different at this model
     this->byteTemperatureTarget = 0x10;
-    this->byteTemperatureFloor = 0x2d;
+    this->byteTemperatureFloor = 0x00; //temp disabled, collides with sensorSelection 0x2d;
     this->temperatureFactor = 1.0f;
     this->byteSchedulesMode = 0x02;
     this->byteLocked = 0x28;
