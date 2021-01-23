@@ -14,6 +14,7 @@
 #define MODEL_ME81H 4
 #define MODEL_MK70GBH 5
 #define MODEL_ME102H 6
+#define MODEL_CALYPSOW 7
 #define PIN_STATE_HEATING_RELAY 5
 
 const char* SCHEDULES = "schedules";
@@ -116,13 +117,14 @@ public :
     page->printf(HTTP_CONFIG_PAGE_BEGIN, getId());
     //ComboBox with model selection
     page->printf(HTTP_COMBOBOX_BEGIN, "Thermostat model:", "tm");
-    page->printf(HTTP_COMBOBOX_ITEM, "0", (this->thermostatModel->getByte() == 0 ? HTTP_SELECTED : ""), "Floor heating (BHT-002-GBLW)");
-    page->printf(HTTP_COMBOBOX_ITEM, "1", (this->thermostatModel->getByte() == 1 ? HTTP_SELECTED : ""), "Heating, Cooling, Ventilation (BAC-002-ALW)");
-		page->printf(HTTP_COMBOBOX_ITEM, "2", (this->thermostatModel->getByte() == 2 ? HTTP_SELECTED : ""), "Floor heating (ET-81W)");
-		page->printf(HTTP_COMBOBOX_ITEM, "3", (this->thermostatModel->getByte() == 3 ? HTTP_SELECTED : ""), "Floor heating (Floureon HY08WE)");
-		page->printf(HTTP_COMBOBOX_ITEM, "4", (this->thermostatModel->getByte() == 4 ? HTTP_SELECTED : ""), "Floor heating (AVATTO ME81AH)");
-		page->printf(HTTP_COMBOBOX_ITEM, "5", (this->thermostatModel->getByte() == 5 ? HTTP_SELECTED : ""), "Floor heating (Minco Heat MK70GB-H)");
-		page->printf(HTTP_COMBOBOX_ITEM, "6", (this->thermostatModel->getByte() == 6 ? HTTP_SELECTED : ""), "Floor heating (Touch screen ME102H)");
+    page->printf(HTTP_COMBOBOX_ITEM, "0", (this->thermostatModel->getByte() == 0 ? HTTP_SELECTED : ""), "BHT-002, BHT-6000, BHT-3000 (floor heating)");
+    page->printf(HTTP_COMBOBOX_ITEM, "6", (this->thermostatModel->getByte() == 6 ? HTTP_SELECTED : ""), "AVATTO ME102H (Touch screen)");
+    page->printf(HTTP_COMBOBOX_ITEM, "1", (this->thermostatModel->getByte() == 1 ? HTTP_SELECTED : ""), "BAC-002, BAC-1000 (heating, cooling, ventilation)");
+		page->printf(HTTP_COMBOBOX_ITEM, "2", (this->thermostatModel->getByte() == 2 ? HTTP_SELECTED : ""), "ET-81W");
+		page->printf(HTTP_COMBOBOX_ITEM, "3", (this->thermostatModel->getByte() == 3 ? HTTP_SELECTED : ""), "Floureon HY08WE");
+		page->printf(HTTP_COMBOBOX_ITEM, "4", (this->thermostatModel->getByte() == 4 ? HTTP_SELECTED : ""), "AVATTO ME81AH");
+		page->printf(HTTP_COMBOBOX_ITEM, "5", (this->thermostatModel->getByte() == 5 ? HTTP_SELECTED : ""), "Minco Heat MK70GB-H");
+    page->printf(HTTP_COMBOBOX_ITEM, "7", (this->thermostatModel->getByte() == 7 ? HTTP_SELECTED : ""), "VH Control Calypso-W");
     page->print(FPSTR(HTTP_COMBOBOX_END));
     //Checkbox
     page->printf(HTTP_CHECKBOX_OPTION, "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");
@@ -138,9 +140,9 @@ public :
     page->print(FPSTR(HTTP_COMBOBOX_END));
 		page->printf(HTTP_CHECKBOX_OPTION, "cr", "cr", (this->sendCompleteDeviceState() ? "" : HTTP_CHECKED), "", "Send changes in separate MQTT messages");
 		//notifyAllMcuCommands
-		page->printf(HTTP_CHECKBOX_OPTION, "am", "am", (this->notifyAllMcuCommands->getBoolean() ? HTTP_CHECKED : ""), "", "Send MCU commands (to test not supported devices)");
+		page->printf(HTTP_CHECKBOX_OPTION, "am", "am", (this->notifyAllMcuCommands->getBoolean() ? HTTP_CHECKED : ""), "", "Send all MCU commands via MQTT");
     //Checkbox with support for relay
-		page->printf(HTTP_CHECKBOX_OPTION, "rs", "rs", (this->supportingHeatingRelay->getBoolean() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 (not working without hardware mod)");
+		page->printf(HTTP_CHECKBOX_OPTION, "rs", "rs", (this->supportingHeatingRelay->getBoolean() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 (not working without hw mod)");
 
     printConfigPageCustomParameters(request, page);
 
@@ -631,7 +633,7 @@ protected :
 
   void printConfigSchedulesPage(AsyncWebServerRequest* request, Print* page) {
     byte hh_Offset = this->byteSchedulingPosHour;
-    byte mm_Offset = this->byteSchedulingPosMinute;    
+    byte mm_Offset = this->byteSchedulingPosMinute;
     page->printf(HTTP_CONFIG_PAGE_BEGIN, SCHEDULES);
     page->print(F("<table  class='settingstable'>"));
     page->print(F("<tr>"));
