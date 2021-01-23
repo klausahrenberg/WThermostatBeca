@@ -1,25 +1,27 @@
 # ThermostatBecaWifi
 Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The firmware is tested with following devices:
-* BHT-002-GBLW, BHT-6000 (floor heating)
-* BAC-002-ALW (heater, cooling, ventilation)
-* BHT-002-GCLW (Water/Gas Boiler)
-* ET-81W and Floureon HY08WE (floor heating, experimental)
+* BHT-002, BHT-6000, BHT-3000 (floor heating)
+* AVATTO ME102H (Thermostat with LCD touch screen)
+* BAC-002 (heating, cooling, ventilation)
+* ET-81W
+* Floureon HY08WE
 * AVATTO ME81AH (floor heating, thanks to @lozb36 for implementation)
-* MK70GB-H (floor heating, thanks to @indimouse for implementation)
+* Minco Heat MK70GB-H (floor heating, thanks to @indimouse for implementation)
+* VH Control Calypso-W
 
-## Function support since 1.20 (alpha status)
-For productive use only stable version 1.19. Version 1.20x_alpha is rewritten to make the support of different models more easily in future. For model BHT-002-GBLW and ME102H the new version is tested and should work reliable already.
+## Function support since 1.20 (beta status)
+For productive use only stable version 1.19. Version 1.20x_beta is rewritten to make the support of different models more easily in future. For model BHT-002 and ME102H the new version is tested and should work reliable already.
 
-| Function           | BHT-002-GBLW | ME102H    | BAC-002-ALW*         | ET-81W*             | HY08WE*                  | ME81AH*         | MK70GBH*        |
-| :---:              | :---:        | :---:     | :---:                | :---:               | :---:                    | :---:           | :---:           |
-| actual temperature | yes          | yes       | yes                  | yes                 | yes                      | yes             | yes             |
-| target temperature | yes          | yes       | yes                  | yes                 | yes                      | yes             | yes             |
-| floor temperature  | yes          | yes       | no                   | yes                 | yes                      | yes             | no              |
-| schedules mode     | auto, off    | auto, off | auto, off            | holiday, auto, hold | off, auto, holiday, hold | auto, off       | off, auto, hold |
-| locked             | yes          | yes       | yes                  | yes                 | yes                      | yes             | yes             |
-| schedules          | 18           | 8         | 18                   | no                  | no                       | 8               | 8               |
-| system mode        | no           | no        | cool, heat, fan      | no                  | no                       | heat, cool, fan | no              |
-| fan mode           | no           | no        | auto, high, med, low | no                  | no                       | no              | no              |
+| Function           | BHT-002  BHT-6000  BHT-3000 | ME102H    | BAC-002         | ET-81W             | HY08WE                  | ME81AH         | MK70GBH        | Calypso-W* |
+| :---:              | :---:        | :---:     | :---:                | :---:               | :---:                    | :---:           | :---:           | :---: |
+| actual temperature | yes          | yes       | yes                  | yes                 | yes                      | yes             | yes             | yes |
+| target temperature | yes          | yes       | yes                  | yes                 | yes                      | yes             | yes             | yes |
+| floor temperature  | yes          | yes       | no                   | yes                 | yes                      | yes             | no              | yes |
+| schedules mode     | auto   off    | auto   off | auto   off            | holiday   auto   hold | off   auto   holiday   hold | auto   off       | off   auto   hold | holiday   auto   hold |
+| locked             | yes          | yes       | yes                  | yes                 | yes                      | yes             | yes             | yes
+| schedules          | 18           | 8         | 18                   | no                  | no                       | 8               | 8               | no
+| system mode        | no           | no        | cool, heat, fan      | no                  | no                       | heat, cool, fan | no              | no
+| fan mode           | no           | no        | auto, high, med, low | no                  | no                       | no              | no              | no
 
 '* needs testing
 
