@@ -18,11 +18,11 @@ public :
     this->byteDeviceOn = 0x01;
     this->byteTemperatureActual = 0x03;
     this->byteTemperatureTarget = 0x02;
-    this->byteTemperatureFloor = 0x00; //not supported
+    this->byteTemperatureFloor = NOT_SUPPORTED;
     this->temperatureFactor = 1.0f;
     this->byteSchedulesMode = 0x04;
     this->byteLocked = 0x07;
-    this->byteSchedules = 0x00; //not supported
+    this->byteSchedules = NOT_SUPPORTED;
     this->byteSchedulingPosHour = 1;
     this->byteSchedulingPosMinute = 0;
     this->byteSchedulingDays = 18;

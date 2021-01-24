@@ -20,7 +20,7 @@ public :
     this->temperatureFactor = 10.0f;
     this->byteSchedulesMode = 0x04;
     this->byteLocked = 0x06;
-    this->byteSchedules = 0x00;
+    this->byteSchedules = NOT_SUPPORTED;
     this->byteSchedulingPosHour = 1;
     this->byteSchedulingPosMinute = 0;
     this->byteSchedulingDays = 18;

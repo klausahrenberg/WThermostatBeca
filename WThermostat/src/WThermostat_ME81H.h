@@ -16,9 +16,10 @@ public :
 
   virtual void configureCommandBytes() {
     this->byteDeviceOn = 0x01;
-    this->byteTemperatureActual = 0x00; //actual temperature must be handled different at this model
+    //actual temperature must be handled in processStatusCommand (byte 0x08)
+    this->byteTemperatureActual = NOT_SUPPORTED;
     this->byteTemperatureTarget = 0x10;
-    this->byteTemperatureFloor = 0x00; //temp disabled, collides with sensorSelection 0x2d;
+    this->byteTemperatureFloor = 0x2d;
     this->temperatureFactor = 1.0f;
     this->byteSchedulesMode = 0x02;
     this->byteLocked = 0x28;
@@ -28,7 +29,7 @@ public :
     this->byteSchedulingDays = 8;
     //custom
     this->byteSystemMode = 0x24;
-    this->byteSensorSelection = 0x2d;
+    this->byteSensorSelection = 0x2b;
   }
 
   virtual void initializeProperties() {
@@ -91,6 +92,57 @@ protected :
             changed = ((changed) || (this->sensorSelection->setString(newS)));
             knownCommand = true;
           }
+        }
+      } else {
+      //consume some unsupported commands
+        switch (cByte) {
+          case 0x66 :
+            //Temperature Scale C /
+            //MCU:  C / 55 aa 03 07 00 05 66 04 00 01 00
+            //MCU:  F / 55 aa 03 07 00 05 66 04 00 01 01
+            knownCommand = true;
+            break;
+          case 0x13 :
+            //Temperature ceiling
+            //MCU: 35C / 55 aa 03 07 00 08 13 02 00 04 00 00 00 23
+            //MCU: 40C / 55 aa 03 07 00 08 13 02 00 04 00 00 00 28
+            knownCommand = true;
+            break;
+          case 0x1a :
+            //Lower limit of temperature
+            //MCU:  5C / 55 aa 03 07 00 08 1a 02 00 04 00 00 00 05
+            //MCU: 10C / 55 aa 03 07 00 08 1a 02 00 04 00 00 00 0a
+            knownCommand = true;
+            break;
+          case 0x1b :
+            //Temperature correction
+            //MCU:  0C / 55 aa 03 07 00 08 1b 02 00 04 00 00 00 00
+            //MCU: -2C / 55 aa 03 07 00 08 1b 02 00 04 ff ff ff fe
+            knownCommand = true;
+            break;
+          case 0x0a :
+            //freeze /
+            //MCU: off / 55 aa 03 07 00 05 0a 01 00 01 00
+            //MCU:  on / 55 aa 03 07 00 05 0a 01 00 01 01
+            knownCommand = true;
+            break;
+          case 0x65 :
+            //temp_differ_on - 1C /
+            //MCU: 55 aa 03 07 00 08 65 02 00 04 00 00 00 01
+            knownCommand = true;
+            break;
+          /*case 0x68 :
+            //  programming_mode - weekend (2 days off) / MCU: 55 aa 03 07 00 05 68 04 00 01 01
+            knownCommand = true;
+            break;
+          case 0x2d :
+            //unknown Wifi state? / MCU: 55 aa 03 07 00 05 2d 05 00 01 00
+            knownCommand = true;
+            break;
+          case 0x24 :
+            //unknown Wifi state? / MCU: 55 aa 03 07 00 05 24 04 00 01 00
+            knownCommand = true;
+            break;*/
         }
       }
     }

@@ -17,6 +17,7 @@
 #define MODEL_CALYPSOW 7
 #define MODEL_DLX_LH01 8
 #define PIN_STATE_HEATING_RELAY 5
+#define NOT_SUPPORTED 0x00
 
 const char* SCHEDULES = "schedules";
 const char* SCHEDULES_MODE_OFF = "off";
@@ -55,16 +56,25 @@ public :
   virtual void configureCommandBytes() {
     //command bytes
     this->byteDeviceOn = 0x01;
-    this->byteTemperatureActual = 0x00;
-    this->byteTemperatureTarget = 0x00;
-    this->byteTemperatureFloor = 0x00;
+    this->byteTemperatureActual = NOT_SUPPORTED;
+    this->byteTemperatureTarget = NOT_SUPPORTED;
+    this->byteTemperatureFloor = NOT_SUPPORTED;
     this->temperatureFactor = 2.0f;
-    this->byteSchedulesMode = 0x04;
-    this->byteLocked = 0x06;
-    this->byteSchedules = 0x65;
+    this->byteSchedulesMode = NOT_SUPPORTED;
+    this->byteLocked = NOT_SUPPORTED;
+    this->byteSchedules = NOT_SUPPORTED;
     this->byteSchedulingPosHour = 1;
     this->byteSchedulingPosMinute = 0;
     this->byteSchedulingDays = 18;
+  }
+
+  virtual bool isDeviceStateComplete() {
+      return (((this->byteDeviceOn == NOT_SUPPORTED)          || (!this->deviceOn->isNull())) &&
+              ((this->byteTemperatureActual == NOT_SUPPORTED) || (!this->actualTemperature->isNull())) &&
+              ((this->byteTemperatureTarget == NOT_SUPPORTED) || (this->targetTemperatureManualMode != 0.0)) &&
+              ((this->byteTemperatureFloor == NOT_SUPPORTED)  || (!this->actualFloorTemperature->isNull())) &&
+              ((this->byteSchedulesMode == NOT_SUPPORTED)     || (!this->schedulesMode->isNull()))
+             );
   }
 
   virtual void initializeProperties() {
@@ -79,7 +89,7 @@ public :
     this->targetTemperature->setOnChange(std::bind(&WThermostat::setTargetTemperature, this, std::placeholders::_1));
     this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
     this->addProperty(targetTemperature);
-    if (byteTemperatureFloor != 0x00) {
+    if (byteTemperatureFloor != NOT_SUPPORTED) {
 			this->actualFloorTemperature = WProperty::createTargetTemperatureProperty("floorTemperature", "Floor");
     	this->actualFloorTemperature->setReadOnly(true);
     	this->actualFloorTemperature->setVisibility(MQTT);
@@ -88,6 +98,8 @@ public :
       this->actualFloorTemperature = nullptr;
     }
     this->deviceOn = WProperty::createOnOffProperty("deviceOn", "Power");
+    //2021-01-24 test bht-002 bug
+    network->getSettings()->add(this->deviceOn);
     this->deviceOn->setOnChange(std::bind(&WThermostat::deviceOnToMcu, this, std::placeholders::_1));
     this->addProperty(deviceOn);
     this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
@@ -169,14 +181,9 @@ public :
 
   }
 
-  void cancelConfiguration() {
-  	unsigned char cancelConfigCommand[] = { 0x55, 0xaa, 0x00, 0x03, 0x00, 0x01, 0x02 };
-    commandCharsToSerial(7, cancelConfigCommand);
-  }
-
   void handleUnknownMqttCallback(bool getState, String completeTopic, String partialTopic, char *payload, unsigned int length) {
     if (partialTopic.startsWith(SCHEDULES)) {
-      if (byteSchedules != 0x00) {
+      if (byteSchedules != NOT_SUPPORTED) {
         partialTopic = partialTopic.substring(strlen(SCHEDULES) + 1);
         if (getState) {
           //Send actual schedules
@@ -313,6 +320,10 @@ public :
     }
   }
 
+  virtual bool sendCompleteDeviceState() {
+      return this->completeDeviceState->getBoolean();
+  }
+
 protected :
   WClock *wClock;
   WProperty* schedulesDayOffset;
@@ -383,25 +394,32 @@ protected :
     return schedulesDayOffset->getByte();
   }
 
-  virtual bool processCommand(byte commandByte) {
-		bool knownCommand = true;
-		if (commandByte == 0x03) {
-			//ignore, MCU response to wifi state
-			//55 aa 01 03 00 00
-
-		} else if (commandByte == 0x04) {
-			//Setup initialization request
-			//received: 55 aa 01 04 00 00
-			//send answer: 55 aa 00 03 00 01 00
-			unsigned char configCommand[] = { 0x55, 0xAA, 0x00, 0x03, 0x00,	0x01, 0x00 };
-			commandCharsToSerial(7, configCommand);
-			network->startWebServer();
-		} else if (commandByte == 0x1C) {
-			//Request for time sync from MCU : 55 aa 01 1c 00 00
-			this->sendActualTimeToBeca();
-		} else {
-	   	knownCommand = false;
-		}
+  virtual bool processCommand(byte commandByte, byte length) {
+		bool knownCommand = WTuyaDevice::processCommand(commandByte, length);
+    switch (commandByte) {
+      case 0x03: {
+        //ignore, MCU response to wifi state
+        //55 aa 01 03 00 00
+        knownCommand = (length == 0);
+        break;
+      }
+      case 0x04: {
+        //Setup initialization request
+        //received: 55 aa 01 04 00 00
+        //send answer: 55 aa 00 03 00 01 00
+        unsigned char configCommand[] = { 0x55, 0xAA, 0x00, 0x03, 0x00,	0x01, 0x00 };
+        commandCharsToSerial(7, configCommand);
+        network->startWebServer();
+        knownCommand = true;
+        break;
+      }
+      case 0x1C: {
+        //Request for time sync from MCU : 55 aa 01 1c 00 00
+        this->sendActualTimeToBeca();
+        knownCommand = true;
+        break;
+      }
+    }
 		return knownCommand;
 	}
 
@@ -416,9 +434,15 @@ protected :
       if (commandLength == 0x05) {
         //device On/Off
         //55 aa 00 06 00 05 01 01 00 01 00|01
-        newB = (receivedCommand[10] == 0x01);
-        changed = ((changed) || (newB != deviceOn->getBoolean()));
-        deviceOn->setBoolean(newB);
+        //2021-01-24 test for bht-002
+        if (!this->mcuRestarted) {
+          newB = (receivedCommand[10] == 0x01);
+          changed = ((changed) || (newB != deviceOn->getBoolean()));
+          deviceOn->setBoolean(newB);
+        } else if (!this->deviceOn->isNull()) {
+          deviceOnToMcu(this->deviceOn);
+          this->mcuRestarted = false;
+        }
         knownCommand = true;
       }
     } else if (cByte == byteTemperatureTarget) {
@@ -433,7 +457,7 @@ protected :
 				if (changed) updateTargetTemperature();
         knownCommand = true;
       }
-    } else if ((byteTemperatureActual != 0x00) && (cByte == byteTemperatureActual)) {
+    } else if ((byteTemperatureActual != NOT_SUPPORTED) && (cByte == byteTemperatureActual)) {
       if (commandLength == 0x08) {
         //actual Temperature
         //e.g. 23C: 55 aa 01 07 00 08 03 02 00 04 00 00 00 2e
@@ -443,7 +467,7 @@ protected :
         actualTemperature->setDouble(newValue);
         knownCommand = true;
       }
-    } else if ((byteTemperatureFloor != 0x00) && (cByte == byteTemperatureFloor)) {
+    } else if ((byteTemperatureFloor != NOT_SUPPORTED) && (cByte == byteTemperatureFloor)) {
       if (commandLength == 0x08) {
         //MODEL_BHT_002_GBLW - actualFloorTemperature
         //55 aa 01 07 00 08 66 02 00 04 00 00 00 00
@@ -509,30 +533,35 @@ protected :
       byte weekDay = wClock->getWeekDay();
       weekDay += getSchedulesDayOffset();
       weekDay = weekDay % 7;
-      int startAddr = (weekDay == 0 ? 36 : (weekDay == 6 ? 18 : 0));
+      int startAddr = (this->byteSchedulingDays == 18 ? (weekDay == 0 ? 36 : (weekDay == 6 ? 18 : 0)) : ((weekDay == 0) || (weekDay == 6) ? 18 : 0));
       int period = 0;
       if (wClock->isTimeEarlierThan(schedules[startAddr + period * 3 + hh_Offset], schedules[startAddr + period * 3 + mm_Offset])) {
         //Jump back to day before and last schedule of day
         weekDay = weekDay - 1;
         weekDay = weekDay % 7;
-        startAddr = (weekDay == 0 ? 36 : (weekDay == 6 ? 18 : 0));
+        startAddr = (this->byteSchedulingDays == 18 ? (weekDay == 0 ? 36 : (weekDay == 6 ? 18 : 0)) : ((weekDay == 0) || (weekDay == 6) ? 18 : 0));
         period = 5;
       } else {
         //check the schedules in same day
         for (int i = 1; i < 6; i++) {
-          if (i < 5) {
-            if (wClock->isTimeBetween(schedules[startAddr + i * 3 + hh_Offset], schedules[startAddr + i * 3 + mm_Offset],
-                                  schedules[startAddr + (i + 1) * 3 + hh_Offset], schedules[startAddr + (i + 1) * 3 + mm_Offset])) {
-              period = i;
-              break;
+          int index = startAddr + i * 3;
+  				if (index < this->byteSchedulingDays * 3) {
+            if ((i < 5) && (index + 1 < this->byteSchedulingDays * 3)) {
+              if (wClock->isTimeBetween(schedules[index + hh_Offset], schedules[index + mm_Offset],
+                                    schedules[startAddr + (i + 1) * 3 + hh_Offset], schedules[startAddr + (i + 1) * 3 + mm_Offset])) {
+                period = i;
+                break;
+              }
+            } else if (wClock->isTimeLaterThan(schedules[index + hh_Offset], schedules[index + mm_Offset])) {
+              period = (i == 5 ? 5 : 1);
             }
-          } else if (wClock->isTimeLaterThan(schedules[startAddr + 5 * 3 + hh_Offset], schedules[startAddr + 5 * 3 + mm_Offset])) {
-            period = 5;
+          } else {
+            break;
           }
         }
       }
       int newPeriod = startAddr + period * 3;
-      if (/*(getThermostatModel() != MODEL_ET_81_W) && */(this->switchBackToAuto->getBoolean()) &&
+      if ((this->switchBackToAuto->getBoolean()) &&
           (this->currentSchedulePeriod > -1) && (newPeriod != this->currentSchedulePeriod) &&
           (this->schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
         this->schedulesMode->setString(SCHEDULES_MODE_AUTO);

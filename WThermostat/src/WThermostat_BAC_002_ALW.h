@@ -24,7 +24,7 @@ public :
     this->byteDeviceOn = 0x01;
     this->byteTemperatureActual = 0x03;
     this->byteTemperatureTarget = 0x02;
-    this->byteTemperatureFloor = 0x00;
+    this->byteTemperatureFloor = NOT_SUPPORTED;
     this->temperatureFactor = 2.0f;
     this->byteSchedulesMode = 0x04;
     this->byteLocked = 0x06;

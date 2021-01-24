@@ -18,6 +18,8 @@ public :
       resetAll();
       this->receivingDataFromMcu = false;
       this->firstHeartBeatReceived = false;
+      //2021-01-24 test for bht-002
+      this->mcuRestarted = false;
       lastHeartBeat = lastQueryStatus = 0;
       //notifyAllMcuCommands
   		this->notifyAllMcuCommands = network->getSettings()->setBoolean("notifyAllMcuCommands", false);
@@ -34,6 +36,12 @@ public :
     //55 AA 00 08 00 00
     unsigned char queryStateCommand[] = { 0x55, 0xAA, 0x00, 0x08, 0x00, 0x00 };
     commandCharsToSerial(6, queryStateCommand);
+  }
+
+  virtual void cancelConfiguration() {
+  	unsigned char cancelConfigCommand[] = { 0x55, 0xaa, 0x00, 0x03, 0x00, 0x01, 0x02 };
+  	commandCharsToSerial(7, cancelConfigCommand);
+    delay(1000);
   }
 
   virtual void loop(unsigned long now) {
@@ -84,6 +92,32 @@ public :
 protected :
   unsigned char receivedCommand[1024];
   WProperty* notifyAllMcuCommands;
+  bool receivingDataFromMcu;
+  int commandLength;
+  int receiveIndex;
+  bool firstHeartBeatReceived;
+  //2021-01-24 test for bht-002
+  bool mcuRestarted;
+  unsigned long lastHeartBeat;
+  unsigned long lastQueryStatus;
+
+  void resetAll() {
+    receiveIndex = -1;
+    commandLength = -1;
+  }
+
+  int getIndex(unsigned char c) {
+    const char HEX_DIGITS[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8',
+        '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    int result = -1;
+    for (int i = 0; i < 16; i++) {
+      if (c == HEX_DIGITS[i]) {
+        result = i;
+        break;
+      }
+    }
+    return result;
+  }
 
   unsigned char* getCommand() {
     return receivedCommand;
@@ -137,24 +171,10 @@ protected :
     }
   }
 
-  virtual bool processCommand(byte commandByte) {
-    return false;
-  }
-
-  virtual bool processStatusCommand(byte statusCommandByte, byte commandLength) {
-    return false;
-  }
-
-  virtual void processSerialCommand() {
-    if (commandLength > -1) {
-      //unknown
-      //55 aa 00 00 00 00
-      this->receivingDataFromMcu = true;
-      if (notifyAllMcuCommands->getBoolean()) {
-        network->notice(F("MCU: %s"), this->getCommandAsString().c_str());
-      }
-      bool knownCommand = false;
-      if (receivedCommand[3] == 0x00) {
+  virtual bool processCommand(byte commandByte, byte length) {
+    bool knownCommand = false;
+    switch (commandByte) {
+      case 0x00: {
         //heartbeat signal from MCU
         switch (receivedCommand[6]) {
           case 0x00 : //55 aa 01 00 00 01 00: first heartbeat
@@ -162,6 +182,8 @@ protected :
             knownCommand = true;
             break;
         }
+        //2021-01-24 test for bht-002
+        this->mcuRestarted = (receivedCommand[6] == 0x00);
         if ((knownCommand) && ((!this->firstHeartBeatReceived) || (receivedCommand[6] == 0x00))) {
           //At first packet from MCU or first heart received by ESP, configure WIFI
           network->debug(F("first heart beat received: %s"), this->getCommandAsString().c_str());
@@ -169,7 +191,9 @@ protected :
           queryWorkingModeWiFi();
         }
         knownCommand = true;
-      } else if (receivedCommand[3] == 0x02) {
+        break;
+      }
+      case 0x02: {
         network->debug(F("MCU: Working mode of Wifi: %s"), this->getCommandAsString().c_str());
         //Working mode of Wifi
         if (receivedCommand[5] == 0x00) {
@@ -184,10 +208,33 @@ protected :
         //..skipped
         //finally query the current state of device
         queryDeviceState();
-      } else if (receivedCommand[3] == 0x07) {
+        break;
+      }
+      case 0x07: {
+        knownCommand = processStatusCommand(receivedCommand[6], length);
+        break;
+      }
+    }
+    return knownCommand;
+  }
+
+  virtual bool processStatusCommand(byte statusCommandByte, byte length) {
+    return false;
+  }
+
+  virtual void processSerialCommand() {
+    if (commandLength > -1) {
+      //unknown
+      //55 aa 00 00 00 00
+      this->receivingDataFromMcu = true;
+      if (notifyAllMcuCommands->getBoolean()) {
+        network->notice(F("MCU: %s"), this->getCommandAsString().c_str());
+      }
+      bool knownCommand = false;
+      if (receivedCommand[3] == 0x07) {
         knownCommand = processStatusCommand(receivedCommand[6], receivedCommand[5]);
       } else {
-        knownCommand = processCommand(receivedCommand[3]);
+        knownCommand = processCommand(receivedCommand[3], receivedCommand[5]);
       }
       if (!knownCommand) {
         notifyUnknownCommand();
@@ -205,31 +252,6 @@ protected :
   }
 
 private :
-  int receiveIndex;
-  int commandLength;
-  bool receivingDataFromMcu;
-  bool firstHeartBeatReceived;
-
-  unsigned long lastHeartBeat;
-  unsigned long lastQueryStatus;
-
-  void resetAll() {
-    receiveIndex = -1;
-    commandLength = -1;
-  }
-
-  int getIndex(unsigned char c) {
-    const char HEX_DIGITS[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8',
-        '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-    int result = -1;
-    for (int i = 0; i < 16; i++) {
-      if (c == HEX_DIGITS[i]) {
-        result = i;
-        break;
-      }
-    }
-    return result;
-  }
 
 };
 

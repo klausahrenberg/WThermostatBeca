@@ -14,13 +14,13 @@ public :
 
   virtual void configureCommandBytes() {
     this->byteDeviceOn = 0x01;
-    this->byteTemperatureActual = 0x18;
-    this->byteTemperatureTarget = 0x10;
-    this->byteTemperatureFloor = 0x00;
+    this->byteTemperatureActual = NOT_SUPPORTED;
+    this->byteTemperatureTarget = NOT_SUPPORTED;
+    this->byteTemperatureFloor = NOT_SUPPORTED;
     this->temperatureFactor = 10.0f;
-    this->byteSchedulesMode =
-    this->byteLocked = 0x28;
-    this->byteSchedules = 0x26;
+    this->byteSchedulesMode = NOT_SUPPORTED;
+    this->byteLocked = NOT_SUPPORTED;
+    this->byteSchedules = NOT_SUPPORTED;
     this->byteSchedulingPosHour = 0;
     this->byteSchedulingPosMinute = 1;
     this->byteSchedulingDays = 8;
