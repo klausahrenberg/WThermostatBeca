@@ -19,7 +19,7 @@ public :
     //actual temperature must be handled in processStatusCommand (byte 0x08)
     this->byteTemperatureActual = NOT_SUPPORTED;
     this->byteTemperatureTarget = 0x10;
-    this->byteTemperatureFloor = 0x2d;
+    this->byteTemperatureFloor = 0x00;
     this->temperatureFactor = 1.0f;
     this->byteSchedulesMode = 0x02;
     this->byteLocked = 0x28;
@@ -96,12 +96,12 @@ protected :
       } else {
       //consume some unsupported commands
         switch (cByte) {
-          case 0x66 :
+          /*case 0x66 :
             //Temperature Scale C /
             //MCU:  C / 55 aa 03 07 00 05 66 04 00 01 00
             //MCU:  F / 55 aa 03 07 00 05 66 04 00 01 01
             knownCommand = true;
-            break;
+            break;*/
           case 0x13 :
             //Temperature ceiling
             //MCU: 35C / 55 aa 03 07 00 08 13 02 00 04 00 00 00 23
@@ -131,15 +131,16 @@ protected :
             //MCU: 55 aa 03 07 00 08 65 02 00 04 00 00 00 01
             knownCommand = true;
             break;
-          /*case 0x68 :
+          case 0x66 :
             //  programming_mode - weekend (2 days off) / MCU: 55 aa 03 07 00 05 68 04 00 01 01
+            //01: 5+2 / 02: 6+1 / 03 7+0 day mode
             knownCommand = true;
             break;
           case 0x2d :
             //unknown Wifi state? / MCU: 55 aa 03 07 00 05 2d 05 00 01 00
             knownCommand = true;
             break;
-          case 0x24 :
+          /*case 0x24 :
             //unknown Wifi state? / MCU: 55 aa 03 07 00 05 24 04 00 01 00
             knownCommand = true;
             break;*/
