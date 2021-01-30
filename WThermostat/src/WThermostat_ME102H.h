@@ -73,7 +73,8 @@ protected :
       //consume some unsupported commands
         switch (cByte) {
           case 0x17 :
-            //Temperature Scale C / MCU: 55 aa 03 07 00 05 17 04 00 01 00
+            //Temperature Scale C /
+            //MCU: 55 aa 03 07 00 05 17 04 00 01 00
             knownCommand = true;
             break;
           case 0x13 :
@@ -101,7 +102,8 @@ protected :
             knownCommand = true;
             break;
           case 0x2d :
-            //unknown Wifi state? / MCU: 55 aa 03 07 00 05 2d 05 00 01 00
+            //unknown Wifi state? /
+            //MCU: 55 aa 03 07 00 05 2d 05 00 01 00
             knownCommand = true;
             break;
           case 0x24 :

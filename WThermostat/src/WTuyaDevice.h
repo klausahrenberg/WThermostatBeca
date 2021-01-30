@@ -82,9 +82,10 @@ public :
       lastHeartBeat = now;
     }
     //Query
-    if ((now - lastHeartBeat > MINIMUM_INTERVAL)
-        && (now - lastQueryStatus > QUERY_INTERVAL)) {
-      //queryState();
+    if ((lastHeartBeat > 0) &&
+        (now - lastQueryStatus > MINIMUM_INTERVAL) &&
+        (now - lastQueryStatus > QUERY_INTERVAL)) {
+      this->queryDeviceState();
       lastQueryStatus = now;
     }
   }

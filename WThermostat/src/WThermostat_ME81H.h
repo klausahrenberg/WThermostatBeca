@@ -84,9 +84,9 @@ protected :
 			} else if (cByte == this->byteSensorSelection) {
         if (commandLength == 0x05) {
           //sensor selection -
-          //internal: 55 aa 03 07 00 05 2d 05 00 01 00
-          //floor:    55 aa 03 07 00 05 2d 05 00 01 01
-          //both:     55 aa 03 07 00 05 2d 05 00 01 02
+          //internal: 55 aa 03 07 00 05 2b 04 00 01 00
+          //floor:    55 aa 03 07 00 05 2b 04 00 01 01
+          //both:     55 aa 03 07 00 05 2b 04 00 01 02
           newS = this->sensorSelection->getEnumString(receivedCommand[10]);
           if (newS != nullptr) {
             changed = ((changed) || (this->sensorSelection->setString(newS)));
