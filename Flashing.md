@@ -48,6 +48,9 @@ Write firmware (1MB)
 
 ```esptool.py -p /dev/ttyUSB0 write_flash -fs 1MB 0x0 WThermostat_x.xx.bin```
 
+## 6. First run after uploading
+After you have successfully flashed the firmware to your thermostat you need to fully assemble it to proceed with its configuration. Disconnect all wires from your programmer and run the thermostat via normal power supply. The web page for configuration will not be shown, if the ESP is only connected to 3.3V of the programmer. Just a warning: Do NOT run the thermostat with 220V while being not fully assembled!
+
 # Option 2: Use tuya-convert
 This method does not require any kind of soldering or disassembly of the device.  
 Some users were able to flash Beca Thermostats (BHT-002 and BHT-6000 also) with [tuya-convert](https://github.com/ct-Open-Source/tuya-convert).  
