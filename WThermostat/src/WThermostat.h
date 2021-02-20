@@ -577,14 +577,13 @@ protected :
         //55 AA 00 06 00 05 01 01 00 01 01
         byte dt = (this->deviceOn->getBoolean() ? 0x01 : 0x00);
         unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
-                                            0x01, 0x01, 0x00, 0x01, dt};
+                                            byteDeviceOn, 0x01, 0x00, 0x01, dt};
         commandCharsToSerial(11, deviceOnCommand);
-        //notifyState();
     }
   }
 
   void targetTemperatureManualModeToMcu() {
-    if (!isReceivingDataFromMcu()) {
+    if ((!isReceivingDataFromMcu()) && (schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
       network->debug(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
       //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
       byte ulValues[4];
@@ -601,7 +600,7 @@ protected :
       byte sm = schedulesMode->getEnumIndex();
       if (sm != 0xFF) {
         unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
-                                            0x04, 0x04, 0x00, 0x01, sm};
+                                            byteSchedulesMode, 0x04, 0x00, 0x01, sm};
         commandCharsToSerial(11, deviceOnCommand);
       }
     }
@@ -736,7 +735,7 @@ protected :
     if (!WProperty::isEqual(targetTemperatureManualMode, this->targetTemperature->getDouble(), 0.01)) {
       targetTemperatureManualMode = this->targetTemperature->getDouble();
       targetTemperatureManualModeToMcu();
-      schedulesMode->setString(SCHEDULES_MODE_OFF);
+      //schedulesMode->setString(SCHEDULES_MODE_OFF);
     }
   }
 
