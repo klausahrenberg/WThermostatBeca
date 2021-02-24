@@ -11,6 +11,7 @@
 #include "WThermostat_ME102H.h"
 #include "WThermostat_CalypsoW.h"
 #include "WThermostat_DLX_LH01.h"
+#include "WThermostat_MH_1820.h"
 
 #define APPLICATION "Thermostat"
 #define VERSION "1.20m"
@@ -64,6 +65,9 @@ void setup() {
 			break;
 		case MODEL_DLX_LH01 :
 			device = new WThermostat_DLX_LH01(network, thermostatModel, wClock);
+			break;
+		case MODEL_MH_1820:
+			device = new WThermostat_MH_1820(network, thermostatModel, wClock);
 			break;
 		default :
 		  network->error(F("Can't start device. Wrong thermostatModel (%d)"), thermostatModel->getByte());
