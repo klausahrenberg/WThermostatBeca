@@ -16,7 +16,7 @@
 #define MODEL_ME102H 6
 #define MODEL_CALYPSOW 7
 #define MODEL_DLX_LH01 8
-#define MODEL_MH_1820 9
+#define MODEL_MH_1823 9
 #define PIN_STATE_HEATING_RELAY 5
 #define NOT_SUPPORTED 0x00
 
@@ -140,7 +140,7 @@ public :
 		page->printf(HTTP_COMBOBOX_ITEM, "5", (this->thermostatModel->getByte() == 5 ? HTTP_SELECTED : ""), "Minco Heat MK70GB-H");
     page->printf(HTTP_COMBOBOX_ITEM, "7", (this->thermostatModel->getByte() == 7 ? HTTP_SELECTED : ""), "VH Control Calypso-W");
     page->printf(HTTP_COMBOBOX_ITEM, "8", (this->thermostatModel->getByte() == 8 ? HTTP_SELECTED : ""), "DLX-LH01");
-    page->printf(HTTP_COMBOBOX_ITEM, "9", (this->thermostatModel->getByte() == 9 ? HTTP_SELECTED : ""), "MH-1820");
+    page->printf(HTTP_COMBOBOX_ITEM, "9", (this->thermostatModel->getByte() == 9 ? HTTP_SELECTED : ""), "MH-1823");
     page->print(FPSTR(HTTP_COMBOBOX_END));
     //Checkbox
     page->printf(HTTP_CHECKBOX_OPTION, "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");

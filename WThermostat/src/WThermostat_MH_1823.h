@@ -1,11 +1,11 @@
-#ifndef THERMOSTAT_MH_1820_H
-#define	THERMOSTAT_MH_1820_H
+#ifndef THERMOSTAT_MH_1823_H
+#define	THERMOSTAT_MH_1823_H
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include "WThermostat.h"
 
-/* 
+/*
 const char* SYSTEM_MODE_COOL = "cool";
 const char* SYSTEM_MODE_HEAT = "heat";
 const char* SYSTEM_MODE_FAN = "fan_only";
@@ -18,11 +18,11 @@ const char* SYSTEM_MODE_MANUAL = "manual";
 const char* SYSTEM_MODE_PROGRAM = "auto";
 const char* SYSTEM_MODE_HOLIDAY = "holiday";
 
-class WThermostat_MH_1820 : public WThermostat {
+class WThermostat_MH_1823 : public WThermostat {
 public :
-  WThermostat_MH_1820(WNetwork* network, WProperty* thermostatModel, WClock* wClock)
+  WThermostat_MH_1823(WNetwork* network, WProperty* thermostatModel, WClock* wClock)
     : WThermostat(network, thermostatModel, wClock) {
-    network->debug(F("WThermostat_MH_1820 created"));
+    network->debug(F("WThermostat_MH_1823 created"));
   }
 
   virtual void configureCommandBytes() {
@@ -53,7 +53,7 @@ public :
     this->systemMode->addEnumString(SYSTEM_MODE_MANUAL);
     this->systemMode->addEnumString(SYSTEM_MODE_PROGRAM);
     this->systemMode->addEnumString(SYSTEM_MODE_HOLIDAY);
-    this->systemMode->setOnChange(std::bind(&WThermostat_MH_1820::systemModeToMcu, this, std::placeholders::_1));
+    this->systemMode->setOnChange(std::bind(&WThermostat_MH_1823::systemModeToMcu, this, std::placeholders::_1));
     this->addProperty(systemMode);
     //fanMode
     this->fanMode = new WProperty("fanMode", "Fan", STRING, TYPE_FAN_MODE_PROPERTY);
@@ -61,7 +61,7 @@ public :
     this->fanMode->addEnumString(FAN_MODE_HIGH);
     this->fanMode->addEnumString(FAN_MODE_MEDIUM);
     this->fanMode->addEnumString(FAN_MODE_LOW);
-    this->fanMode->setOnChange(std::bind(&WThermostat_MH_1820::fanModeToMcu, this, std::placeholders::_1));
+    this->fanMode->setOnChange(std::bind(&WThermostat_MH_1823::fanModeToMcu, this, std::placeholders::_1));
     this->addProperty(fanMode);
 
     this->relay = WProperty::createOnOffProperty("relay", "Relay");
@@ -129,7 +129,7 @@ protected :
 					// changed = ((changed) || (!WProperty::isEqual(relay, rawValue, 0)));
 					changed = ((changed) || (rawValue != relay->getBoolean()));
 					// relayState = rawValue;
-					// if (changed) 
+					// if (changed)
 					relay->setBoolean(rawValue);
 					if (rawValue)
 						sprintf(str,"true");
@@ -197,7 +197,7 @@ protected :
 			knownCommand = true;
 		} else if (commandByte == this->byteWifiState) { // wifi byte?
 			if (commandLength == 0x00) {
-				// get wifi state 
+				// get wifi state
 				// set wifi status to 3/4 - connected
 				int status=0;
 				if (network->isWifiConnected()) {
@@ -222,7 +222,7 @@ protected :
 				unsigned char setRssiCommand[] = { 0x55, 0xaa, 0x00, byteWifiRssi, 0x00, 0x01, 0xff-rssi};
 				commandCharsToSerial(7, setRssiCommand);
 				knownCommand = true;
-			}    
+			}
     }
 		return knownCommand;
 	}
