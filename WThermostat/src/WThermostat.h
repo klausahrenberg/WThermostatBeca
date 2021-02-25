@@ -104,11 +104,13 @@ public :
     network->getSettings()->add(this->deviceOn);
     this->deviceOn->setOnChange(std::bind(&WThermostat::deviceOnToMcu, this, std::placeholders::_1));
     this->addProperty(deviceOn);
-    this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
-    this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
-    this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
-    this->schedulesMode->setOnChange(std::bind(&WThermostat::schedulesModeToMcu, this, std::placeholders::_1));
-    this->addProperty(schedulesMode);
+    if (this->byteSchedulesMode != NOT_SUPPORTED) {
+      this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
+      this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
+      this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
+      this->schedulesMode->setOnChange(std::bind(&WThermostat::schedulesModeToMcu, this, std::placeholders::_1));
+      this->addProperty(schedulesMode);
+    }
     this->switchBackToAuto = network->getSettings()->setBoolean("switchBackToAuto", true);
     this->locked = WProperty::createOnOffProperty("locked", "Lock");
     this->locked->setOnChange(std::bind(&WThermostat::lockedToMcu, this, std::placeholders::_1));
@@ -478,7 +480,7 @@ protected :
         changed = ((changed) || (!actualTemperature->equalsDouble(newValue)));
         actualTemperature->setDouble(newValue);
 				sprintf(str,"%0.1f",newValue);
-				publishMqttProperty("","actualTemperature",str);
+				publishMqttProperty("","temperature",str);
         knownCommand = true;
       }
     } else if ((byteTemperatureFloor != NOT_SUPPORTED) && (cByte == byteTemperatureFloor)) {
@@ -490,7 +492,7 @@ protected :
         changed = ((changed) || (!actualFloorTemperature->equalsDouble(newValue)));
         actualFloorTemperature->setDouble(newValue);
 				sprintf(str,"%0.1f",newValue);
-				publishMqttProperty("","actualFloorTemperature",str);
+				publishMqttProperty("","floorTemperature",str);
         knownCommand = true;
       }
     } else if (cByte == byteSchedulesMode) {
@@ -604,7 +606,7 @@ protected :
   }
 
   void targetTemperatureManualModeToMcu() {
-    if ((!isReceivingDataFromMcu()) && (schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
+    if ((!isReceivingDataFromMcu()) && (this->byteSchedulesMode == NOT_SUPPORTED || schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
       network->debug(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
       //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
       byte ulValues[4];
@@ -763,7 +765,7 @@ protected :
   void setTargetTemperature(WProperty* property) {
     if (!WProperty::isEqual(targetTemperatureManualMode, this->targetTemperature->getDouble(), 0.01)) {
       targetTemperatureManualMode = this->targetTemperature->getDouble();
-      targetTemperatureManualModeToMcu();
+      this->targetTemperatureManualModeToMcu();
       //schedulesMode->setString(SCHEDULES_MODE_OFF);
     }
   }

@@ -25,16 +25,19 @@ public :
     this->temperatureFactorTarget = 1.0f;
     // this->byteSchedulesMode = 0x04;
     this->byteLocked = 0x05;
-    this->byteSchedules = 0x2a;
+    // this->byteSchedules = 0x2a;
     this->byteSchedulingPosHour = 1;
     this->byteSchedulingPosMinute = 0;
     this->byteSchedulingDays = 18;
     //custom
-		this->byteRelayState = 3; // start -> 0, stop -> 1
+    this->byteRelayState = 3; // start -> 0, stop -> 1
+    this->byteAntifreeze = 9;
   	this->byteWifiState = 0x2b;
   	this->byteWifiRssi = 0x24;
     this->byteSystemMode = 0x2;
     this->byteHolidays = 0x20;
+    this->byteFahrenheit = 0x25; // ignore
+    this->byteFahrenheitFloor = 0x66; // ignore
   }
 
   virtual void initializeProperties() {
@@ -67,7 +70,7 @@ protected :
 
 		if (!knownCommand) {
       const char* newS;
-      if (cByte == this->byteSystemMode) {
+      if (cByte == byteSystemMode) {
         if (commandLength == 0x05) {
           //MODEL_BAC_002_ALW - systemMode
           //cooling:     55 AA 00 06 00 05 66 04 00 01 00
@@ -80,14 +83,14 @@ protected :
             knownCommand = true;
           }
         }
-			} else if (cByte == 0x25) {
+			} else if (cByte == byteFahrenheit || cByte == byteFahrenheitFloor) {
         if (commandLength == 0x08) {
           // room temperature in Fahrenheit -> ignore
           knownCommand = true;
         }
-			} else if (cByte == 0x66) {
-        if (commandLength == 0x08) {
-          // floor temperature in Fahrenheit -> ignore
+			} else if (cByte == byteAntifreeze) {
+        if (commandLength == 0x05) {
+          // antifreeze yes/no -> ignore
           knownCommand = true;
         }
 			} else if (cByte == byteRelayState) {
@@ -166,7 +169,7 @@ protected :
 				commandCharsToSerial(7, setWifiCommand);
 				knownCommand = true;
 			}
-		} else if (commandByte == this->byteWifiRssi) { // wifi quality
+		} else if (commandByte == byteWifiRssi) { // wifi quality
 			if (commandLength == 0x00) {
 				// get wifi rssi ...
 				int rssi=0;
@@ -184,13 +187,9 @@ protected :
 
 
 private :
-  WProperty* systemMode;
-  byte byteSystemMode;
-  byte byteHolidays;
-  byte byteRelayState;
-  byte byteWifiState;
-  byte byteWifiRssi;
-	WProperty* relay;
+  WProperty* systemMode,* relay;
+  byte byteSystemMode, byteHolidays, byteRelayState, byteWifiState,
+    byteWifiRssi, byteFahrenheit, byteFahrenheitFloor, byteAntifreeze; // ignore
 
 };
 
