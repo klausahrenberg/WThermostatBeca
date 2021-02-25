@@ -5,15 +5,6 @@
 #include <ESP8266WiFi.h>
 #include "WThermostat.h"
 
-/*
-const char* SYSTEM_MODE_COOL = "cool";
-const char* SYSTEM_MODE_HEAT = "heat";
-const char* SYSTEM_MODE_FAN = "fan_only";
-const char* FAN_MODE_AUTO = SCHEDULES_MODE_AUTO;
-const char* FAN_MODE_LOW  = "low";
-const char* FAN_MODE_MEDIUM  = "medium";
-const char* FAN_MODE_HIGH = "high";
-*/
 const char* SYSTEM_MODE_MANUAL = "manual";
 const char* SYSTEM_MODE_PROGRAM = "auto";
 const char* SYSTEM_MODE_HOLIDAY = "holiday";
@@ -55,14 +46,6 @@ public :
     this->systemMode->addEnumString(SYSTEM_MODE_HOLIDAY);
     this->systemMode->setOnChange(std::bind(&WThermostat_MH_1823::systemModeToMcu, this, std::placeholders::_1));
     this->addProperty(systemMode);
-    //fanMode
-    this->fanMode = new WProperty("fanMode", "Fan", STRING, TYPE_FAN_MODE_PROPERTY);
-    this->fanMode->addEnumString(FAN_MODE_AUTO);
-    this->fanMode->addEnumString(FAN_MODE_HIGH);
-    this->fanMode->addEnumString(FAN_MODE_MEDIUM);
-    this->fanMode->addEnumString(FAN_MODE_LOW);
-    this->fanMode->setOnChange(std::bind(&WThermostat_MH_1823::fanModeToMcu, this, std::placeholders::_1));
-    this->addProperty(fanMode);
 
     this->relay = WProperty::createOnOffProperty("relay", "Relay");
 		network->getSettings()->add(this->relay);
@@ -92,18 +75,6 @@ protected :
           //ventilation: 55 AA 00 06 00 05 66 04 00 01 02
           newS = systemMode->getEnumString(receivedCommand[10]);
 					publishMqttProperty("","systemMode",(char *)newS);
-          if (newS != nullptr) {
-            changed = ((changed) || (systemMode->setString(newS)));
-            knownCommand = true;
-          }
-        }
-      } else if (cByte == this->byteFanMode) {
-        if (commandLength == 0x05) {
-          //MODEL_BAC_002_ALW - systemMode
-          //cooling:     55 AA 00 06 00 05 66 04 00 01 00
-          //heating:     55 AA 00 06 00 05 66 04 00 01 01
-          //ventilation: 55 AA 00 06 00 05 66 04 00 01 02
-          newS = systemMode->getEnumString(receivedCommand[10]);
           if (newS != nullptr) {
             changed = ((changed) || (systemMode->setString(newS)));
             knownCommand = true;
@@ -157,22 +128,6 @@ protected :
         unsigned char cm[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
                                             this->byteSystemMode, 0x04, 0x00, 0x01, sm};
         commandCharsToSerial(11, cm);
-      }
-    }
-  }
-
-  void fanModeToMcu(WProperty* property) {
-    if (!isReceivingDataFromMcu()) {
-      byte fm = fanMode->getEnumIndex();
-      if (fm != 0xFF) {
-        //send to device
-        //auto:   55 aa 00 06 00 05 67 04 00 01 00
-        //high:   55 aa 00 06 00 05 67 04 00 01 01
-        //medium: 55 aa 00 06 00 05 67 04 00 01 02
-        //low:    55 aa 00 06 00 05 67 04 00 01 03
-        unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
-                                            this->byteFanMode, 0x04, 0x00, 0x01, fm};
-        commandCharsToSerial(11, deviceOnCommand);
       }
     }
   }
@@ -235,8 +190,6 @@ private :
   byte byteRelayState;
   byte byteWifiState;
   byte byteWifiRssi;
-  WProperty* fanMode;
-  byte byteFanMode;
 	WProperty* relay;
 
 };
