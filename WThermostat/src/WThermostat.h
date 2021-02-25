@@ -60,8 +60,9 @@ public :
     this->byteTemperatureActual = NOT_SUPPORTED;
     this->byteTemperatureTarget = NOT_SUPPORTED;
     this->byteTemperatureFloor = NOT_SUPPORTED;
-    this->temperatureFactor = 2.0f;
     this->byteSchedulesMode = NOT_SUPPORTED;
+    this->temperatureFactor = 2.0f;
+    this->temperatureFactorTarget = 2.0f;
     this->byteLocked = NOT_SUPPORTED;
     this->byteSchedules = NOT_SUPPORTED;
     this->byteSchedulingPosHour = 1;
@@ -86,7 +87,7 @@ public :
     this->actualTemperature->setReadOnly(true);
     this->addProperty(actualTemperature);
     this->targetTemperature = WProperty::createTargetTemperatureProperty("targetTemperature", "Target");
-    this->targetTemperature->setMultipleOf(1.0f / this->temperatureFactor);
+    this->targetTemperature->setMultipleOf(1.0f / this->temperatureFactorTarget);
     this->targetTemperature->setOnChange(std::bind(&WThermostat::setTargetTemperature, this, std::placeholders::_1));
     this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
     this->addProperty(targetTemperature);
@@ -244,7 +245,7 @@ public :
         	} else if (key[2] == 't') {
           	//temperature
           	//it will fail, when temperature needs 2 bytes
-          	int tt = (int) (atof(value) * this->temperatureFactor);
+          	int tt = (int) (atof(value) * this->temperatureFactorTarget);
           	if (tt < 0xFF) {
             	schedulesChanged = schedulesChanged || (schedules[index + 2] != tt);
             	schedules[index + 2] = tt;
@@ -294,7 +295,7 @@ public :
       	buffer[2] = 'h';
       	json->propertyString(buffer, timeStr);
       	buffer[2] = 't';
-      	json->propertyDouble(buffer, (double) schedules[index + 2]	/ this->temperatureFactor);
+      	json->propertyDouble(buffer, (double) schedules[index + 2]	/ this->temperatureFactorTarget);
 			} else {
 				break;
 			}
@@ -607,7 +608,7 @@ protected :
       network->debug(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
       //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
       byte ulValues[4];
-      WSettings::getUnsignedLongBytes((targetTemperatureManualMode * this->temperatureFactor), ulValues);
+      WSettings::getUnsignedLongBytes((targetTemperatureManualMode * this->temperatureFactorTarget), ulValues);
       unsigned char setTemperatureCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x08,
                                                 byteTemperatureTarget, 0x02, 0x00, 0x04, ulValues[0], ulValues[1], ulValues[2], ulValues[3]};
       commandCharsToSerial(14, setTemperatureCommand);
@@ -769,7 +770,7 @@ protected :
 
   void updateTargetTemperature() {
     if ((this->currentSchedulePeriod != -1) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
-      double temp = (double) schedules[this->currentSchedulePeriod + 2] / this->temperatureFactor;
+      double temp = (double) schedules[this->currentSchedulePeriod + 2] / this->temperatureFactorTarget;
       targetTemperature->setDouble(temp);
     } else {
       targetTemperature->setDouble(targetTemperatureManualMode);

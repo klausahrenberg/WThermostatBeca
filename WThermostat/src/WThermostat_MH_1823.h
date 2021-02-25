@@ -32,7 +32,7 @@ public :
     this->byteTemperatureFloor = 0x65;
     this->temperatureFactor = 10.0f;
     this->temperatureFactorTarget = 1.0f;
-    this->byteSchedulesMode = 0x04;
+    // this->byteSchedulesMode = 0x04;
     this->byteLocked = 0x05;
     this->byteSchedules = 0x2a;
     this->byteSchedulingPosHour = 1;
