@@ -36,8 +36,14 @@ public :
   	this->byteWifiRssi = 0x24;
     this->byteSystemMode = 0x2;
     this->byteHolidays = 0x20;
+    this->byteTempUnit = 0x13; // c/f ignore
+    this->byteSensorInOut = 0x12; // sensor i/o/both ignore
     this->byteFahrenheit = 0x25; // ignore
     this->byteFahrenheitFloor = 0x66; // ignore
+    this->byteCompensateMain = 0x23; // ignore
+    this->byteCompensateFloor = 0x67; // ignore
+    this->byteSlewing = 0x68; // hysteresis? ignore
+    this->bytePowerOnOffWhenLocked = 0x69; // Setting 1, ignore
   }
 
   virtual void initializeProperties() {
@@ -72,10 +78,10 @@ protected :
       const char* newS;
       if (cByte == byteSystemMode) {
         if (commandLength == 0x05) {
-          //MODEL_BAC_002_ALW - systemMode
-          //cooling:     55 AA 00 06 00 05 66 04 00 01 00
-          //heating:     55 AA 00 06 00 05 66 04 00 01 01
-          //ventilation: 55 AA 00 06 00 05 66 04 00 01 02
+          //MODEL_MH_1820 - systemMode
+          // manual:   55 AA 03 07 00 05 02 04 00 01 00
+          // auto:     55 AA 03 07 00 05 02 04 00 01 01
+          // holiday:  55 AA 03 07 00 05 02 04 00 01 02
           newS = systemMode->getEnumString(receivedCommand[10]);
 					publishMqttProperty("","systemMode",(char *)newS);
           if (newS != nullptr) {
@@ -83,14 +89,27 @@ protected :
             knownCommand = true;
           }
         }
-			} else if (cByte == byteFahrenheit || cByte == byteFahrenheitFloor) {
+			} else if (cByte == byteFahrenheit
+        || cByte == byteFahrenheitFloor
+        || cByte == byteCompensateMain
+        || cByte == byteCompensateFloor
+        || cByte == byteSlewing) {
         if (commandLength == 0x08) {
-          // room temperature in Fahrenheit -> ignore
+          // room or floor temperature in Fahrenheit -> ignore
+          // temp compensation main or floor sensor (settings 5/6) -> ignore
+          // temperature slew (setting 7, hysteresis?) -> ignore
+          // room or floor temperature in Fahrenheit -> ignore
           knownCommand = true;
         }
-			} else if (cByte == byteAntifreeze) {
+			} else if (cByte == byteAntifreeze
+        || cByte == byteTempUnit
+        || cByte == byteSensorInOut
+        || cByte == bytePowerOnOffWhenLocked) {
         if (commandLength == 0x05) {
           // antifreeze yes/no -> ignore
+          // c/f -> ignore
+          // Setting 3 Sensor in/out/both 0/1/2
+          // Setting 1 (power on/off enabled on lock) -> ignore
           knownCommand = true;
         }
 			} else if (cByte == byteRelayState) {
@@ -159,12 +178,12 @@ protected :
 				// set wifi status to 3/4 - connected
 				int status=0;
 				if (network->isWifiConnected()) {
-					status=3;
-					// rssi=0xff-WiFi.RSSI();
+  		    status=3;
 					if (network->isMqttConnected()) {
-						status++;
-					}
-				}
+				    status++;
+          }
+				} else if (network->isSoftAP())
+          status=1;
 				unsigned char setWifiCommand[] = { 0x55, 0xaa, 0x00, byteWifiState, 0x00, 0x01, status};
 				commandCharsToSerial(7, setWifiCommand);
 				knownCommand = true;
@@ -189,8 +208,10 @@ protected :
 private :
   WProperty* systemMode,* relay;
   byte byteSystemMode, byteHolidays, byteRelayState, byteWifiState,
-    byteWifiRssi, byteFahrenheit, byteFahrenheitFloor, byteAntifreeze; // ignore
-
+    byteWifiRssi;
+  byte byteTempUnit, byteFahrenheit, byteFahrenheitFloor, byteAntifreeze, // ignore
+    byteCompensateMain, byteCompensateFloor, byteSlewing, byteSensorInOut,
+    bytePowerOnOffWhenLocked;
 };
 
 #endif
