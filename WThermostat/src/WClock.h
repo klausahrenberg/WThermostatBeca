@@ -121,12 +121,17 @@ public:
 				WiFiUDP ntpUDP;
 				NTPClient ntpClient(ntpUDP, ntpServer->c_str());
 				if (ntpClient.update()) {
-					lastNtpSync = millis();
-					ntpTime = ntpClient.getEpochTime();
-					this->calculateDstStartAndEnd();
-					validTime->setBoolean(!this->useTimeZoneServer->getBoolean());
-					network->debug(F("NTP time synced: %s"), epochTimeFormatted->c_str());
-					timeUpdated = true;
+					ntpEpoch = ntpClient.getEpochTime();
+					if (ntpEpoch + SEVENZYYEARS != 0){
+						lastNtpSync = millis();
+						ntpTime = ntpEpoch;
+						this->calculateDstStartAndEnd();
+						validTime->setBoolean(!this->useTimeZoneServer->getBoolean());
+						network->debug(F("NTP time synced: %s"), epochTimeFormatted->c_str());
+						timeUpdated = true;
+					} else {
+						network->error(F("NTP sync failed with 0 epoch."));
+					}
 				} else {
 					network->error(F("NTP sync failed. "));
 				}
@@ -465,7 +470,7 @@ public:
 
 private:
 	THandlerFunction onTimeUpdate;
-	unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime;
+	unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime, ntpEpoch;
 	unsigned long dstStart, dstEnd;
 	byte failedTimeZoneSync;
 	WProperty* epochTime;
