@@ -100,8 +100,9 @@ protected :
             knownCommand = true;
             break;
           case 0x68 :
-            // unknown integer
-            // MCU: 55 aa 03 07 00 08 68 02 00 04 00 00 00 0a
+            // number of holiday days
+            // MCU:  5d / 55 aa 03 07 00 08 68 02 00 04 00 00 00 05
+            // MCU: 10d / 55 aa 03 07 00 08 68 02 00 04 00 00 00 0a
             knownCommand = true;
             break;
           case 0x69 :
