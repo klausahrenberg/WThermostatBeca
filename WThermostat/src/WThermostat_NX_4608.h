@@ -90,13 +90,23 @@ protected :
         switch (cByte) {
           case 0x0c :
             // unknown bitmap
-            // 55 aa 03 07 00 05 0c 05 00 01 00
-            // 55 aa 03 07 00 05 0c 05 00 01 08
+            // MCU: 55 aa 03 07 00 05 0c 05 00 01 00
+            // MCU: 55 aa 03 07 00 05 0c 05 00 01 08
             knownCommand = true;
             break;
           case 0x65 :
             // unknown boolean
-            // 55 aa 03 07 00 05 65 01 00 01 00
+            // MCU: 55 aa 03 07 00 05 65 01 00 01 00
+            knownCommand = true;
+            break;
+          case 0x68 :
+            // unknown integer
+            // MCU: 55 aa 03 07 00 08 68 02 00 04 00 00 00 0a
+            knownCommand = true;
+            break;
+          case 0x69 :
+            // unknown integer
+            // MCU: 55 aa 03 07 00 08 69 02 00 04 00 00 00 0f
             knownCommand = true;
             break;
           case 0x6a :
@@ -109,6 +119,11 @@ protected :
             // disable low temp protection for external sensor (A9 Code 2)
             // MCU: off / 55 aa 03 07 00 05 6b 01 00 01 00
             // MCU: on  / 55 aa 03 07 00 05 6b 01 00 01 01
+            knownCommand = true;
+            break;
+          case 0x6c :
+            // unknown boolean
+            // MCU: 55 aa 03 07 00 05 6c 01 00 01 00
             knownCommand = true;
             break;
           case 0x6d :
@@ -178,6 +193,26 @@ protected :
             // MCU: 5+2 / 55 aa 03 07 00 05 76 04 00 01 00
             // MCU: 6+1 / 55 aa 03 07 00 05 76 04 00 01 01
             // MCU: 7   / 55 aa 03 07 00 05 76 04 00 01 02
+            knownCommand = true;
+            break;
+          case 0x77 :
+            // unknown raw
+            // MCU: 55 aa 03 07 00 0d 77 00 00 09 06 00 14 08 00 0f 0b 1e 0f
+            knownCommand = true;
+            break;
+          case 0x78 :
+            // unknown raw
+            // MCU: 55 aa 03 07 00 0d 78 00 00 09 0d 1e 0f 11 00 0f 96 00 0f
+            knownCommand = true;
+            break;
+          case 0x79 :
+            // unknown raw
+            // MCU: 55 aa 03 07 00 0d 79 00 00 09 06 00 14 08 00 0f 0b 1e 0f
+            knownCommand = true;
+            break;
+          case 0x7A :
+            // unknown raw
+            // MCU: 55 aa 03 07 00 0d 7a 00 00 09 0d 1e 0f 11 00 0f 16 00 0f
             knownCommand = true;
             break;
         }
