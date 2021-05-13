@@ -307,8 +307,8 @@ public :
       bool heating = false;
       if ((this->supportingHeatingRelay->getBoolean()) && (state != nullptr)) {
         heating = digitalRead(PIN_STATE_HEATING_RELAY);
+        this->state->setString(heating ? STATE_HEATING : STATE_OFF);
       }
-      this->state->setString(heating ? STATE_HEATING : STATE_OFF);
     }
     WTuyaDevice::loop(now);
     updateCurrentSchedulePeriod();

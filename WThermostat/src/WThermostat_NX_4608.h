@@ -14,7 +14,7 @@ public :
   }
 
   virtual void configureCommandBytes() {
-    this->byteDeviceOn = 0x66;
+    this->byteDeviceOn = 0x01;
     this->byteTemperatureActual = 0x03;
     this->byteTemperatureTarget = 0x02;
     this->byteTemperatureFloor = 0x67;
@@ -26,8 +26,8 @@ public :
     this->byteSchedulingPosMinute = 0;
     this->byteSchedulingDays = 18;
     //custom
+    this->byteState = 0x66;
     this->byteSensorSelection = 0x74;
-    this->byteDisplayOn = 0x01;
   }
 
   virtual void initializeProperties() {
@@ -46,10 +46,12 @@ public :
     this->sensorSelection->setVisibility(MQTT);
     this->sensorSelection->setOnChange(std::bind(&WThermostat_NX_4608::sensorSelectionToMcu, this, std::placeholders::_1));
     this->addProperty(this->sensorSelection);
-    //display
-    this->displayOn = WProperty::createOnOffProperty("displayOn", "Display");
-    this->displayOn->setVisibility(MQTT);
-    this->addProperty(displayOn);
+    //Heating Relay and State property
+    this->state = new WProperty("state", "State", STRING, TYPE_HEATING_COOLING_PROPERTY);
+    this->state->setReadOnly(true);
+    this->state->addEnumString(STATE_OFF);
+    this->state->addEnumString(STATE_HEATING);
+    this->addProperty(state);
   }
 
 protected :
@@ -61,7 +63,6 @@ protected :
 
 		if (!knownCommand) {
       const char* newS;
-      bool newB;
       if (cByte == this->byteSensorSelection) {
         if (commandLength == 0x05) {
           //sensor selection -
@@ -75,14 +76,15 @@ protected :
           }
         }
       }
-      else if (cByte == this->byteDisplayOn) {
+      else if (cByte == this->byteState) {
         if (commandLength == 0x05){
-          //display on
+          //heating state
           // on:  55 aa 03 07 00 05 01 01 00 01 01
           // off: 55 aa 03 07 00 05 01 01 00 01 00
-          newB = (receivedCommand[10] == 0x01);
-          changed = ((changed) || (newB != this->displayOn->getBoolean()));
-          displayOn->setBoolean(newB);
+          newS = this->state->getEnumString(receivedCommand[10]);
+          if (newS != nullptr) {
+            changed = ((changed) || (this->state->setString(newS)));
+          }
           knownCommand = true;
         }
       } else{
@@ -243,8 +245,7 @@ protected :
 private :
   WProperty* sensorSelection;
   byte byteSensorSelection;
-  WProperty* displayOn;
-  byte byteDisplayOn;
+  byte byteState;
 };
 
 #endif
