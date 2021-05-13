@@ -1,15 +1,15 @@
-#ifndef THERMOSTAT_HY02B05_H
-#define	THERMOSTAT_HY02B05_H
+#ifndef THERMOSTAT_NX_4608_H
+#define	THERMOSTAT_NX_4608_H
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include "WThermostat.h"
 
-class WThermostat_HY02B05 : public WThermostat {
+class WThermostat_NX_4608 : public WThermostat {
 public :
-  WThermostat_HY02B05(WNetwork* network, WProperty* thermostatModel, WClock* wClock)
+  WThermostat_NX_4608(WNetwork* network, WProperty* thermostatModel, WClock* wClock)
     : WThermostat(network, thermostatModel, wClock) {
-    network->debug(F("WThermostat_HY02B05 created"));
+    network->debug(F("WThermostat_NX_4608 created"));
   }
 
   virtual void configureCommandBytes() {

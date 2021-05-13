@@ -5,7 +5,7 @@
 #include "WThermostat_BHT_002_GBLW.h"
 #include "WThermostat_BAC_002_ALW.h"
 #include "WThermostat_ET81W.h"
-#include "WThermostat_HY02B05.h"
+#include "WThermostat_NX_4608.h"
 #include "WThermostat_HY08WE.h"
 #include "WThermostat_ME81H.h"
 #include "WThermostat_MK70GBH.h"
@@ -66,8 +66,8 @@ void setup() {
 		case MODEL_DLX_LH01 :
 			device = new WThermostat_DLX_LH01(network, thermostatModel, wClock);
 			break;
-		case MODEL_HY02B05 :
-			device = new WThermostat_HY02B05(network, thermostatModel, wClock);
+		case MODEL_NX_4608 :
+			device = new WThermostat_NX_4608(network, thermostatModel, wClock);
 			break;
 		default :
 		  network->error(F("Can't start device. Wrong thermostatModel (%d)"), thermostatModel->getByte());
