@@ -665,7 +665,7 @@ protected :
     byte hh_Offset = this->byteSchedulingPosHour;
     byte mm_Offset = this->byteSchedulingPosMinute;
     page->printf(HTTP_CONFIG_PAGE_BEGIN, SCHEDULES);
-    page->print(F("<table  class='settingstable'>"));
+    page->print(F("<table  class='st'>"));
     page->print(F("<tr>"));
     page->print(F("<th></th>"));
     page->print(F("<th>Weekday</th>"));
