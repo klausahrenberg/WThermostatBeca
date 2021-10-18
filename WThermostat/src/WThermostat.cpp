@@ -14,8 +14,8 @@
 #include "WThermostat_MH_1823.h"
 
 #define APPLICATION "Thermostat"
-#define VERSION "1.20m"
-#define FLAG_SETTINGS 0x20
+#define VERSION "1.20n"
+#define FLAG_SETTINGS 0x22
 #define DEBUG false
 
 WNetwork* network;
@@ -26,7 +26,7 @@ WClock* wClock;
 void setup() {
 	Serial.begin(9600);
 	//Wifi and Mqtt connection
-	network = new WNetwork(DEBUG, APPLICATION, VERSION, NO_LED, FLAG_SETTINGS);
+	network = new WNetwork(DEBUG, APPLICATION, VERSION, NO_LED, FLAG_SETTINGS, nullptr);
 	network->setOnConfigurationFinished([]() {
 		//Switch blinking thermostat in normal operating mode back
 		device->cancelConfiguration();

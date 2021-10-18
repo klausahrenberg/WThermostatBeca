@@ -38,7 +38,7 @@ public:
 		: WDevice(network, "clock", "clock", DEVICE_TYPE_TEXT_DISPLAY) {
 		this->mainDevice = false;
 		this->visibility = MQTT;
-		this->ntpServer = network->getSettings()->setString("ntpServer", 32, DEFAULT_NTP_SERVER);
+		this->ntpServer = network->getSettings()->setString("ntpServer", DEFAULT_NTP_SERVER);
 		this->ntpServer->setReadOnly(true);
 		this->ntpServer->setVisibility(MQTT);
 		this->addProperty(ntpServer);
@@ -46,7 +46,7 @@ public:
 		this->useTimeZoneServer->setReadOnly(true);
 		this->useTimeZoneServer->setVisibility(NONE);
 		this->addProperty(useTimeZoneServer);
-		this->timeZoneServer = network->getSettings()->setString("timeZoneServer", 45, DEFAULT_TIME_ZONE_SERVER);
+		this->timeZoneServer = network->getSettings()->setString("timeZoneServer", DEFAULT_TIME_ZONE_SERVER);
 		this->timeZoneServer->setReadOnly(true);
 		this->timeZoneServer->setVisibility(this->useTimeZoneServer->getBoolean() ? MQTT : NONE);
 		//this->ntpServer->setVisibility(MQTT);
@@ -57,7 +57,7 @@ public:
 			p->setUnsignedLong(getEpochTime());
 		});
 		this->addProperty(epochTime);
-		this->epochTimeFormatted = WProperty::createStringProperty("epochTimeFormatted", "epochTimeFormatted", 19);
+		this->epochTimeFormatted = WProperty::createStringProperty("epochTimeFormatted", "epochTimeFormatted");
 		this->epochTimeFormatted->setReadOnly(true);
 		this->epochTimeFormatted->setOnValueRequest([this](WProperty* p) {updateFormattedTime();});
 		this->addProperty(epochTimeFormatted);
@@ -66,7 +66,7 @@ public:
 		this->validTime->setReadOnly(true);
 		this->addProperty(validTime);
 		if (this->useTimeZoneServer->getBoolean()) {
-			this->timeZone = WProperty::createStringProperty("timezone", "timeZone", 32);
+			this->timeZone = WProperty::createStringProperty("timezone", "timeZone");
 			this->timeZone->setReadOnly(true);
 			this->addProperty(timeZone);
 		} else {
@@ -86,7 +86,7 @@ public:
 		this->addProperty(dstOffset);
 		this->useDaySavingTimes = network->getSettings()->setBoolean("useDaySavingTimes", false);
 		this->useDaySavingTimes->setVisibility(NONE);
-		this->dstRule = network->getSettings()->setByteArray("dstRule", 8, DEFAULT_DST_RULE);
+		this->dstRule = network->getSettings()->setByteArray("dstRule", DEFAULT_DST_RULE);
 		//HtmlPages
     WPage* configPage = new WPage(this->getId(), "Configure clock");
     configPage->setPrintPage(std::bind(&WClock::printConfigPage, this, std::placeholders::_1, std::placeholders::_2));
@@ -103,7 +103,7 @@ public:
 			this->enableNightMode = network->getSettings()->setBoolean("enableNightMode", true);
 			this->nightMode = WProperty::createBooleanProperty("nightMode", "nightMode");
 			this->addProperty(this->nightMode);
-			this->nightSwitches = network->getSettings()->setByteArray("nightSwitches", 4, DEFAULT_NIGHT_SWITCHES);
+			this->nightSwitches = network->getSettings()->setByteArray("nightSwitches", DEFAULT_NIGHT_SWITCHES);
 		}
 	}
 
@@ -357,7 +357,7 @@ public:
 
 			page->printf(HTTP_CHECKBOX_OPTION, "sd", "sd", (useDaySavingTimes->getBoolean() ? HTTP_CHECKED : ""), "td()", "Calculate day saving time (summer time)");
 			page->printf(HTTP_DIV_ID_BEGIN, "gd");
-			page->print(F("<table  class='settingstable'>"));
+			page->print(F("<table  class='st'>"));
 				page->print(F("<tr>"));
 					page->print(F("<th></th>"));
 					page->print(F("<th>Standard time</th>"));
