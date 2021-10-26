@@ -16,6 +16,7 @@
 #define MODEL_ME102H 6
 #define MODEL_CALYPSOW 7
 #define MODEL_DLX_LH01 8
+#define MODEL_MH_1823 9
 #define PIN_STATE_HEATING_RELAY 5
 #define NOT_SUPPORTED 0x00
 
@@ -59,8 +60,9 @@ public :
     this->byteTemperatureActual = NOT_SUPPORTED;
     this->byteTemperatureTarget = NOT_SUPPORTED;
     this->byteTemperatureFloor = NOT_SUPPORTED;
-    this->temperatureFactor = 2.0f;
     this->byteSchedulesMode = NOT_SUPPORTED;
+    this->temperatureFactor = 2.0f;
+    this->temperatureFactorTarget = 2.0f;
     this->byteLocked = NOT_SUPPORTED;
     this->byteSchedules = NOT_SUPPORTED;
     this->byteSchedulingPosHour = 1;
@@ -85,7 +87,7 @@ public :
     this->actualTemperature->setReadOnly(true);
     this->addProperty(actualTemperature);
     this->targetTemperature = WProperty::createTargetTemperatureProperty("targetTemperature", "Target");
-    this->targetTemperature->setMultipleOf(1.0f / this->temperatureFactor);
+    this->targetTemperature->setMultipleOf(1.0f / this->temperatureFactorTarget);
     this->targetTemperature->setOnChange(std::bind(&WThermostat::setTargetTemperature, this, std::placeholders::_1));
     this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
     this->addProperty(targetTemperature);
@@ -102,11 +104,13 @@ public :
     network->getSettings()->add(this->deviceOn);
     this->deviceOn->setOnChange(std::bind(&WThermostat::deviceOnToMcu, this, std::placeholders::_1));
     this->addProperty(deviceOn);
-    this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
-    this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
-    this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
-    this->schedulesMode->setOnChange(std::bind(&WThermostat::schedulesModeToMcu, this, std::placeholders::_1));
-    this->addProperty(schedulesMode);
+    if (this->byteSchedulesMode != NOT_SUPPORTED) {
+      this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
+      this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
+      this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
+      this->schedulesMode->setOnChange(std::bind(&WThermostat::schedulesModeToMcu, this, std::placeholders::_1));
+      this->addProperty(schedulesMode);
+    }
     this->switchBackToAuto = network->getSettings()->setBoolean("switchBackToAuto", true);
     this->locked = WProperty::createOnOffProperty("locked", "Lock");
     this->locked->setOnChange(std::bind(&WThermostat::lockedToMcu, this, std::placeholders::_1));
@@ -139,6 +143,7 @@ public :
 		page->printf(HTTP_COMBOBOX_ITEM, "5", (this->thermostatModel->getByte() == 5 ? HTTP_SELECTED : ""), "Minco Heat MK70GB-H");
     page->printf(HTTP_COMBOBOX_ITEM, "7", (this->thermostatModel->getByte() == 7 ? HTTP_SELECTED : ""), "VH Control Calypso-W");
     page->printf(HTTP_COMBOBOX_ITEM, "8", (this->thermostatModel->getByte() == 8 ? HTTP_SELECTED : ""), "DLX-LH01");
+    page->printf(HTTP_COMBOBOX_ITEM, "9", (this->thermostatModel->getByte() == 9 ? HTTP_SELECTED : ""), "MH-1823");
     page->print(FPSTR(HTTP_COMBOBOX_END));
     //Checkbox
     page->printf(HTTP_CHECKBOX_OPTION, "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");
@@ -242,7 +247,7 @@ public :
         	} else if (key[2] == 't') {
           	//temperature
           	//it will fail, when temperature needs 2 bytes
-          	int tt = (int) (atof(value) * this->temperatureFactor);
+          	int tt = (int) (atof(value) * this->temperatureFactorTarget);
           	if (tt < 0xFF) {
             	schedulesChanged = schedulesChanged || (schedules[index + 2] != tt);
             	schedules[index + 2] = tt;
@@ -292,7 +297,7 @@ public :
       	buffer[2] = 'h';
       	json->propertyString(buffer, timeStr);
       	buffer[2] = 't';
-      	json->propertyDouble(buffer, (double) schedules[index + 2]	/ this->temperatureFactor);
+      	json->propertyDouble(buffer, (double) schedules[index + 2]	/ this->temperatureFactorTarget);
 			} else {
 				break;
 			}
@@ -340,6 +345,7 @@ protected :
   byte byteSchedulingFunctionL;
   byte byteSchedulingDataL;
   float temperatureFactor;
+	float temperatureFactorTarget;
   WProperty* thermostatModel;
   WProperty* actualTemperature;
   WProperty* targetTemperature;
@@ -430,6 +436,7 @@ protected :
     float newValue;
     const char* newS;
     bool knownCommand = false;
+		char str[10];
     if (cByte == byteDeviceOn ) {
       if (commandLength == 0x05) {
         //device On/Off
@@ -439,6 +446,11 @@ protected :
           newB = (receivedCommand[10] == 0x01);
           changed = ((changed) || (newB != deviceOn->getBoolean()));
           deviceOn->setBoolean(newB);
+					if (newB)
+						sprintf(str,"true");
+					else
+						sprintf(str,"false");
+					publishMqttProperty("","deviceOn",str);
         } else if (!this->deviceOn->isNull()) {
           deviceOnToMcu(this->deviceOn);
           this->mcuRestarted = false;
@@ -451,10 +463,12 @@ protected :
         //e.g. 24.5C: 55 aa 01 07 00 08 02 02 00 04 00 00 00 31
 
         unsigned long rawValue = WSettings::getUnsignedLong(receivedCommand[10], receivedCommand[11], receivedCommand[12], receivedCommand[13]);
-        newValue = (float) rawValue / this->temperatureFactor;
+        newValue = (float) rawValue / this->temperatureFactorTarget;
         changed = ((changed) || (!WProperty::isEqual(targetTemperatureManualMode, newValue, 0.01)));
         targetTemperatureManualMode = newValue;
 				if (changed) updateTargetTemperature();
+				sprintf(str,"%0.1f",newValue);
+				publishMqttProperty("","targetTemperature",str);
         knownCommand = true;
       }
     } else if ((byteTemperatureActual != NOT_SUPPORTED) && (cByte == byteTemperatureActual)) {
@@ -465,6 +479,8 @@ protected :
         newValue = (float) rawValue / this->temperatureFactor;
         changed = ((changed) || (!actualTemperature->equalsDouble(newValue)));
         actualTemperature->setDouble(newValue);
+				sprintf(str,"%0.1f",newValue);
+				publishMqttProperty("","temperature",str);
         knownCommand = true;
       }
     } else if ((byteTemperatureFloor != NOT_SUPPORTED) && (cByte == byteTemperatureFloor)) {
@@ -475,6 +491,8 @@ protected :
         newValue = (float) rawValue / this->temperatureFactor;
         changed = ((changed) || (!actualFloorTemperature->equalsDouble(newValue)));
         actualFloorTemperature->setDouble(newValue);
+				sprintf(str,"%0.1f",newValue);
+				publishMqttProperty("","floorTemperature",str);
         knownCommand = true;
       }
     } else if (cByte == byteSchedulesMode) {
@@ -493,6 +511,11 @@ protected :
         newB = (receivedCommand[10] == 0x01);
         changed = ((changed) || (newB != locked->getBoolean()));
         locked->setBoolean(newB);
+				if (newB)
+					sprintf(str,"true");
+				else
+					sprintf(str,"false");
+				publishMqttProperty("","locked",(char *)newS);
         knownCommand = true;
       }
     } else if (cByte == byteSchedules) {
@@ -583,11 +606,11 @@ protected :
   }
 
   void targetTemperatureManualModeToMcu() {
-    if ((!isReceivingDataFromMcu()) && (schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
+    if ((!isReceivingDataFromMcu()) && (this->byteSchedulesMode == NOT_SUPPORTED || schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
       network->debug(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
       //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
       byte ulValues[4];
-      WSettings::getUnsignedLongBytes((targetTemperatureManualMode * this->temperatureFactor), ulValues);
+      WSettings::getUnsignedLongBytes((targetTemperatureManualMode * this->temperatureFactorTarget), ulValues);
       unsigned char setTemperatureCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x08,
                                                 byteTemperatureTarget, 0x02, 0x00, 0x04, ulValues[0], ulValues[1], ulValues[2], ulValues[3]};
       commandCharsToSerial(14, setTemperatureCommand);
@@ -659,6 +682,14 @@ protected :
     this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
     json.endObject();
     network->publishMqtt(completeTopic.c_str(), response);
+  }
+
+  void publishMqttProperty(String completeTopic, char *key, char *value) {
+    network->debug(F("Send Mqtt topic ..."));
+    if (completeTopic == "") {
+      completeTopic = String(network->getMqttBaseTopic()) + SLASH + String(this->getId()) + SLASH + String(network->getMqttStateTopic()) ;
+    }
+    network->publishMqtt(completeTopic.c_str(), key, value);
   }
 
   void printConfigSchedulesPage(AsyncWebServerRequest* request, Print* page) {
@@ -734,14 +765,14 @@ protected :
   void setTargetTemperature(WProperty* property) {
     if (!WProperty::isEqual(targetTemperatureManualMode, this->targetTemperature->getDouble(), 0.01)) {
       targetTemperatureManualMode = this->targetTemperature->getDouble();
-      targetTemperatureManualModeToMcu();
+      this->targetTemperatureManualModeToMcu();
       //schedulesMode->setString(SCHEDULES_MODE_OFF);
     }
   }
 
   void updateTargetTemperature() {
     if ((this->currentSchedulePeriod != -1) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
-      double temp = (double) schedules[this->currentSchedulePeriod + 2] / this->temperatureFactor;
+      double temp = (double) schedules[this->currentSchedulePeriod + 2] / this->temperatureFactorTarget;
       targetTemperature->setDouble(temp);
     } else {
       targetTemperature->setDouble(targetTemperatureManualMode);

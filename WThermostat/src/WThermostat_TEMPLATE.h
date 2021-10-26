@@ -18,6 +18,7 @@ public :
     this->byteTemperatureTarget = NOT_SUPPORTED;
     this->byteTemperatureFloor = NOT_SUPPORTED;
     this->temperatureFactor = 10.0f;
+    this->temperatureFactorTarget = 10.0f;
     this->byteSchedulesMode = NOT_SUPPORTED;
     this->byteLocked = NOT_SUPPORTED;
     this->byteSchedules = NOT_SUPPORTED;
