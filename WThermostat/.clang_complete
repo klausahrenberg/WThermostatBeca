@@ -1,23 +1,22 @@
--I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/include
--I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/src
+-I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/include
+-I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266HTTPClient/src
--I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/Time
--I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/NTPClient
+-I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/Time
+-I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/NTPClient
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/EEPROM
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/DNSServer/src
--I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/PubSubClient/src
+-I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/PubSubClient/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266mDNS/src
--I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESP Async WebServer/src
+-I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESP Async WebServer/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/Hash/src
--I/mnt/Daten/Users/klaus/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESPAsyncTCP/src
+-I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESPAsyncTCP/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266WiFi/src
--I/mnt/Daten/Users/klaus/Projects/Atom/WAdapter/WAdapter
+-I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WAdapter/WAdapter
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/tools/sdk/include
--I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/tools/sdk/libc/xtensa-lx106-elf/include
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/cores/esp8266
+-I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/include
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/tools/sdk/lwip2/include
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/variants/generic
--I/home/klausahrenberg/.platformio/lib/Adafruit MPR121
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ArduinoOTA
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266AVRISP/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266HTTPUpdateServer/src
@@ -30,7 +29,9 @@
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266httpUpdate/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/Ethernet/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/GDBStub/src
+-I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/I2S/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/LittleFS/src
+-I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/Netdump/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/SD/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/SDFS/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/SPI
@@ -41,13 +42,16 @@
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/Ticker/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/Wire
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/esp8266/src
--I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include/c++/4.8.2
--I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include/c++/4.8.2/xtensa-lx106-elf
--I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/lib/gcc/xtensa-lx106-elf/4.8.2/include
--I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/lib/gcc/xtensa-lx106-elf/4.8.2/include-fixed
+-I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/lwIP_PPP/src
+-I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/lwIP_enc28j60/src
+-I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/lwIP_w5100/src
+-I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/lwIP_w5500/src
+-I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include/c++/10.3.0
+-I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include/c++/10.3.0/xtensa-lx106-elf
+-I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/lib/gcc/xtensa-lx106-elf/10.3.0/include
+-I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/lib/gcc/xtensa-lx106-elf/10.3.0/include-fixed
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include
--I/home/klausahrenberg/.platformio/packages/tool-unity
--DPLATFORMIO=50101
+-DPLATFORMIO=50204
 -DESP8266
 -DARDUINO_ARCH_ESP8266
 -DARDUINO_ESP8266_ESP01
@@ -63,3 +67,5 @@
 -DLWIP_FEATURES=1
 -DLWIP_IPV6=0
 -DVTABLES_IN_FLASH
+-DMMU_IRAM_SIZE=0x8000
+-DMMU_ICACHE_SIZE=0x8000

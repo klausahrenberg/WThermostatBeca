@@ -105,6 +105,7 @@ public:
 			this->addProperty(this->nightMode);
 			this->nightSwitches = network->getSettings()->setByteArray("nightSwitches", DEFAULT_NIGHT_SWITCHES);
 		}
+		this->wifiClient = nullptr;
 	}
 
 	void loop(unsigned long now) {
@@ -139,7 +140,10 @@ public:
 				String request = timeZoneServer->c_str();
 				network->debug(F("Time zone update via '%s'"), request.c_str());
 				HTTPClient http;
-				http.begin(request);
+				if (this->wifiClient == nullptr) {
+					this->wifiClient = new WiFiClient();
+				}
+				http.begin(*wifiClient, request);
 				int httpCode = http.GET();
 				if (httpCode > 0) {
 					WJsonParser parser;
@@ -481,6 +485,7 @@ private:
 	WProperty* dstRule;
 	WProperty* enableNightMode;
 	WProperty* nightSwitches;
+	WiFiClient* wifiClient;
 
 	void notifyOnTimeUpdate() {
 		if (onTimeUpdate) {
