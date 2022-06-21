@@ -4,6 +4,6 @@ This is a fork off https://github.com/klausahrenberg/WThermostatBeca/ to support
 
 # Getting Started
 
-Resolder MCU board, connect to its access point thermostat_f00bad, set Wifi and MQTT
+Resolder MCU board, connect to its access point thermostat_f00bad with password 12345678, set Wifi and MQTT
 
 For more info on the device and the fork see https://github.com/aoe1/WThermostatBeca/blob/master/MH-1823.md
