@@ -1,8 +1,11 @@
 /build/
 /.project
 /.pio
+.vscode
 /.settings
 /include
 /test
 /.gcc-flags.json
 /.travis.yml
+.clang_complete
+.gcc-flags.json

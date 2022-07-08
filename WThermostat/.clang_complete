@@ -1,17 +1,17 @@
--I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/include
--I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/src
+-I/home/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/include
+-I/home/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266HTTPClient/src
--I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/Time
--I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/NTPClient
+-I/home/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/Time
+-I/home/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/NTPClient
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/EEPROM
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/DNSServer/src
--I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/PubSubClient/src
+-I/home/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/PubSubClient/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266mDNS/src
--I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESP Async WebServer/src
+-I/home/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESP Async WebServer/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/Hash/src
--I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESPAsyncTCP/src
+-I/home/klausahrenberg/Projects/Atom/WThermostatBeca/WThermostat/.pio/libdeps/esp01_1m/ESPAsyncTCP/src
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266WiFi/src
--I/mnt/Daten/Users/klausahrenberg/Projects/Atom/WAdapter/WAdapter
+-I/home/klausahrenberg/Projects/Atom/WAdapter/WAdapter
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/tools/sdk/include
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/cores/esp8266
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/include
@@ -48,8 +48,8 @@
 -I/home/klausahrenberg/.platformio/packages/framework-arduinoespressif8266/libraries/lwIP_w5500/src
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include/c++/10.3.0
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include/c++/10.3.0/xtensa-lx106-elf
--I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/lib/gcc/xtensa-lx106-elf/10.3.0/include
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/lib/gcc/xtensa-lx106-elf/10.3.0/include-fixed
+-I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/lib/gcc/xtensa-lx106-elf/10.3.0/include
 -I/home/klausahrenberg/.platformio/packages/toolchain-xtensa/xtensa-lx106-elf/include
 -DPLATFORMIO=50204
 -DESP8266
