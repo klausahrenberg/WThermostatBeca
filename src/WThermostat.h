@@ -43,7 +43,7 @@ public :
 		this->targetTemperatureManualMode = 0.0;
     this->currentSchedulePeriod = -1;
     //HtmlPages
-    WPage* configPage = new WPage(this->getId(), "Configure thermostat");
+    WPage* configPage = new WPage(this->id(), "Configure thermostat");
     configPage->setPrintPage(std::bind(&WThermostat::printConfigPage, this, std::placeholders::_1, std::placeholders::_2));
     configPage->setSubmittedPage(std::bind(&WThermostat::submitConfigPage, this, std::placeholders::_1, std::placeholders::_2));
     network->addCustomPage(configPage);
@@ -79,27 +79,27 @@ public :
 
   virtual void initializeProperties() {
     //schedulesDayOffset
-    this->schedulesDayOffset = network->getSettings()->setByte("schedulesDayOffset", 0);
+    this->schedulesDayOffset = network()->settings()->setByte("schedulesDayOffset", 0);
     //standard properties
-    this->actualTemperature = WProperty::createTemperatureProperty("temperature", "Actual");
+    this->actualTemperature = WProps::createTemperatureProperty("temperature", "Actual");
     this->actualTemperature->setReadOnly(true);
     this->addProperty(actualTemperature);
-    this->targetTemperature = WProperty::createTargetTemperatureProperty("targetTemperature", "Target");
+    this->targetTemperature = WProps::createTargetTemperatureProperty("targetTemperature", "Target");
     this->targetTemperature->setMultipleOf(1.0f / this->temperatureFactor);
     this->targetTemperature->setOnChange(std::bind(&WThermostat::setTargetTemperature, this, std::placeholders::_1));
     this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
     this->addProperty(targetTemperature);
     if (byteTemperatureFloor != NOT_SUPPORTED) {
-			this->actualFloorTemperature = WProperty::createTargetTemperatureProperty("floorTemperature", "Floor");
+			this->actualFloorTemperature = WProps::createTargetTemperatureProperty("floorTemperature", "Floor");
     	this->actualFloorTemperature->setReadOnly(true);
     	this->actualFloorTemperature->setVisibility(MQTT);
     	this->addProperty(actualFloorTemperature);
 		} else {
       this->actualFloorTemperature = nullptr;
     }
-    this->deviceOn = WProperty::createOnOffProperty("deviceOn", "Power");
+    this->deviceOn = WProps::createOnOffProperty("deviceOn", "Power");
     //2021-01-24 test bht-002 bug
-    network->getSettings()->add(this->deviceOn);
+    network()->settings()->add(this->deviceOn);
     this->deviceOn->setOnChange(std::bind(&WThermostat::deviceOnToMcu, this, std::placeholders::_1));
     this->addProperty(deviceOn);
     this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
@@ -107,15 +107,15 @@ public :
     this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
     this->schedulesMode->setOnChange(std::bind(&WThermostat::schedulesModeToMcu, this, std::placeholders::_1));
     this->addProperty(schedulesMode);
-    this->switchBackToAuto = network->getSettings()->setBoolean("switchBackToAuto", true);
-    this->locked = WProperty::createOnOffProperty("locked", "Lock");
+    this->switchBackToAuto = network()->settings()->setBoolean("switchBackToAuto", true);
+    this->locked = WProps::createOnOffProperty("locked", "Lock");
     this->locked->setOnChange(std::bind(&WThermostat::lockedToMcu, this, std::placeholders::_1));
     this->locked->setVisibility(MQTT);
     this->addProperty(locked);
-    this->completeDeviceState = network->getSettings()->setBoolean("sendCompleteDeviceState", true);
+    this->completeDeviceState = network()->settings()->setBoolean("sendCompleteDeviceState", true);
     //Heating Relay and State property
     this->state = nullptr;
-    this->supportingHeatingRelay = network->getSettings()->setBoolean("supportingHeatingRelay", true);
+    this->supportingHeatingRelay = network()->settings()->setBoolean("supportingHeatingRelay", true);
     if (this->supportingHeatingRelay->getBoolean()) {
       pinMode(PIN_STATE_HEATING_RELAY, INPUT);
     	this->state = new WProperty("state", "State", STRING, TYPE_HEATING_COOLING_PROPERTY);
@@ -127,7 +127,7 @@ public :
   }
 
   virtual void printConfigPage(AsyncWebServerRequest* request, Print* page) {
-    page->printf(HTTP_CONFIG_PAGE_BEGIN, getId());
+    page->printf(HTTP_CONFIG_PAGE_BEGIN, id());
     //ComboBox with model selection
     page->printf(HTTP_COMBOBOX_BEGIN, "Thermostat model:", "tm");
     page->printf(HTTP_COMBOBOX_ITEM, "0", (this->thermostatModel->getByte() == 0 ? HTTP_SELECTED : ""), "BHT-002, BHT-6000, BHT-3000 (floor heating)");
@@ -190,14 +190,14 @@ public :
           handleSchedulesChange(completeTopic);
         } else if (length > 0) {
           //Set schedules
-          network->debug(F("Payload for schedules -> set schedules..."));
+          network()->debug(F("Payload for schedules -> set schedules..."));
           WJsonParser* parser = new WJsonParser();
           schedulesChanged = false;
           parser->parse(payload, std::bind(&WThermostat::processSchedulesKeyValue, this,
                 std::placeholders::_1, std::placeholders::_2));
           delete parser;
           if (schedulesChanged) {
-            network->debug(F("Some schedules changed. Write to MCU..."));
+            network()->debug(F("Some schedules changed. Write to MCU..."));
             this->schedulesToMcu();
           }
         }
@@ -254,7 +254,7 @@ public :
   }
 
   void sendSchedules(AsyncWebServerRequest* request) {
-    WStringStream* response = network->getResponseStream();
+    WStringStream* response = network()->getResponseStream();
     WJson json(response);
     json.beginObject();
     this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
@@ -312,7 +312,7 @@ public :
     updateCurrentSchedulePeriod();
     if (receivedSchedules()) {
       //Notify schedules
-      if ((network->isMqttConnected()) && (lastScheduleNotify == 0) && (now - lastScheduleNotify > MINIMUM_INTERVAL)) {
+      if ((network()->isMqttConnected()) && (lastScheduleNotify == 0) && (now - lastScheduleNotify > MINIMUM_INTERVAL)) {
         handleSchedulesChange("");
         schedulesChanged = false;
         lastScheduleNotify = now;
@@ -409,7 +409,7 @@ protected :
         //send answer: 55 aa 00 03 00 01 00
         unsigned char configCommand[] = { 0x55, 0xAA, 0x00, 0x03, 0x00,	0x01, 0x00 };
         commandCharsToSerial(7, configCommand);
-        network->startWebServer();
+        network()->startWebServer();
         knownCommand = true;
         break;
       }
@@ -584,7 +584,7 @@ protected :
 
   void targetTemperatureManualModeToMcu() {
     if ((!isReceivingDataFromMcu()) && (schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
-      network->debug(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
+      network()->debug(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
       //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
       byte ulValues[4];
       WSettings::getUnsignedLongBytes((targetTemperatureManualMode * this->temperatureFactor), ulValues);
@@ -647,18 +647,18 @@ protected :
   }
 
   void handleSchedulesChange(String completeTopic) {
-    network->debug(F("Send Schedules state..."));
+    network()->debug(F("Send Schedules state..."));
     if (completeTopic == "") {
-      completeTopic = String(network->getMqttBaseTopic()) + SLASH + String(this->getId()) + SLASH + String(network->getMqttStateTopic()) + SLASH + SCHEDULES;
+      completeTopic = String(network()->getMqttBaseTopic()) + SLASH + String(this->id()) + SLASH + String(network()->getMqttStateTopic()) + SLASH + SCHEDULES;
     }
-    WStringStream* response = network->getResponseStream();
+    WStringStream* response = network()->getResponseStream();
     WJson json(response);
     json.beginObject();
     this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
     this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
     this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
     json.endObject();
-    network->publishMqtt(completeTopic.c_str(), response);
+    network()->publishMqtt(completeTopic.c_str(), response);
   }
 
   void printConfigSchedulesPage(AsyncWebServerRequest* request, Print* page) {
@@ -723,7 +723,7 @@ protected :
       }
     }
     if (schedulesChanged) {
-      network->debug(F("Some schedules changed. Write to MCU..."));
+      network()->debug(F("Some schedules changed. Write to MCU..."));
       this->schedulesToMcu();
       page->print(F("Changed schedules have been saved."));
     } else {
@@ -749,7 +749,7 @@ protected :
   }
 
   bool receivedSchedules() {
-    return ((network->isDebugging()) || (this->schedulesReceived));
+    return ((network()->isDebugging()) || (this->schedulesReceived));
   }
 
   void notifyState() {

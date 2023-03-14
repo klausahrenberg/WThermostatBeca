@@ -36,59 +36,59 @@ public:
 
 	WClock(WNetwork* network, bool supportNightMode)
 		: WDevice(network, "clock", "clock", DEVICE_TYPE_TEXT_DISPLAY) {
-		setMainDevice(false);
-		setVisibility(MQTT);
-		this->ntpServer = network->settings()->setString("ntpServer", DEFAULT_NTP_SERVER);
+		this->mainDevice = false;
+		this->visibility = MQTT;
+		this->ntpServer = network->getSettings()->setString("ntpServer", DEFAULT_NTP_SERVER);
 		this->ntpServer->setReadOnly(true);
 		this->ntpServer->setVisibility(MQTT);
 		this->addProperty(ntpServer);
-		this->useTimeZoneServer = network->settings()->setBoolean("useTimeZoneServer", true);
+		this->useTimeZoneServer = network->getSettings()->setBoolean("useTimeZoneServer", true);
 		this->useTimeZoneServer->setReadOnly(true);
 		this->useTimeZoneServer->setVisibility(NONE);
 		this->addProperty(useTimeZoneServer);
-		this->timeZoneServer = network->settings()->setString("timeZoneServer", DEFAULT_TIME_ZONE_SERVER);
+		this->timeZoneServer = network->getSettings()->setString("timeZoneServer", DEFAULT_TIME_ZONE_SERVER);
 		this->timeZoneServer->setReadOnly(true);
 		this->timeZoneServer->setVisibility(this->useTimeZoneServer->getBoolean() ? MQTT : NONE);
 		//this->ntpServer->setVisibility(MQTT);
 		this->addProperty(timeZoneServer);
-		this->epochTime = WProps::createUnsignedLongProperty("epochTime", "epochTime");
+		this->epochTime = WProperty::createUnsignedLongProperty("epochTime", "epochTime");
 		this->epochTime->setReadOnly(true);
 		this->epochTime->setOnValueRequest([this](WProperty* p) {
 			p->setUnsignedLong(getEpochTime());
 		});
 		this->addProperty(epochTime);
-		this->epochTimeFormatted = WProps::createStringProperty("epochTimeFormatted", "epochTimeFormatted");
+		this->epochTimeFormatted = WProperty::createStringProperty("epochTimeFormatted", "epochTimeFormatted");
 		this->epochTimeFormatted->setReadOnly(true);
 		this->epochTimeFormatted->setOnValueRequest([this](WProperty* p) {updateFormattedTime();});
 		this->addProperty(epochTimeFormatted);
-		this->validTime = WProps::createOnOffProperty("validTime", "validTime");
+		this->validTime = WProperty::createOnOffProperty("validTime", "validTime");
 		this->validTime->setBoolean(false);
 		this->validTime->setReadOnly(true);
 		this->addProperty(validTime);
 		if (this->useTimeZoneServer->getBoolean()) {
-			this->timeZone = WProps::createStringProperty("timezone", "timeZone");
+			this->timeZone = WProperty::createStringProperty("timezone", "timeZone");
 			this->timeZone->setReadOnly(true);
 			this->addProperty(timeZone);
 		} else {
 			this->timeZone = nullptr;
 		}
-		this->rawOffset = WProps::createIntegerProperty("raw_offset", "rawOffset");
+		this->rawOffset = WProperty::createIntegerProperty("raw_offset", "rawOffset");
 		this->rawOffset->setInteger(0);
 		this->rawOffset->setVisibility(NONE);
-		network->settings()->add(this->rawOffset);
+		this->network->getSettings()->add(this->rawOffset);
 		this->rawOffset->setReadOnly(true);
 		this->addProperty(rawOffset);
-		this->dstOffset = WProps::createIntegerProperty("dst_offset", "dstOffset");
+		this->dstOffset = WProperty::createIntegerProperty("dst_offset", "dstOffset");
 		this->dstOffset->setInteger(0);
 		this->dstOffset->setVisibility(NONE);
-		network->settings()->add(this->dstOffset);
+		this->network->getSettings()->add(this->dstOffset);
 		this->dstOffset->setReadOnly(true);
 		this->addProperty(dstOffset);
-		this->useDaySavingTimes = network->settings()->setBoolean("useDaySavingTimes", false);
+		this->useDaySavingTimes = network->getSettings()->setBoolean("useDaySavingTimes", false);
 		this->useDaySavingTimes->setVisibility(NONE);
-		this->dstRule = network->settings()->setByteArray("dstRule", DEFAULT_DST_RULE);
+		this->dstRule = network->getSettings()->setByteArray("dstRule", DEFAULT_DST_RULE);
 		//HtmlPages
-    WPage* configPage = new WPage(this->id(), "Configure clock");
+    WPage* configPage = new WPage(this->getId(), "Configure clock");
     configPage->setPrintPage(std::bind(&WClock::printConfigPage, this, std::placeholders::_1, std::placeholders::_2));
     configPage->setSubmittedPage(std::bind(&WClock::saveConfigPage, this, std::placeholders::_1, std::placeholders::_2));
     network->addCustomPage(configPage);
@@ -100,10 +100,10 @@ public:
 		this->nightMode = nullptr;
 		this->nightSwitches = nullptr;
 		if (supportNightMode) {
-			this->enableNightMode = network->settings()->setBoolean("enableNightMode", true);
-			this->nightMode = WProps::createBooleanProperty("nightMode", "nightMode");
+			this->enableNightMode = network->getSettings()->setBoolean("enableNightMode", true);
+			this->nightMode = WProperty::createBooleanProperty("nightMode", "nightMode");
 			this->addProperty(this->nightMode);
-			this->nightSwitches = network->settings()->setByteArray("nightSwitches", DEFAULT_NIGHT_SWITCHES);
+			this->nightSwitches = network->getSettings()->setByteArray("nightSwitches", DEFAULT_NIGHT_SWITCHES);
 		}
 		this->wifiClient = nullptr;
 	}
@@ -118,7 +118,7 @@ public:
 			//1. Sync ntp
 			if ((!isValidTime())
 			    && ((lastNtpSync == 0) || (now - lastNtpSync > 60000))) {
-				network()->debug(F("Time via NTP server '%s'"), ntpServer->c_str());
+				network->debug(F("Time via NTP server '%s'"), ntpServer->c_str());
 				WiFiUDP ntpUDP;
 				NTPClient ntpClient(ntpUDP, ntpServer->c_str());
 				if (ntpClient.update()) {
@@ -126,10 +126,10 @@ public:
 					ntpTime = ntpClient.getEpochTime();
 					this->calculateDstStartAndEnd();
 					validTime->setBoolean(!this->useTimeZoneServer->getBoolean());
-					network()->debug(F("NTP time synced: %s"), epochTimeFormatted->c_str());
+					network->debug(F("NTP time synced: %s"), epochTimeFormatted->c_str());
 					timeUpdated = true;
 				} else {
-					network()->error(F("NTP sync failed. "));
+					network->error(F("NTP sync failed. "));
 				}
 			}
 			//2. Sync time zone
@@ -138,7 +138,7 @@ public:
 					&& (useTimeZoneServer->getBoolean())
 				  && (!timeZoneServer->equalsString(""))) {
 				String request = timeZoneServer->c_str();
-				network()->debug(F("Time zone update via '%s'"), request.c_str());
+				network->debug(F("Time zone update via '%s'"), request.c_str());
 				HTTPClient http;
 				if (this->wifiClient == nullptr) {
 					this->wifiClient = new WiFiClient();
@@ -158,15 +158,15 @@ public:
 						failedTimeZoneSync = 0;
 						lastTimeZoneSync = millis();
 						validTime->setBoolean(true);
-						network()->debug(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
+						network->debug(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
 						timeUpdated = true;
 					} else {
 						failedTimeZoneSync++;
-						network()->error(F("Time zone update failed. (%d. attempt): Wrong html response."), failedTimeZoneSync);
+						network->error(F("Time zone update failed. (%d. attempt): Wrong html response."), failedTimeZoneSync);
 					}
 				} else {
 					failedTimeZoneSync++;
-					network()->error(F("Time zone update failed (%d. attempt): http code %d"), failedTimeZoneSync, httpCode);
+					network->error(F("Time zone update failed (%d. attempt): http code %d"), failedTimeZoneSync, httpCode);
 				}
 				http.end();
 				if (failedTimeZoneSync == 3) {
@@ -339,7 +339,7 @@ public:
 	}
 
 	void printConfigPage(AsyncWebServerRequest* request, Print* page) {
-    	page->printf(HTTP_CONFIG_PAGE_BEGIN, id());
+    	page->printf(HTTP_CONFIG_PAGE_BEGIN, getId());
 			page->printf(HTTP_TOGGLE_GROUP_STYLE, "ga", (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gb", (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
 			page->printf(HTTP_TOGGLE_GROUP_STYLE, "gd", (useDaySavingTimes->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "ge", HTTP_NONE);
 			if (this->enableNightMode) {
@@ -525,11 +525,11 @@ private:
 			int year = getYear(getEpochTime(false));
 			dstStart = getEpochTime(year, dstRule->getByteArrayValue(DST_MONTH), dstRule->getByteArrayValue(DST_WEEK), dstRule->getByteArrayValue(DST_WEEKDAY), dstRule->getByteArrayValue(DST_HOUR));
 			WStringStream* stream = updateFormattedTime(dstStart);
-			network()->debug(F("DST start is: %s"), stream->c_str());
+			network->debug(F("DST start is: %s"), stream->c_str());
 			delete stream;
 			dstEnd = getEpochTime(year, dstRule->getByteArrayValue(STD_MONTH), dstRule->getByteArrayValue(STD_WEEK), dstRule->getByteArrayValue(STD_WEEKDAY), dstRule->getByteArrayValue(STD_HOUR));
 			stream = updateFormattedTime(dstEnd);
-			network()->debug(F("STD start is: %s"), stream->c_str());
+			network->debug(F("STD start is: %s"), stream->c_str());
 			delete stream;
 		}
 	}

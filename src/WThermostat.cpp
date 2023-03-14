@@ -13,8 +13,8 @@
 #include "WThermostat_DLX_LH01.h"
 
 #define APPLICATION "Thermostat"
-#define VERSION "1.25beta"
-#define FLAG_SETTINGS 0x22
+#define VERSION "1.34"
+#define FLAG_SETTINGS 0x34
 #define DEBUG false
 
 WNetwork* network;
@@ -34,7 +34,7 @@ void setup() {
 	wClock = new WClock(network, false);
 	network->addDevice(wClock);
 	//Model
-	thermostatModel = network->getSettings()->setByte("thermostatModel", MODEL_BHT_002_GBLW);
+	thermostatModel = network->settings()->setByte("thermostatModel", MODEL_BHT_002_GBLW);
 	//Thermostat device
 	device = nullptr;
 	switch (thermostatModel->getByte()) {
