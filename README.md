@@ -1,7 +1,6 @@
 # ThermostatBecaWifi
 
 [![GitHub version](https://img.shields.io/github/release/klausahrenberg/WThermostatBeca.svg)](https://github.com/klausahrenberg/WThermostatBeca/releases/latest)
-[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/klausahrenberg/WThermostatBeca?include_prereleases&label=beta)](https://github.com/klausahrenberg/WThermostatBeca/releases)
 
 Replaces original Tuya firmware on Beca thermostat with ESP8266 wifi module. The firmware is tested with following devices:
 * BHT-002, BHT-6000, BHT-3000 (floor heating)
