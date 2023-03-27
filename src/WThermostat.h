@@ -86,7 +86,7 @@ public :
     this->addProperty(actualTemperature);
     this->targetTemperature = WProps::createTargetTemperatureProperty("targetTemperature", "Target");
     this->targetTemperature->setMultipleOf(1.0f / this->temperatureFactor);
-    this->targetTemperature->setOnChange(std::bind(&WThermostat::setTargetTemperature, this, std::placeholders::_1));
+    this->targetTemperature->addListener(std::bind(&WThermostat::setTargetTemperature, this, std::placeholders::_1));
     this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
     this->addProperty(targetTemperature);
     if (byteTemperatureFloor != NOT_SUPPORTED) {
@@ -100,16 +100,16 @@ public :
     this->deviceOn = WProps::createOnOffProperty("deviceOn", "Power");
     //2021-01-24 test bht-002 bug
     network()->settings()->add(this->deviceOn);
-    this->deviceOn->setOnChange(std::bind(&WThermostat::deviceOnToMcu, this, std::placeholders::_1));
+    this->deviceOn->addListener(std::bind(&WThermostat::deviceOnToMcu, this, std::placeholders::_1));
     this->addProperty(deviceOn);
     this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
     this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
     this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
-    this->schedulesMode->setOnChange(std::bind(&WThermostat::schedulesModeToMcu, this, std::placeholders::_1));
+    this->schedulesMode->addListener(std::bind(&WThermostat::schedulesModeToMcu, this, std::placeholders::_1));
     this->addProperty(schedulesMode);
     this->switchBackToAuto = network()->settings()->setBoolean("switchBackToAuto", true);
     this->locked = WProps::createOnOffProperty("locked", "Lock");
-    this->locked->setOnChange(std::bind(&WThermostat::lockedToMcu, this, std::placeholders::_1));
+    this->locked->addListener(std::bind(&WThermostat::lockedToMcu, this, std::placeholders::_1));
     this->locked->setVisibility(MQTT);
     this->addProperty(locked);
     this->completeDeviceState = network()->settings()->setBoolean("sendCompleteDeviceState", true);
@@ -361,14 +361,14 @@ protected :
     //HEX: 55 AA 00 1C 00 08 01 13 02 0F 10 04 12 05
     //DEC:                   01 19 02 20 17 51 44 03
     //HEX: 55 AA 00 1C 00 08 01 13 02 14 11 33 2C 03
-    unsigned long epochTime = wClock->getEpochTime();
+    unsigned long epochTime = wClock->epochTime();
     epochTime = epochTime + (getSchedulesDayOffset() * 86400);
-    byte year = wClock->getYear(epochTime) % 100;
-    byte month = wClock->getMonth(epochTime);
-    byte dayOfMonth = wClock->getDay(epochTime);
-    byte hours = wClock->getHours(epochTime) ;
-    byte minutes = wClock->getMinutes(epochTime);
-    byte seconds = wClock->getSeconds(epochTime);
+    byte year = wClock->yearOf(epochTime) % 100;
+    byte month = wClock->monthOf(epochTime);
+    byte dayOfMonth = wClock->dayOf(epochTime);
+    byte hours = wClock->hoursOf(epochTime) ;
+    byte minutes = wClock->minutesOf(epochTime);
+    byte seconds = wClock->secondsOf(epochTime);
     byte dayOfWeek = getDayOfWeek();
     unsigned char cancelConfigCommand[] = { 0x55, 0xaa, 0x00, 0x1c, 0x00, 0x08,
                                             0x01, year, month, dayOfMonth,
@@ -377,9 +377,9 @@ protected :
   }
 
   byte getDayOfWeek() {
-    unsigned long epochTime = wClock->getEpochTime();
+    unsigned long epochTime = wClock->epochTime();
     epochTime = epochTime + (getSchedulesDayOffset() * 86400);
-    byte dayOfWeek = wClock->getWeekDay(epochTime);
+    byte dayOfWeek = wClock->weekDayOf(epochTime);
     //make sunday a seven
     dayOfWeek = (dayOfWeek ==0 ? 7 : dayOfWeek);
     return dayOfWeek;
@@ -530,7 +530,7 @@ protected :
     if ((receivedSchedules()) && (wClock->isValidTime())) {
       byte hh_Offset = byteSchedulingPosHour;
       byte mm_Offset = byteSchedulingPosMinute;
-      byte weekDay = wClock->getWeekDay();
+      byte weekDay = wClock->weekDay();
       weekDay += getSchedulesDayOffset();
       weekDay = weekDay % 7;
       int startAddr = (this->byteSchedulingDays == 18 ? (weekDay == 0 ? 36 : (weekDay == 6 ? 18 : 0)) : ((weekDay == 0) || (weekDay == 6) ? 18 : 0));

@@ -39,7 +39,7 @@ public :
     this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
     this->systemMode->addEnumString(SYSTEM_MODE_COOL);
     this->systemMode->addEnumString(SYSTEM_MODE_FAN);
-    this->systemMode->setOnChange(std::bind(&WThermostat_ME81H::systemModeToMcu, this, std::placeholders::_1));
+    this->systemMode->addListener(std::bind(&WThermostat_ME81H::systemModeToMcu, this, std::placeholders::_1));
     this->addProperty(systemMode);
     //sensorSelection
     this->sensorSelection = new WProperty("sensorSelection", "Sensor Selection", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
@@ -47,7 +47,7 @@ public :
     this->sensorSelection->addEnumString(SENSOR_SELECTION_FLOOR);
     this->sensorSelection->addEnumString(SENSOR_SELECTION_BOTH);
     this->sensorSelection->setVisibility(MQTT);
-    this->sensorSelection->setOnChange(std::bind(&WThermostat_ME81H::sensorSelectionToMcu, this, std::placeholders::_1));
+    this->sensorSelection->addListener(std::bind(&WThermostat_ME81H::sensorSelectionToMcu, this, std::placeholders::_1));
     this->addProperty(this->sensorSelection);
   }
 

@@ -12,8 +12,7 @@
 #endif
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-#include <Time.h>
-#include <TimeLib.h>
+#include "TimeLib.h"
 #include "WDevice.h"
 #include "WNetwork.h"
 
@@ -50,17 +49,11 @@ public:
 		this->timeZoneServer->setReadOnly(true);
 		this->timeZoneServer->setVisibility(this->useTimeZoneServer->getBoolean() ? MQTT : NONE);
 		//this->ntpServer->setVisibility(MQTT);
-		this->addProperty(timeZoneServer);
-		this->epochTime = WProps::createUnsignedLongProperty("epochTime", "epochTime");
-		this->epochTime->setReadOnly(true);
-		this->epochTime->setOnValueRequest([this](WProperty* p) {
-			p->setUnsignedLong(getEpochTime());
-		});
-		this->addProperty(epochTime);
-		this->epochTimeFormatted = WProps::createStringProperty("epochTimeFormatted", "epochTimeFormatted");
-		this->epochTimeFormatted->setReadOnly(true);
-		this->epochTimeFormatted->setOnValueRequest([this](WProperty* p) {updateFormattedTime();});
-		this->addProperty(epochTimeFormatted);
+		this->addProperty(timeZoneServer);		
+		_epochTimeFormatted = WProps::createStringProperty("epochTimeFormatted", "epochTimeFormatted");
+		_epochTimeFormatted->setReadOnly(true);
+		_epochTimeFormatted->setOnValueRequest([this](WProperty* p) {updateFormattedTime();});
+		this->addProperty(_epochTimeFormatted);
 		this->validTime = WProps::createOnOffProperty("validTime", "validTime");
 		this->validTime->setBoolean(false);
 		this->validTime->setReadOnly(true);
@@ -73,20 +66,20 @@ public:
 			this->timeZone = nullptr;
 		}
 		this->rawOffset = WProps::createIntegerProperty("raw_offset", "rawOffset");
-		this->rawOffset->setInteger(0);
+		this->rawOffset->setInteger(3600);
 		this->rawOffset->setVisibility(NONE);
 		network->settings()->add(this->rawOffset);
 		this->rawOffset->setReadOnly(true);
 		this->addProperty(rawOffset);
 		this->dstOffset = WProps::createIntegerProperty("dst_offset", "dstOffset");
-		this->dstOffset->setInteger(0);
+		this->dstOffset->setInteger(3600);
 		this->dstOffset->setVisibility(NONE);
 		network->settings()->add(this->dstOffset);
 		this->dstOffset->setReadOnly(true);
 		this->addProperty(dstOffset);
 		this->useDaySavingTimes = network->settings()->setBoolean("useDaySavingTimes", false);
 		this->useDaySavingTimes->setVisibility(NONE);
-		this->dstRule = network->settings()->setByteArray("dstRule", DEFAULT_DST_RULE);
+		this->dstRule = network->settings()->setByteArray("dstRule", 8, DEFAULT_DST_RULE);
 		//HtmlPages
     WPage* configPage = new WPage(this->id(), "Configure clock");
     configPage->setPrintPage(std::bind(&WClock::printConfigPage, this, std::placeholders::_1, std::placeholders::_2));
@@ -103,18 +96,16 @@ public:
 			this->enableNightMode = network->settings()->setBoolean("enableNightMode", true);
 			this->nightMode = WProps::createBooleanProperty("nightMode", "nightMode");
 			this->addProperty(this->nightMode);
-			this->nightSwitches = network->settings()->setByteArray("nightSwitches", DEFAULT_NIGHT_SWITCHES);
+			this->nightSwitches = network->settings()->setByteArray("nightSwitches", 4, DEFAULT_NIGHT_SWITCHES);
 		}
 		this->wifiClient = nullptr;
 	}
 
 	void loop(unsigned long now) {
 		//Invalid after 3 hours
-		validTime->setBoolean((lastNtpSync > 0) && ((!this->useTimeZoneServer->getBoolean()) || (lastTimeZoneSync > 0)) && (now - lastTry < (3 * 60 * 60000)));
-
-		if (((lastTry == 0) || (now - lastTry > 10000))
-		    && (WiFi.status() == WL_CONNECTED)) {
-			bool timeUpdated = false;
+		validTime->setBoolean((lastNtpSync > 0) && ((!this->useTimeZoneServer->getBoolean()) || (lastTimeZoneSync > 0)) && (now - lastTry < (3 * 60 * 60000)));		
+		if (((lastTry == 0) || (now - lastTry > 10000)) && (WiFi.status() == WL_CONNECTED)) {		
+			bool timeUpdated = false;			
 			//1. Sync ntp
 			if ((!isValidTime())
 			    && ((lastNtpSync == 0) || (now - lastNtpSync > 60000))) {
@@ -126,7 +117,7 @@ public:
 					ntpTime = ntpClient.getEpochTime();
 					this->calculateDstStartAndEnd();
 					validTime->setBoolean(!this->useTimeZoneServer->getBoolean());
-					network()->debug(F("NTP time synced: %s"), epochTimeFormatted->c_str());
+					network()->debug(F("NTP time synced: %s"), _epochTimeFormatted->c_str());
 					timeUpdated = true;
 				} else {
 					network()->error(F("NTP sync failed. "));
@@ -158,7 +149,7 @@ public:
 						failedTimeZoneSync = 0;
 						lastTimeZoneSync = millis();
 						validTime->setBoolean(true);
-						network()->debug(F("Time zone evaluated. Current local time: %s"), epochTimeFormatted->c_str());
+						network()->debug(F("Time zone evaluated. Current local time: %s"), _epochTimeFormatted->c_str());
 						timeUpdated = true;
 					} else {
 						failedTimeZoneSync++;
@@ -180,75 +171,98 @@ public:
 																												this->nightSwitches->getByteArrayValue(2), this->nightSwitches->getByteArrayValue(3)));
 			}
 			if (timeUpdated) {
-				notifyOnTimeUpdate();
+				_notifyOnTimeUpdate();
+			} else {
+				_notifyOnMinuteUpdate();
 			}
 			lastTry = millis();
-		}
+		}		
 	}
 
 	void setOnTimeUpdate(THandlerFunction onTimeUpdate) {
-		this->onTimeUpdate = onTimeUpdate;
+		_onTimeUpdate = onTimeUpdate;
 	}
 
-	unsigned long getEpochTime() {
-		return getEpochTime(true);
+	void setOnMinuteTrigger(THandlerFunction onMinuteTrigger) {
+		_onMinuteTrigger = onMinuteTrigger;
 	}
 
-	byte getWeekDay() {
-		return getWeekDay(getEpochTime());
+	unsigned long epochTime() {
+		return _epochTime(true);
 	}
 
-	static byte getWeekDay(unsigned long epochTime) {
+	byte weekDay() {
+		return weekDayOf(epochTime());
+	}
+
+	static byte weekDayOf(unsigned long epochTime) {
 		//weekday from 0 to 6, 0 is Sunday
 		return (((epochTime / 86400L) + 4) % 7);
 	}
 
-	byte getHours() {
-		return getHours(getEpochTime());
+	const char* weekDayNameShort() {
+		return weekDayNameShortOf(weekDay());
 	}
 
-	static byte getHours(unsigned long epochTime) {
+	const char* weekDayNameShortOf(byte weekDay) {
+		switch (weekDay) {
+			case 1: return PSTR("Mo");
+			case 2: return PSTR("Di");
+			case 3: return PSTR("Mi");
+			case 4: return PSTR("Do");
+			case 5: return PSTR("Fr");
+			case 6: return PSTR("Sa");
+			case 0: return PSTR("So");
+			default: return PSTR("n.a.");
+		}
+	}
+
+	byte hours() {
+		return hoursOf(epochTime());
+	}
+
+	static byte hoursOf(unsigned long epochTime) {
 		return ((epochTime % 86400L) / 3600);
 	}
 
-	byte getMinutes() {
-		return getMinutes(getEpochTime());
+	byte minutes() {
+		return minutesOf(epochTime());
 	}
 
-	static byte getMinutes(unsigned long epochTime) {
+	static byte minutesOf(unsigned long epochTime) {
 		return ((epochTime % 3600) / 60);
 	}
 
-	byte getSeconds() {
-		return getSeconds(getEpochTime());
+	byte seconds() {
+		return secondsOf(epochTime());
 	}
 
-	static byte getSeconds(unsigned long epochTime) {
+	static byte secondsOf(unsigned long epochTime) {
 		return (epochTime % 60);
 	}
 
-	int getYear() {
-		return getYear(getEpochTime());
+	int yearOf() {
+		return yearOf(epochTime());
 	}
 
-	static int getYear(unsigned long epochTime) {
+	static int yearOf(unsigned long epochTime) {
 		return year(epochTime);
 	}
 
-	byte getMonth() {
-		return getMonth(getEpochTime());
+	byte monthOf() {
+		return monthOf(epochTime());
 	}
 
-	static byte getMonth(unsigned long epochTime) {
+	static byte monthOf(unsigned long epochTime) {
 		//month from 1 to 12
 		return month(epochTime);
 	}
 
-	byte getDay() {
-		return getDay(getEpochTime());
+	byte dayOf() {
+		return dayOf(epochTime());
 	}
 
-	static byte getDay(unsigned long epochTime) {
+	static byte dayOf(unsigned long epochTime) {
 		//day from 1 to 31
 		return day(epochTime);
 	}
@@ -258,11 +272,11 @@ public:
 	}
 
 	bool isTimeLaterThan(byte hours, byte minutes) {
-		return isTimeLaterThan(getHours(), getMinutes(), hours, minutes);
+		return isTimeLaterThan(this->hours(), this->minutes(), hours, minutes);
 	}
 
 	bool isTimeEarlierThan(byte hours, byte minutes) {
-		return ((getHours() < hours) || ((getHours() == hours) && (getMinutes() < minutes)));
+		return ((this->hours() < hours) || ((this->hours() == hours) && (this->minutes() < minutes)));
 	}
 
 	bool isTimeBetween(byte fromHours, byte fromMinutes, byte toHours, byte toMinutes) {
@@ -276,49 +290,19 @@ public:
 	}
 
 	void updateFormattedTime() {
-		WStringStream* stream = updateFormattedTime(getEpochTime());
-		epochTimeFormatted->setString(stream->c_str());
+		WStringStream* stream = updateFormattedTime(epochTime());
+		_epochTimeFormatted->setString(stream->c_str());
 		delete stream;
 	}
 
 	static WStringStream* updateFormattedTime(unsigned long rawTime) {
+		// Format YY-MM-DD hh:mm:ss
 		WStringStream* stream = new WStringStream(19);
-		char buffer[5];
-		//year
-		int _year = year(rawTime);
-		itoa(_year, buffer, 10);
-		stream->print(buffer);
-		stream->print("-");
-		//month
-		uint8_t _month = month(rawTime);
-		if (_month < 10) stream->print("0");
-		itoa(_month, buffer, 10);
-		stream->print(buffer);
-		stream->print("-");
-		//month
-		uint8_t _day = day(rawTime);
-		if (_day < 10) stream->print("0");
-		itoa(_day, buffer, 10);
-		stream->print(buffer);
-		stream->print(" ");
-		//hours
-		unsigned long _hours = (rawTime % 86400L) / 3600;
-		if (_hours < 10) stream->print("0");
-		itoa(_hours, buffer, 10);
-		stream->print(buffer);
-		stream->print(":");
-		//minutes
-		unsigned long _minutes = (rawTime % 3600) / 60;
-		if (_minutes < 10) stream->print("0");
-		itoa(_minutes, buffer, 10);
-		stream->print(buffer);
-		stream->print(":");
-		//seconds
-		unsigned long _seconds = rawTime % 60;
-		if (_seconds < 10) stream->print("0");
-		itoa(_seconds, buffer, 10);
-		stream->print(buffer);
-
+		char buffer[20];
+		snprintf(buffer, 20, "%02d-%02d-%02d %02d:%02d:%02d", 
+		                     yearOf(rawTime), monthOf(rawTime), dayOf(rawTime),
+												 ((rawTime % 86400L) / 3600), ((rawTime % 3600) / 60), rawTime % 60);												 
+		stream->print(buffer);										
 		return stream;
 	}
 
@@ -461,19 +445,18 @@ public:
 		}
 	}
 
-	WProperty* getEpochTimeFormatted() {
-		return epochTimeFormatted;
+	WProperty* epochTimeFormatted() {
+		return _epochTimeFormatted;
 	}
 
 	WProperty* nightMode;
 
 private:
-	THandlerFunction onTimeUpdate;
+	THandlerFunction _onTimeUpdate, _onMinuteTrigger;
 	unsigned long lastTry, lastNtpSync, lastTimeZoneSync, ntpTime;
 	unsigned long dstStart, dstEnd;
-	byte failedTimeZoneSync;
-	WProperty* epochTime;
-	WProperty* epochTimeFormatted;
+	byte failedTimeZoneSync;	
+	WProperty* _epochTimeFormatted;
 	WProperty* validTime;
 	WProperty* ntpServer;
 	WProperty* useTimeZoneServer;
@@ -487,13 +470,20 @@ private:
 	WProperty* nightSwitches;
 	WiFiClient* wifiClient;
 
-	void notifyOnTimeUpdate() {
-		if (onTimeUpdate) {
-			onTimeUpdate();
-		}
+	void _notifyOnTimeUpdate() {
+		if (_onTimeUpdate) {
+			_onTimeUpdate();
+		}		
+		_notifyOnMinuteUpdate();
 	}
 
-	unsigned long getEpochTime(bool useDstOffset) {
+	void _notifyOnMinuteUpdate() {
+		if (_onMinuteTrigger) {
+			_onMinuteTrigger();
+		}		
+	}
+
+	unsigned long _epochTime(bool useDstOffset) {
 		return (lastNtpSync > 0 ? ntpTime + getRawOffset() + (useDstOffset ? getDstOffset() : 0) + ((millis() - lastNtpSync) / 1000) :	0);
 	}
 
@@ -506,7 +496,7 @@ private:
 		ds.Minute = 0;
 		ds.Second = 0;
 		unsigned long tt = makeTime(ds);
-		byte iwd = getWeekDay(tt);
+		byte iwd = weekDayOf(tt);
 		if (week == 0) {
 			//last week of last month
 			short diffwd = iwd - weekday;
@@ -522,14 +512,14 @@ private:
 
 	void calculateDstStartAndEnd() {
 		if ((!this->useTimeZoneServer->getBoolean()) && (this->useDaySavingTimes->getBoolean())) {
-			int year = getYear(getEpochTime(false));
+			int year = WClock::yearOf(_epochTime(false));
 			dstStart = getEpochTime(year, dstRule->getByteArrayValue(DST_MONTH), dstRule->getByteArrayValue(DST_WEEK), dstRule->getByteArrayValue(DST_WEEKDAY), dstRule->getByteArrayValue(DST_HOUR));
 			WStringStream* stream = updateFormattedTime(dstStart);
-			network()->debug(F("DST start is: %s"), stream->c_str());
+			//network()->debug(F("DST start is: %s"), stream->c_str());
 			delete stream;
 			dstEnd = getEpochTime(year, dstRule->getByteArrayValue(STD_MONTH), dstRule->getByteArrayValue(STD_WEEK), dstRule->getByteArrayValue(STD_WEEKDAY), dstRule->getByteArrayValue(STD_HOUR));
 			stream = updateFormattedTime(dstEnd);
-			network()->debug(F("STD start is: %s"), stream->c_str());
+			//network()->debug(F("STD start is: %s"), stream->c_str());
 			delete stream;
 		}
 	}
@@ -537,8 +527,8 @@ private:
 	bool isDaySavingTime() {
 		if ((!this->useTimeZoneServer->getBoolean()) && (this->useDaySavingTimes->getBoolean())) {
 			if ((this->dstStart != 0) && (this->dstEnd != 0)) {
-				unsigned long now = getEpochTime(false);
-				if (getYear(now) != getYear(dstStart)) {
+				unsigned long now = _epochTime(false);
+				if (yearOf(now) != yearOf(dstStart)) {
 					calculateDstStartAndEnd();
 				}
 				if (dstStart < dstEnd) {

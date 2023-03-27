@@ -44,7 +44,7 @@ public :
     this->systemMode->addEnumString(SYSTEM_MODE_COOL);
     this->systemMode->addEnumString(SYSTEM_MODE_HEAT);
     this->systemMode->addEnumString(SYSTEM_MODE_FAN);
-    this->systemMode->setOnChange(std::bind(&WThermostat_BAC_002_ALW::systemModeToMcu, this, std::placeholders::_1));
+    this->systemMode->addListener(std::bind(&WThermostat_BAC_002_ALW::systemModeToMcu, this, std::placeholders::_1));
     this->addProperty(systemMode);
     //fanMode
     this->fanMode = new WProperty("fanMode", "Fan", STRING, TYPE_FAN_MODE_PROPERTY);
@@ -52,7 +52,7 @@ public :
     this->fanMode->addEnumString(FAN_MODE_HIGH);
     this->fanMode->addEnumString(FAN_MODE_MEDIUM);
     this->fanMode->addEnumString(FAN_MODE_LOW);
-    this->fanMode->setOnChange(std::bind(&WThermostat_BAC_002_ALW::fanModeToMcu, this, std::placeholders::_1));
+    this->fanMode->addListener(std::bind(&WThermostat_BAC_002_ALW::fanModeToMcu, this, std::placeholders::_1));
     this->addProperty(fanMode);
   }
 

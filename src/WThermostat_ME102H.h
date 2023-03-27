@@ -44,7 +44,7 @@ public :
     this->sensorSelection->addEnumString(SENSOR_SELECTION_FLOOR);
     this->sensorSelection->addEnumString(SENSOR_SELECTION_BOTH);
     this->sensorSelection->setVisibility(MQTT);
-    this->sensorSelection->setOnChange(std::bind(&WThermostat_ME102H::sensorSelectionToMcu, this, std::placeholders::_1));
+    this->sensorSelection->addListener(std::bind(&WThermostat_ME102H::sensorSelectionToMcu, this, std::placeholders::_1));
     this->addProperty(this->sensorSelection);
   }
 
