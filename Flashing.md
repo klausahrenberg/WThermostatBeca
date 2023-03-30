@@ -11,7 +11,7 @@ There are 2 options to flash the firmware on device:
 ## 1. Check your device
 Compatible devices looks inside like this. On the right you can see the ESP8266 module (TYWE3S)
 
-![thermostat inside](https://raw.githubusercontent.com/klausahrenberg/ThermostatBecaWifi/master/docs/bac-002-wifi-inside.png)
+![thermostat inside](https://raw.githubusercontent.com/klausahrenberg/WThermostatBeca/master/docs/BAC-002/bac-002-wifi-inside.png)
 
 ## 2. Connection to device for flashing
 There are many ways to get the physical connection to ESP module. I soldered the connections on the device for flashing. Maybe there is a more elegant way to do that. It's quite the same, if you try to flash any other Sonoff devices to Tasmota. So get the inspiration for flashing there: https://github.com/arendst/Sonoff-Tasmota/wiki
