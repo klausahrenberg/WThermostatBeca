@@ -13,7 +13,7 @@
 #include "WThermostat_DLX_LH01.h"
 
 #define APPLICATION "Thermostat"
-#define VERSION "1.36"
+#define VERSION "1.38"
 #define FLAG_SETTINGS 0x35
 #define DEBUG false
 
@@ -37,7 +37,7 @@ void setup() {
 	thermostatModel = network->settings()->setByte("thermostatModel", MODEL_BHT_002_GBLW);
 	//Thermostat device
 	device = nullptr;
-	switch (thermostatModel->getByte()) {
+	switch (thermostatModel->asByte()) {
 		case MODEL_BHT_002_GBLW :
 			device = new WThermostat_BHT_002_GBLW(network, thermostatModel, wClock);
 			break;
@@ -66,7 +66,7 @@ void setup() {
 			device = new WThermostat_DLX_LH01(network, thermostatModel, wClock);
 			break;
 		default :
-		  network->error(F("Can't start device. Wrong thermostatModel (%d)"), thermostatModel->getByte());
+		  network->error(F("Can't start device. Wrong thermostatModel (%d)"), thermostatModel->asByte());
 	}
 	if (device != nullptr) {
 		device->configureCommandBytes();

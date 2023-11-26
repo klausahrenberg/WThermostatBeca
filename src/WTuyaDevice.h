@@ -405,7 +405,7 @@ protected :
       //unknown
       //55 aa 00 00 00 00
       this->receivingDataFromMcu = true;
-      if (notifyAllMcuCommands->getBoolean()) {
+      if (notifyAllMcuCommands->asBool()) {
         network()->debug(F("MCU: %s"), this->getCommandAsString().c_str());
       }
       bool knownCommand = false;

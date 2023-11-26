@@ -46,7 +46,7 @@ public :
     this->sensorSelection->addEnumString(SENSOR_SELECTION_INTERNAL);
     this->sensorSelection->addEnumString(SENSOR_SELECTION_FLOOR);
     this->sensorSelection->addEnumString(SENSOR_SELECTION_BOTH);
-    this->sensorSelection->setVisibility(MQTT);
+    this->sensorSelection->visibility(MQTT);
     this->sensorSelection->addListener(std::bind(&WThermostat_ME81H::sensorSelectionToMcu, this, std::placeholders::_1));
     this->addProperty(this->sensorSelection);
   }
@@ -66,7 +66,7 @@ protected :
 					unsigned long rawValue = WSettings::getUnsignedLong(receivedCommand[10], receivedCommand[11], receivedCommand[12], receivedCommand[13]);
 				  float newValue = (float) rawValue / 10.0f;
     			changed = ((changed) || (!actualTemperature->equalsDouble(newValue)));
-    			actualTemperature->setDouble(newValue);
+    			actualTemperature->asDouble(newValue);
     			knownCommand = true;
         }
       } else if (cByte == this->byteSystemMode) {
@@ -75,9 +75,9 @@ protected :
           //cooling:     55 AA 00 06 00 05 66 04 00 01 00
           //heating:     55 AA 00 06 00 05 66 04 00 01 01
           //ventilation: 55 AA 00 06 00 05 66 04 00 01 02
-          newS = systemMode->getEnumString(receivedCommand[10]);
+          newS = systemMode->enumString(receivedCommand[10]);
           if (newS != nullptr) {
-            changed = ((changed) || (systemMode->setString(newS)));
+            changed = ((changed) || (systemMode->asString(newS)));
             knownCommand = true;
           }
         }
@@ -87,9 +87,9 @@ protected :
           //internal: 55 aa 03 07 00 05 2b 04 00 01 00
           //floor:    55 aa 03 07 00 05 2b 04 00 01 01
           //both:     55 aa 03 07 00 05 2b 04 00 01 02
-          newS = this->sensorSelection->getEnumString(receivedCommand[10]);
+          newS = this->sensorSelection->enumString(receivedCommand[10]);
           if (newS != nullptr) {
-            changed = ((changed) || (this->sensorSelection->setString(newS)));
+            changed = ((changed) || (this->sensorSelection->asString(newS)));
             knownCommand = true;
           }
         }
@@ -155,7 +155,7 @@ protected :
 
   void systemModeToMcu(WProperty* property) {
     if (!isReceivingDataFromMcu()) {
-      byte sm = property->getEnumIndex();
+      byte sm = property->enumIndex();
       if (sm != 0xFF) {
         //send to device
         //cooling:     55 AA 00 06 00 05 66 04 00 01 00
@@ -170,7 +170,7 @@ protected :
 
   void sensorSelectionToMcu(WProperty* property) {
     if (!isReceivingDataFromMcu()) {
-      byte sm = property->getEnumIndex();
+      byte sm = property->enumIndex();
       if (sm != 0xFF) {
         //send to device
         //internal: 55 aa 03 07 00 05 2d 05 00 01 00

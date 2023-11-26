@@ -38,47 +38,47 @@ public:
 		setMainDevice(false);
 		setVisibility(MQTT);
 		this->ntpServer = network->settings()->setString("ntpServer", DEFAULT_NTP_SERVER);
-		this->ntpServer->setReadOnly(true);
-		this->ntpServer->setVisibility(MQTT);
+		this->ntpServer->readOnly(true);
+		this->ntpServer->visibility(MQTT);
 		this->addProperty(ntpServer);
 		this->useTimeZoneServer = network->settings()->setBoolean("useTimeZoneServer", true);
-		this->useTimeZoneServer->setReadOnly(true);
-		this->useTimeZoneServer->setVisibility(NONE);
+		this->useTimeZoneServer->readOnly(true);
+		this->useTimeZoneServer->visibility(NONE);
 		this->addProperty(useTimeZoneServer);
 		this->timeZoneServer = network->settings()->setString("timeZoneServer", DEFAULT_TIME_ZONE_SERVER);
-		this->timeZoneServer->setReadOnly(true);
-		this->timeZoneServer->setVisibility(this->useTimeZoneServer->getBoolean() ? MQTT : NONE);
+		this->timeZoneServer->readOnly(true);
+		this->timeZoneServer->visibility(this->useTimeZoneServer->asBool() ? MQTT : NONE);
 		//this->ntpServer->setVisibility(MQTT);
 		this->addProperty(timeZoneServer);		
 		_epochTimeFormatted = WProps::createStringProperty("epochTimeFormatted", "epochTimeFormatted");
-		_epochTimeFormatted->setReadOnly(true);
-		_epochTimeFormatted->setOnValueRequest([this](WProperty* p) {updateFormattedTime();});
+		_epochTimeFormatted->readOnly(true);
+		_epochTimeFormatted->onValueRequest([this](WProperty* p) {updateFormattedTime();});
 		this->addProperty(_epochTimeFormatted);
 		this->validTime = WProps::createOnOffProperty("validTime", "validTime");
-		this->validTime->setBoolean(false);
-		this->validTime->setReadOnly(true);
+		this->validTime->asBool(false);
+		this->validTime->readOnly(true);
 		this->addProperty(validTime);
-		if (this->useTimeZoneServer->getBoolean()) {
+		if (this->useTimeZoneServer->asBool()) {
 			this->timeZone = WProps::createStringProperty("timezone", "timeZone");
-			this->timeZone->setReadOnly(true);
+			this->timeZone->readOnly(true);
 			this->addProperty(timeZone);
 		} else {
 			this->timeZone = nullptr;
 		}
 		this->rawOffset = WProps::createIntegerProperty("raw_offset", "rawOffset");
-		this->rawOffset->setInteger(3600);
-		this->rawOffset->setVisibility(NONE);
+		this->rawOffset->asInt(3600);
+		this->rawOffset->visibility(NONE);
 		network->settings()->add(this->rawOffset);
-		this->rawOffset->setReadOnly(true);
+		this->rawOffset->readOnly(true);
 		this->addProperty(rawOffset);
 		this->dstOffset = WProps::createIntegerProperty("dst_offset", "dstOffset");
-		this->dstOffset->setInteger(3600);
-		this->dstOffset->setVisibility(NONE);
+		this->dstOffset->asInt(3600);
+		this->dstOffset->visibility(NONE);
 		network->settings()->add(this->dstOffset);
-		this->dstOffset->setReadOnly(true);
+		this->dstOffset->readOnly(true);
 		this->addProperty(dstOffset);
 		this->useDaySavingTimes = network->settings()->setBoolean("useDaySavingTimes", false);
-		this->useDaySavingTimes->setVisibility(NONE);
+		this->useDaySavingTimes->visibility(NONE);
 		this->dstRule = network->settings()->setByteArray("dstRule", 8, DEFAULT_DST_RULE);
 		//HtmlPages
     WPage* configPage = new WPage(this->id(), "Configure clock");
@@ -103,7 +103,7 @@ public:
 
 	void loop(unsigned long now) {
 		//Invalid after 3 hours
-		validTime->setBoolean((lastNtpSync > 0) && ((!this->useTimeZoneServer->getBoolean()) || (lastTimeZoneSync > 0)) && (now - lastTry < (3 * 60 * 60000)));		
+		validTime->asBool((lastNtpSync > 0) && ((!this->useTimeZoneServer->asBool()) || (lastTimeZoneSync > 0)) && (now - lastTry < (3 * 60 * 60000)));		
 		if (((lastTry == 0) || (now - lastTry > 10000)) && (WiFi.status() == WL_CONNECTED)) {		
 			bool timeUpdated = false;			
 			//1. Sync ntp
@@ -116,7 +116,7 @@ public:
 					lastNtpSync = millis();
 					ntpTime = ntpClient.getEpochTime();
 					this->calculateDstStartAndEnd();
-					validTime->setBoolean(!this->useTimeZoneServer->getBoolean());
+					validTime->asBool(!this->useTimeZoneServer->asBool());
 					network()->debug(F("NTP time synced: %s"), _epochTimeFormatted->c_str());
 					timeUpdated = true;
 				} else {
@@ -126,7 +126,7 @@ public:
 			//2. Sync time zone
 			if ((!isValidTime())
 			    && ((lastNtpSync > 0) && ((lastTimeZoneSync == 0) || (now - lastTimeZoneSync > 60000)))
-					&& (useTimeZoneServer->getBoolean())
+					&& (useTimeZoneServer->asBool())
 				  && (!timeZoneServer->equalsString(""))) {
 				String request = timeZoneServer->c_str();
 				network()->debug(F("Time zone update via '%s'"), request.c_str());
@@ -138,17 +138,17 @@ public:
 				int httpCode = http.GET();
 				if (httpCode > 0) {
 					WJsonParser parser;
-					this->timeZone->setReadOnly(false);
-					this->rawOffset->setReadOnly(false);
-					this->dstOffset->setReadOnly(false);
+					this->timeZone->readOnly(false);
+					this->rawOffset->readOnly(false);
+					this->dstOffset->readOnly(false);
 					WProperty* property = parser.parse(http.getString().c_str(), this);
-					this->timeZone->setReadOnly(true);
-					this->rawOffset->setReadOnly(true);
-					this->dstOffset->setReadOnly(true);
+					this->timeZone->readOnly(true);
+					this->rawOffset->readOnly(true);
+					this->dstOffset->readOnly(true);
 					if (property != nullptr) {
 						failedTimeZoneSync = 0;
 						lastTimeZoneSync = millis();
-						validTime->setBoolean(true);
+						validTime->asBool(true);
 						network()->debug(F("Time zone evaluated. Current local time: %s"), _epochTimeFormatted->c_str());
 						timeUpdated = true;
 					} else {
@@ -166,9 +166,9 @@ public:
 				}
 			}
 			//check nightMode
-			if ((validTime) && (this->enableNightMode) && (this->enableNightMode->getBoolean())) {
-				this->nightMode->setBoolean(this->isTimeBetween(this->nightSwitches->getByteArrayValue(0), this->nightSwitches->getByteArrayValue(1),
-																												this->nightSwitches->getByteArrayValue(2), this->nightSwitches->getByteArrayValue(3)));
+			if ((validTime) && (this->enableNightMode) && (this->enableNightMode->asBool())) {
+				this->nightMode->asBool(this->isTimeBetween(this->nightSwitches->byteArrayValue(0), this->nightSwitches->byteArrayValue(1),
+																												this->nightSwitches->byteArrayValue(2), this->nightSwitches->byteArrayValue(3)));
 			}
 			if (timeUpdated) {
 				_notifyOnTimeUpdate();
@@ -291,7 +291,7 @@ public:
 
 	void updateFormattedTime() {
 		WStringStream* stream = updateFormattedTime(epochTime());
-		_epochTimeFormatted->setString(stream->c_str());
+		_epochTimeFormatted->asString(stream->c_str());
 		delete stream;
 	}
 
@@ -307,7 +307,7 @@ public:
 	}
 
 	bool isValidTime() {
-		return validTime->getBoolean();
+		return validTime->asBool();
 	}
 
 	bool isClockSynced() {
@@ -315,35 +315,35 @@ public:
 	}
 
 	int getRawOffset() {
-		return rawOffset->getInteger();
+		return rawOffset->asInt();
 	}
 
 	int getDstOffset() {
-		return (useTimeZoneServer->getBoolean() || isDaySavingTime() ? dstOffset->getInteger() : 0);
+		return (useTimeZoneServer->asBool() || isDaySavingTime() ? dstOffset->asInt() : 0);
 	}
 
 	void printConfigPage(AsyncWebServerRequest* request, Print* page) {
     	page->printf(HTTP_CONFIG_PAGE_BEGIN, id());
-			page->printf(HTTP_TOGGLE_GROUP_STYLE, "ga", (useTimeZoneServer->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gb", (useTimeZoneServer->getBoolean() ? HTTP_NONE : HTTP_BLOCK));
-			page->printf(HTTP_TOGGLE_GROUP_STYLE, "gd", (useDaySavingTimes->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "ge", HTTP_NONE);
+			page->printf(HTTP_TOGGLE_GROUP_STYLE, "ga", (useTimeZoneServer->asBool() ? HTTP_BLOCK : HTTP_NONE), "gb", (useTimeZoneServer->asBool() ? HTTP_NONE : HTTP_BLOCK));
+			page->printf(HTTP_TOGGLE_GROUP_STYLE, "gd", (useDaySavingTimes->asBool() ? HTTP_BLOCK : HTTP_NONE), "ge", HTTP_NONE);
 			if (this->enableNightMode) {
-				page->printf(HTTP_TOGGLE_GROUP_STYLE, "gn", (enableNightMode->getBoolean() ? HTTP_BLOCK : HTTP_NONE), "gm", HTTP_NONE);
+				page->printf(HTTP_TOGGLE_GROUP_STYLE, "gn", (enableNightMode->asBool() ? HTTP_BLOCK : HTTP_NONE), "gm", HTTP_NONE);
 			}
 			//NTP Server
 			page->printf(HTTP_TEXT_FIELD, "NTP server:", "ntp", "32", ntpServer->c_str());
 
 			page->print(FPSTR(HTTP_DIV_BEGIN));
-			page->printf(HTTP_RADIO_OPTION, "sa", "sa", HTTP_TRUE, (useTimeZoneServer->getBoolean() ? HTTP_CHECKED : ""), "tg()", "Get time zone via internet");
-			page->printf(HTTP_RADIO_OPTION, "sb", "sa", HTTP_FALSE, (useTimeZoneServer->getBoolean() ? "" : HTTP_CHECKED), "tg()", "Use fixed offset to UTC time");
+			page->printf(HTTP_RADIO_OPTION, "sa", "sa", HTTP_TRUE, (useTimeZoneServer->asBool() ? HTTP_CHECKED : ""), "tg()", "Get time zone via internet");
+			page->printf(HTTP_RADIO_OPTION, "sb", "sa", HTTP_FALSE, (useTimeZoneServer->asBool() ? "" : HTTP_CHECKED), "tg()", "Use fixed offset to UTC time");
 			page->print(FPSTR(HTTP_DIV_END));
 
 			page->printf(HTTP_DIV_ID_BEGIN, "ga");
 			page->printf(HTTP_TEXT_FIELD, "Time zone server:", "tz", "64", timeZoneServer->c_str());
 			page->print(FPSTR(HTTP_DIV_END));
 			page->printf(HTTP_DIV_ID_BEGIN, "gb");
-			page->printf(HTTP_TEXT_FIELD, "Fixed offset to UTC in minutes:", "ro", "5", String(rawOffset->getInteger() / 60).c_str());
+			page->printf(HTTP_TEXT_FIELD, "Fixed offset to UTC in minutes:", "ro", "5", String(rawOffset->asInt() / 60).c_str());
 
-			page->printf(HTTP_CHECKBOX_OPTION, "sd", "sd", (useDaySavingTimes->getBoolean() ? HTTP_CHECKED : ""), "td()", "Calculate day saving time (summer time)");
+			page->printf(HTTP_CHECKBOX_OPTION, "sd", "sd", (useDaySavingTimes->asBool() ? HTTP_CHECKED : ""), "td()", "Calculate day saving time (summer time)");
 			page->printf(HTTP_DIV_ID_BEGIN, "gd");
 			page->print(F("<table  class='st'>"));
 				page->print(F("<tr>"));
@@ -355,43 +355,43 @@ public:
 					page->print(F("<td>Offset to standard time in minutes</td>"));
 					page->print(F("<td></td>"));
 					page->print(F("<td>"));
-					page->printf(HTTP_INPUT_FIELD, "do", "5", String(dstOffset->getInteger() / 60).c_str());
+					page->printf(HTTP_INPUT_FIELD, "do", "5", String(dstOffset->asInt() / 60).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 				page->print(F("<tr>"));
 					page->print(F("<td>Month [1..12]</td>"));
 					page->print(F("<td>"));
-					page->printf(HTTP_INPUT_FIELD, "rm", "2", String(dstRule->getByteArrayValue(STD_MONTH)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "rm", "2", String(dstRule->byteArrayValue(STD_MONTH)).c_str());
 					page->print(F("</td>"));
 					page->print(F("<td>"));
-					page->printf(HTTP_INPUT_FIELD, "dm", "2", String(dstRule->getByteArrayValue(DST_MONTH)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "dm", "2", String(dstRule->byteArrayValue(DST_MONTH)).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 				page->print(F("<tr>"));
 					page->print(F("<td>Week [0: last week of month; 1..4]</td>"));
 					page->print(F("<td>"));
-					page->printf(HTTP_INPUT_FIELD, "rw", "1", String(dstRule->getByteArrayValue(STD_WEEK)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "rw", "1", String(dstRule->byteArrayValue(STD_WEEK)).c_str());
 					page->print(F("</td>"));
 					page->print(F("<td>"));
-					page->printf(HTTP_INPUT_FIELD, "dw", "1", String(dstRule->getByteArrayValue(DST_WEEK)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "dw", "1", String(dstRule->byteArrayValue(DST_WEEK)).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 				page->print(F("<tr>"));
 					page->print(F("<td>Weekday [0:sunday .. 6:saturday]</td>"));
 					page->print(F("<td>"));
-					page->printf(HTTP_INPUT_FIELD, "rd", "1", String(dstRule->getByteArrayValue(STD_WEEKDAY)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "rd", "1", String(dstRule->byteArrayValue(STD_WEEKDAY)).c_str());
 					page->print(F("</td>"));
 					page->print(F("<td>"));
-					page->printf(HTTP_INPUT_FIELD, "dd", "1", String(dstRule->getByteArrayValue(DST_WEEKDAY)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "dd", "1", String(dstRule->byteArrayValue(DST_WEEKDAY)).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 				page->print(F("<tr>"));
 					page->print(F("<td>Hour [0..23]</td>"));
 					page->print(F("<td>"));
-					page->printf(HTTP_INPUT_FIELD, "rh", "2", String(dstRule->getByteArrayValue(STD_HOUR)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "rh", "2", String(dstRule->byteArrayValue(STD_HOUR)).c_str());
 					page->print(F("</td>"));
 					page->print(F("<td>"));
-					page->printf(HTTP_INPUT_FIELD, "dh", "2", String(dstRule->getByteArrayValue(DST_HOUR)).c_str());
+					page->printf(HTTP_INPUT_FIELD, "dh", "2", String(dstRule->byteArrayValue(DST_HOUR)).c_str());
 					page->print(F("</td>"));
 				page->print(F("</tr>"));
 			page->print(F("</table>"));
@@ -399,17 +399,17 @@ public:
 			page->print(FPSTR(HTTP_DIV_END));
 			if (this->enableNightMode) {
 				//nightMode
-				page->printf(HTTP_CHECKBOX_OPTION, "sn", "sn", (enableNightMode->getBoolean() ? HTTP_CHECKED : ""), "tn()", "Enable support for night mode");
+				page->printf(HTTP_CHECKBOX_OPTION, "sn", "sn", (enableNightMode->asBool() ? HTTP_CHECKED : ""), "tn()", "Enable support for night mode");
 				page->printf(HTTP_DIV_ID_BEGIN, "gn");
 				page->print(F("<table  class='settingstable'>"));
 					page->print(F("<tr>"));
 						char timeFrom[6];
-						snprintf(timeFrom, 6, "%02d:%02d", this->nightSwitches->getByteArrayValue(0), this->nightSwitches->getByteArrayValue(1));
+						snprintf(timeFrom, 6, "%02d:%02d", this->nightSwitches->byteArrayValue(0), this->nightSwitches->byteArrayValue(1));
 						page->print(F("<td>from"));
 						page->printf(HTTP_INPUT_FIELD, "nf", "5", timeFrom);
 						page->print(F("</td>"));
 						char timeTo[6];
-						snprintf(timeTo, 6, "%02d:%02d", this->nightSwitches->getByteArrayValue(2), this->nightSwitches->getByteArrayValue(3));
+						snprintf(timeTo, 6, "%02d:%02d", this->nightSwitches->byteArrayValue(2), this->nightSwitches->byteArrayValue(3));
 						page->print(F("<td>to"));
 						page->printf(HTTP_INPUT_FIELD, "nt", "5", timeTo);
 						page->print(F("</td>"));
@@ -424,22 +424,22 @@ public:
 	}
 
 	void saveConfigPage(AsyncWebServerRequest* request, Print* page) {
-		this->ntpServer->setString(request->arg("ntp").c_str());
-		this->timeZoneServer->setString(request->arg("tz").c_str());
-		this->useTimeZoneServer->setBoolean(request->arg("sa") == HTTP_TRUE);
-		this->useDaySavingTimes->setBoolean(request->arg("sd") == HTTP_TRUE);
-		this->rawOffset->setInteger(atol(request->arg("ro").c_str()) * 60);
-		this->dstOffset->setInteger(atol(request->arg("do").c_str()) * 60);
-		this->dstRule->setByteArrayValue(STD_MONTH, atoi(request->arg("rm").c_str()));
-		this->dstRule->setByteArrayValue(STD_WEEK, atoi(request->arg("rw").c_str()));
-		this->dstRule->setByteArrayValue(STD_WEEKDAY, atoi(request->arg("rd").c_str()));
-		this->dstRule->setByteArrayValue(STD_HOUR, atoi(request->arg("rh").c_str()));
-		this->dstRule->setByteArrayValue(DST_MONTH, atoi(request->arg("dm").c_str()));
-		this->dstRule->setByteArrayValue(DST_WEEK, atoi(request->arg("dw").c_str()));
-		this->dstRule->setByteArrayValue(DST_WEEKDAY, atoi(request->arg("dd").c_str()));
-		this->dstRule->setByteArrayValue(DST_HOUR, atoi(request->arg("dh").c_str()));
+		this->ntpServer->asString(request->arg("ntp").c_str());
+		this->timeZoneServer->asString(request->arg("tz").c_str());
+		this->useTimeZoneServer->asBool(request->arg("sa") == HTTP_TRUE);
+		this->useDaySavingTimes->asBool(request->arg("sd") == HTTP_TRUE);
+		this->rawOffset->asInt(atol(request->arg("ro").c_str()) * 60);
+		this->dstOffset->asInt(atol(request->arg("do").c_str()) * 60);
+		this->dstRule->byteArrayValue(STD_MONTH, atoi(request->arg("rm").c_str()));
+		this->dstRule->byteArrayValue(STD_WEEK, atoi(request->arg("rw").c_str()));
+		this->dstRule->byteArrayValue(STD_WEEKDAY, atoi(request->arg("rd").c_str()));
+		this->dstRule->byteArrayValue(STD_HOUR, atoi(request->arg("rh").c_str()));
+		this->dstRule->byteArrayValue(DST_MONTH, atoi(request->arg("dm").c_str()));
+		this->dstRule->byteArrayValue(DST_WEEK, atoi(request->arg("dw").c_str()));
+		this->dstRule->byteArrayValue(DST_WEEKDAY, atoi(request->arg("dd").c_str()));
+		this->dstRule->byteArrayValue(DST_HOUR, atoi(request->arg("dh").c_str()));
 		if (this->enableNightMode) {
-			this->enableNightMode->setBoolean(request->arg("sn") == HTTP_TRUE);
+			this->enableNightMode->asBool(request->arg("sn") == HTTP_TRUE);
 			processNightModeTime(0, request->arg("nf").c_str());
 			processNightModeTime(2, request->arg("nt").c_str());
 		}
@@ -511,13 +511,13 @@ private:
 	}
 
 	void calculateDstStartAndEnd() {
-		if ((!this->useTimeZoneServer->getBoolean()) && (this->useDaySavingTimes->getBoolean())) {
+		if ((!this->useTimeZoneServer->asBool()) && (this->useDaySavingTimes->asBool())) {
 			int year = WClock::yearOf(_epochTime(false));
-			dstStart = getEpochTime(year, dstRule->getByteArrayValue(DST_MONTH), dstRule->getByteArrayValue(DST_WEEK), dstRule->getByteArrayValue(DST_WEEKDAY), dstRule->getByteArrayValue(DST_HOUR));
+			dstStart = getEpochTime(year, dstRule->byteArrayValue(DST_MONTH), dstRule->byteArrayValue(DST_WEEK), dstRule->byteArrayValue(DST_WEEKDAY), dstRule->byteArrayValue(DST_HOUR));
 			WStringStream* stream = updateFormattedTime(dstStart);
 			//network()->debug(F("DST start is: %s"), stream->c_str());
 			delete stream;
-			dstEnd = getEpochTime(year, dstRule->getByteArrayValue(STD_MONTH), dstRule->getByteArrayValue(STD_WEEK), dstRule->getByteArrayValue(STD_WEEKDAY), dstRule->getByteArrayValue(STD_HOUR));
+			dstEnd = getEpochTime(year, dstRule->byteArrayValue(STD_MONTH), dstRule->byteArrayValue(STD_WEEK), dstRule->byteArrayValue(STD_WEEKDAY), dstRule->byteArrayValue(STD_HOUR));
 			stream = updateFormattedTime(dstEnd);
 			//network()->debug(F("STD start is: %s"), stream->c_str());
 			delete stream;
@@ -525,7 +525,7 @@ private:
 	}
 
 	bool isDaySavingTime() {
-		if ((!this->useTimeZoneServer->getBoolean()) && (this->useDaySavingTimes->getBoolean())) {
+		if ((!this->useTimeZoneServer->asBool()) && (this->useDaySavingTimes->asBool())) {
 			if ((this->dstStart != 0) && (this->dstEnd != 0)) {
 				unsigned long now = _epochTime(false);
 				if (yearOf(now) != yearOf(dstStart)) {
@@ -540,7 +540,7 @@ private:
 				return false;
 			}
 		} else {
-			return (dstOffset->getInteger() != 0);
+			return (dstOffset->asInt() != 0);
 		}
 	}
 
@@ -549,8 +549,8 @@ private:
 		if (timeStr.length() == 5) {
 			byte hh = timeStr.substring(0, 2).toInt();
 			byte mm = timeStr.substring(3, 5).toInt();
-			this->nightSwitches->setByteArrayValue(arrayIndex, hh);
-			this->nightSwitches->setByteArrayValue(arrayIndex + 1, mm);
+			this->nightSwitches->byteArrayValue(arrayIndex, hh);
+			this->nightSwitches->byteArrayValue(arrayIndex + 1, mm);
 		}
 	}
 

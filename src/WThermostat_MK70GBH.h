@@ -39,8 +39,8 @@ public :
     this->statusMode = new WProperty("statusMode", "Status", STRING, TYPE_HEATING_COOLING_PROPERTY);
     this->statusMode->addEnumString(STATE_OFF);
     this->statusMode->addEnumString(STATE_HEATING);
-    this->statusMode->setReadOnly(true);
-    this->statusMode->setVisibility(MQTT);
+    this->statusMode->readOnly(true);
+    this->statusMode->visibility(MQTT);
     this->addProperty(statusMode);
   }
 
@@ -56,9 +56,9 @@ protected :
       if (cByte == byteStatusMode) {
 				if (commandLength == 0x05) {
 				  //status
-				  newS = statusMode->getEnumString(receivedCommand[10]);
+				  newS = statusMode->enumString(receivedCommand[10]);
 				  if (newS != nullptr) {
-					  changed = ((changed) || (statusMode->setString(newS)));
+					  changed = ((changed) || (statusMode->asString(newS)));
 					  knownCommand = true;
 				  }
 				}

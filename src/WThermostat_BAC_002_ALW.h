@@ -71,9 +71,9 @@ protected :
           //cooling:     55 AA 00 06 00 05 66 04 00 01 00
           //heating:     55 AA 00 06 00 05 66 04 00 01 01
           //ventilation: 55 AA 00 06 00 05 66 04 00 01 02
-          newS = systemMode->getEnumString(receivedCommand[10]);
+          newS = systemMode->enumString(receivedCommand[10]);
           if (newS != nullptr) {
-            changed = ((changed) || (systemMode->setString(newS)));
+            changed = ((changed) || (systemMode->asString(newS)));
             knownCommand = true;
           }
         }
@@ -84,9 +84,9 @@ protected :
 					//high   - 55 aa 01 07 00 05 67 04 00 01 01
 					//medium - 55 aa 01 07 00 05 67 04 00 01 02
 					//low    - 55 aa 01 07 00 05 67 04 00 01 03
-					newS = fanMode->getEnumString(receivedCommand[10]);
+					newS = fanMode->enumString(receivedCommand[10]);
 					if (newS != nullptr) {
-						changed = ((changed) || (fanMode->setString(newS)));
+						changed = ((changed) || (fanMode->asString(newS)));
 						knownCommand = true;
 					}
 				}
@@ -105,7 +105,7 @@ protected :
 
   void systemModeToMcu(WProperty* property) {
     if (!isReceivingDataFromMcu()) {
-      byte sm = property->getEnumIndex();
+      byte sm = property->enumIndex();
       if (sm != 0xFF) {
         //send to device
         //cooling:     55 AA 00 06 00 05 66 04 00 01 00
@@ -120,7 +120,7 @@ protected :
 
   void fanModeToMcu(WProperty* property) {
     if (!isReceivingDataFromMcu()) {
-      byte fm = fanMode->getEnumIndex();
+      byte fm = fanMode->enumIndex();
       if (fm != 0xFF) {
         //send to device
         //auto:   55 aa 00 06 00 05 67 04 00 01 00
