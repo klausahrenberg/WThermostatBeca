@@ -14,7 +14,7 @@
 
 #define APPLICATION "Thermostat"
 #define VERSION "1.38"
-#define FLAG_SETTINGS 0x35
+#define FLAG_SETTINGS 0x12
 #define DEBUG false
 
 WNetwork* network;
