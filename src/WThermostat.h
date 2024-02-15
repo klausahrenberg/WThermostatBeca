@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <DHT.h>
 #include "WTuyaDevice.h"
 #include "WClock.h"
 
@@ -17,6 +18,7 @@
 #define MODEL_CALYPSOW 7
 #define MODEL_DLX_LH01 8
 #define PIN_STATE_HEATING_RELAY 5
+#define PIN_DHT22 4                   // DHT support
 #define NOT_SUPPORTED 0x00
 
 const char* SCHEDULES = "schedules";
@@ -27,6 +29,9 @@ const char* STATE_OFF = SCHEDULES_MODE_OFF;
 const char* STATE_HEATING = "heating";
 const char SCHEDULES_PERIODS[] = "123456";
 const char SCHEDULES_DAYS[] = "wau";
+
+DHT dht(PIN_DHT22, DHT22);            // init DHT class
+
 
 class WThermostat : public WTuyaDevice {
 public :
@@ -124,6 +129,14 @@ public :
     	this->state->addEnumString(STATE_HEATING);
     	this->addProperty(state);
     }
+    this->humidity = nullptr;    
+    this->supportingDHT22 = network()->settings()->setBoolean("supportingDHT22", true);
+    if (this->supportingDHT22->asBool()) {
+      dht.begin();
+      this->humidity = new WProperty("humidity", "Humidity", DOUBLE, TYPE_HUMIDITY_PROPERTY);
+    	this->humidity->readOnly(true);
+    	this->addProperty(humidity);
+    }
   }
 
   virtual void printConfigPage(AsyncWebServerRequest* request, Print* page) {
@@ -157,6 +170,8 @@ public :
 		page->printf(HTTP_CHECKBOX_OPTION, "am", "am", (this->notifyAllMcuCommands->asBool() ? HTTP_CHECKED : ""), "", "Send all MCU commands via MQTT");
     //Checkbox with support for relay
 		page->printf(HTTP_CHECKBOX_OPTION, "rs", "rs", (this->supportingHeatingRelay->asBool() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 (not working without hw mod)");
+    //Checkbox for DHT22
+		page->printf(HTTP_CHECKBOX_OPTION, "dt", "dt", (this->supportingDHT22->asBool() ? HTTP_CHECKED : ""), "", "DHT22 at GPIO 4 (not working without hw mod)");    
 
     printConfigPageCustomParameters(request, page);
 
@@ -174,6 +189,7 @@ public :
 		this->completeDeviceState->asBool(request->arg("cr") != HTTP_TRUE);
 		this->notifyAllMcuCommands->asBool(request->arg("am") == HTTP_TRUE);
     this->supportingHeatingRelay->asBool(request->arg("rs") == HTTP_TRUE);
+    this->supportingDHT22->asBool(request->arg("dt") == HTTP_TRUE);    
     submitConfigPageCustomParameters(request, page);
   }
 
@@ -308,6 +324,13 @@ public :
       }
       this->state->asString(heating ? STATE_HEATING : STATE_OFF);
     }
+    if (humidity != nullptr) {
+      double humidity = 1.0;
+      if (this->supportingDHT22->asBool()) {
+        humidity = dht.readHumidity(); //FEHLER !!! 
+      }
+      this->humidity->asDouble(humidity);//String(humidity, 1));
+    }    
     WTuyaDevice::loop(now);
     updateCurrentSchedulePeriod();
     if (receivedSchedules()) {
@@ -351,7 +374,9 @@ protected :
   WProperty* switchBackToAuto;
   WProperty* locked;
   WProperty* state;
+  WProperty* humidity;
   WProperty* supportingHeatingRelay;
+  WProperty* supportingDHT22;  
   byte schedules[54];
 
   void sendActualTimeToBeca() {
