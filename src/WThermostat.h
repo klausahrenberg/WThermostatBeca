@@ -43,7 +43,7 @@ public :
 		this->targetTemperatureManualMode = 0.0;
     this->currentSchedulePeriod = -1;
     //HtmlPages
-    WPage* configPage = new WPage(this->getId(), "Configure thermostat");
+    WPage* configPage = new WPage(this->id(), "Configure thermostat");
     configPage->setPrintPage(std::bind(&WThermostat::printConfigPage, this, std::placeholders::_1, std::placeholders::_2));
     configPage->setSubmittedPage(std::bind(&WThermostat::submitConfigPage, this, std::placeholders::_1, std::placeholders::_2));
     network->addCustomPage(configPage);
@@ -79,47 +79,47 @@ public :
 
   virtual void initializeProperties() {
     //schedulesDayOffset
-    this->schedulesDayOffset = network->getSettings()->setByte("schedulesDayOffset", 0);
+    this->schedulesDayOffset = network()->settings()->setByte("schedulesDayOffset", 0);
     //standard properties
-    this->actualTemperature = WProperty::createTemperatureProperty("temperature", "Actual");
-    this->actualTemperature->setReadOnly(true);
+    this->actualTemperature = WProps::createTemperatureProperty("temperature", "Actual");
+    this->actualTemperature->readOnly(true);
     this->addProperty(actualTemperature);
-    this->targetTemperature = WProperty::createTargetTemperatureProperty("targetTemperature", "Target");
-    this->targetTemperature->setMultipleOf(1.0f / this->temperatureFactor);
-    this->targetTemperature->setOnChange(std::bind(&WThermostat::setTargetTemperature, this, std::placeholders::_1));
-    this->targetTemperature->setOnValueRequest([this](WProperty* p) {updateTargetTemperature();});
+    this->targetTemperature = WProps::createTargetTemperatureProperty("targetTemperature", "Target");
+    this->targetTemperature->multipleOf(1.0f / this->temperatureFactor);
+    this->targetTemperature->addListener(std::bind(&WThermostat::setTargetTemperature, this, std::placeholders::_1));
+    this->targetTemperature->onValueRequest([this](WProperty* p) {updateTargetTemperature();});
     this->addProperty(targetTemperature);
     if (byteTemperatureFloor != NOT_SUPPORTED) {
-			this->actualFloorTemperature = WProperty::createTargetTemperatureProperty("floorTemperature", "Floor");
-    	this->actualFloorTemperature->setReadOnly(true);
-    	this->actualFloorTemperature->setVisibility(MQTT);
+			this->actualFloorTemperature = WProps::createTargetTemperatureProperty("floorTemperature", "Floor");
+    	this->actualFloorTemperature->readOnly(true);
+    	this->actualFloorTemperature->visibility(MQTT);
     	this->addProperty(actualFloorTemperature);
 		} else {
       this->actualFloorTemperature = nullptr;
     }
-    this->deviceOn = WProperty::createOnOffProperty("deviceOn", "Power");
+    this->deviceOn = WProps::createOnOffProperty("deviceOn", "Power");
     //2021-01-24 test bht-002 bug
-    network->getSettings()->add(this->deviceOn);
-    this->deviceOn->setOnChange(std::bind(&WThermostat::deviceOnToMcu, this, std::placeholders::_1));
+    network()->settings()->add(this->deviceOn);
+    this->deviceOn->addListener(std::bind(&WThermostat::deviceOnToMcu, this, std::placeholders::_1));
     this->addProperty(deviceOn);
     this->schedulesMode = new WProperty("schedulesMode", "Schedules", STRING, TYPE_THERMOSTAT_MODE_PROPERTY);
     this->schedulesMode->addEnumString(SCHEDULES_MODE_AUTO);
     this->schedulesMode->addEnumString(SCHEDULES_MODE_OFF);
-    this->schedulesMode->setOnChange(std::bind(&WThermostat::schedulesModeToMcu, this, std::placeholders::_1));
+    this->schedulesMode->addListener(std::bind(&WThermostat::schedulesModeToMcu, this, std::placeholders::_1));
     this->addProperty(schedulesMode);
-    this->switchBackToAuto = network->getSettings()->setBoolean("switchBackToAuto", true);
-    this->locked = WProperty::createOnOffProperty("locked", "Lock");
-    this->locked->setOnChange(std::bind(&WThermostat::lockedToMcu, this, std::placeholders::_1));
-    this->locked->setVisibility(MQTT);
+    this->switchBackToAuto = network()->settings()->setBoolean("switchBackToAuto", true);
+    this->locked = WProps::createOnOffProperty("locked", "Lock");
+    this->locked->addListener(std::bind(&WThermostat::lockedToMcu, this, std::placeholders::_1));
+    this->locked->visibility(MQTT);
     this->addProperty(locked);
-    this->completeDeviceState = network->getSettings()->setBoolean("sendCompleteDeviceState", true);
+    this->completeDeviceState = network()->settings()->setBoolean("sendCompleteDeviceState", true);
     //Heating Relay and State property
     this->state = nullptr;
-    this->supportingHeatingRelay = network->getSettings()->setBoolean("supportingHeatingRelay", true);
-    if (this->supportingHeatingRelay->getBoolean()) {
+    this->supportingHeatingRelay = network()->settings()->setBoolean("supportingHeatingRelay", true);
+    if (this->supportingHeatingRelay->asBool()) {
       pinMode(PIN_STATE_HEATING_RELAY, INPUT);
     	this->state = new WProperty("state", "State", STRING, TYPE_HEATING_COOLING_PROPERTY);
-    	this->state->setReadOnly(true);
+    	this->state->readOnly(true);
     	this->state->addEnumString(STATE_OFF);
     	this->state->addEnumString(STATE_HEATING);
     	this->addProperty(state);
@@ -127,21 +127,21 @@ public :
   }
 
   virtual void printConfigPage(AsyncWebServerRequest* request, Print* page) {
-    page->printf(HTTP_CONFIG_PAGE_BEGIN, getId());
+    page->printf(HTTP_CONFIG_PAGE_BEGIN, id());
     //ComboBox with model selection
     page->printf(HTTP_COMBOBOX_BEGIN, "Thermostat model:", "tm");
-    page->printf(HTTP_COMBOBOX_ITEM, "0", (this->thermostatModel->getByte() == 0 ? HTTP_SELECTED : ""), "BHT-002, BHT-6000, BHT-3000 (floor heating)");
-    page->printf(HTTP_COMBOBOX_ITEM, "6", (this->thermostatModel->getByte() == 6 ? HTTP_SELECTED : ""), "AVATTO ME102H (Touch screen)");
-    page->printf(HTTP_COMBOBOX_ITEM, "1", (this->thermostatModel->getByte() == 1 ? HTTP_SELECTED : ""), "BAC-002, BAC-1000 (heating, cooling, ventilation)");
-		page->printf(HTTP_COMBOBOX_ITEM, "2", (this->thermostatModel->getByte() == 2 ? HTTP_SELECTED : ""), "ET-81W");
-		page->printf(HTTP_COMBOBOX_ITEM, "3", (this->thermostatModel->getByte() == 3 ? HTTP_SELECTED : ""), "Floureon HY08WE");
-		page->printf(HTTP_COMBOBOX_ITEM, "4", (this->thermostatModel->getByte() == 4 ? HTTP_SELECTED : ""), "AVATTO ME81AH");
-		page->printf(HTTP_COMBOBOX_ITEM, "5", (this->thermostatModel->getByte() == 5 ? HTTP_SELECTED : ""), "Minco Heat MK70GB-H");
-    page->printf(HTTP_COMBOBOX_ITEM, "7", (this->thermostatModel->getByte() == 7 ? HTTP_SELECTED : ""), "VH Control Calypso-W");
-    page->printf(HTTP_COMBOBOX_ITEM, "8", (this->thermostatModel->getByte() == 8 ? HTTP_SELECTED : ""), "DLX-LH01");
+    page->printf(HTTP_COMBOBOX_ITEM, "0", (this->thermostatModel->asByte() == 0 ? HTTP_SELECTED : ""), "BHT-002, BHT-6000, BHT-3000 (floor heating)");
+    page->printf(HTTP_COMBOBOX_ITEM, "6", (this->thermostatModel->asByte() == 6 ? HTTP_SELECTED : ""), "AVATTO ME102H (Touch screen)");
+    page->printf(HTTP_COMBOBOX_ITEM, "1", (this->thermostatModel->asByte() == 1 ? HTTP_SELECTED : ""), "BAC-002, BAC-1000 (heating, cooling, ventilation)");
+		page->printf(HTTP_COMBOBOX_ITEM, "2", (this->thermostatModel->asByte() == 2 ? HTTP_SELECTED : ""), "ET-81W");
+		page->printf(HTTP_COMBOBOX_ITEM, "3", (this->thermostatModel->asByte() == 3 ? HTTP_SELECTED : ""), "Floureon HY08WE");
+		page->printf(HTTP_COMBOBOX_ITEM, "4", (this->thermostatModel->asByte() == 4 ? HTTP_SELECTED : ""), "AVATTO ME81AH");
+		page->printf(HTTP_COMBOBOX_ITEM, "5", (this->thermostatModel->asByte() == 5 ? HTTP_SELECTED : ""), "Minco Heat MK70GB-H");
+    page->printf(HTTP_COMBOBOX_ITEM, "7", (this->thermostatModel->asByte() == 7 ? HTTP_SELECTED : ""), "VH Control Calypso-W");
+    page->printf(HTTP_COMBOBOX_ITEM, "8", (this->thermostatModel->asByte() == 8 ? HTTP_SELECTED : ""), "DLX-LH01");
     page->print(FPSTR(HTTP_COMBOBOX_END));
     //Checkbox
-    page->printf(HTTP_CHECKBOX_OPTION, "sb", "sb", (this->switchBackToAuto->getBoolean() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");
+    page->printf(HTTP_CHECKBOX_OPTION, "sb", "sb", (this->switchBackToAuto->asBool() ? HTTP_CHECKED : ""), "", "Auto mode from manual mode at next schedule period change <br> (not at model ET-81W and ME81AH)");
     //ComboBox with weekday
     page->printf(HTTP_COMBOBOX_BEGIN, "Workday schedules:", "ws");
     page->printf(HTTP_COMBOBOX_ITEM, "0", (getSchedulesDayOffset() == 0 ? HTTP_SELECTED : ""), "Workday Mon-Fri; Weekend Sat-Sun");
@@ -154,9 +154,9 @@ public :
     page->print(FPSTR(HTTP_COMBOBOX_END));
 		page->printf(HTTP_CHECKBOX_OPTION, "cr", "cr", (this->sendCompleteDeviceState() ? "" : HTTP_CHECKED), "", "Send changes in separate MQTT messages");
 		//notifyAllMcuCommands
-		page->printf(HTTP_CHECKBOX_OPTION, "am", "am", (this->notifyAllMcuCommands->getBoolean() ? HTTP_CHECKED : ""), "", "Send all MCU commands via MQTT");
+		page->printf(HTTP_CHECKBOX_OPTION, "am", "am", (this->notifyAllMcuCommands->asBool() ? HTTP_CHECKED : ""), "", "Send all MCU commands via MQTT");
     //Checkbox with support for relay
-		page->printf(HTTP_CHECKBOX_OPTION, "rs", "rs", (this->supportingHeatingRelay->getBoolean() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 (not working without hw mod)");
+		page->printf(HTTP_CHECKBOX_OPTION, "rs", "rs", (this->supportingHeatingRelay->asBool() ? HTTP_CHECKED : ""), "", "Relay at GPIO 5 (not working without hw mod)");
 
     printConfigPageCustomParameters(request, page);
 
@@ -168,12 +168,12 @@ public :
   }
 
   virtual void submitConfigPage(AsyncWebServerRequest* request, Print* page) {
-    this->thermostatModel->setByte(request->arg("tm").toInt());
-    this->schedulesDayOffset->setByte(request->arg("ws").toInt());
-    this->switchBackToAuto->setBoolean(request->arg("sb") == HTTP_TRUE);
-		this->completeDeviceState->setBoolean(request->arg("cr") != HTTP_TRUE);
-		this->notifyAllMcuCommands->setBoolean(request->arg("am") == HTTP_TRUE);
-    this->supportingHeatingRelay->setBoolean(request->arg("rs") == HTTP_TRUE);
+    this->thermostatModel->asByte(request->arg("tm").toInt());
+    this->schedulesDayOffset->asByte(request->arg("ws").toInt());
+    this->switchBackToAuto->asBool(request->arg("sb") == HTTP_TRUE);
+		this->completeDeviceState->asBool(request->arg("cr") != HTTP_TRUE);
+		this->notifyAllMcuCommands->asBool(request->arg("am") == HTTP_TRUE);
+    this->supportingHeatingRelay->asBool(request->arg("rs") == HTTP_TRUE);
     submitConfigPageCustomParameters(request, page);
   }
 
@@ -190,14 +190,14 @@ public :
           handleSchedulesChange(completeTopic);
         } else if (length > 0) {
           //Set schedules
-          network->debug(F("Payload for schedules -> set schedules..."));
+          network()->debug(F("Payload for schedules -> set schedules..."));
           WJsonParser* parser = new WJsonParser();
           schedulesChanged = false;
           parser->parse(payload, std::bind(&WThermostat::processSchedulesKeyValue, this,
                 std::placeholders::_1, std::placeholders::_2));
           delete parser;
           if (schedulesChanged) {
-            network->debug(F("Some schedules changed. Write to MCU..."));
+            network()->debug(F("Some schedules changed. Write to MCU..."));
             this->schedulesToMcu();
           }
         }
@@ -254,7 +254,7 @@ public :
   }
 
   void sendSchedules(AsyncWebServerRequest* request) {
-    WStringStream* response = network->getResponseStream();
+    WStringStream* response = network()->getResponseStream();
     WJson json(response);
     json.beginObject();
     this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
@@ -303,16 +303,16 @@ public :
   virtual void loop(unsigned long now) {
     if (state != nullptr) {
       bool heating = false;
-      if ((this->supportingHeatingRelay->getBoolean()) && (state != nullptr)) {
+      if ((this->supportingHeatingRelay->asBool()) && (state != nullptr)) {
         heating = digitalRead(PIN_STATE_HEATING_RELAY);
       }
-      this->state->setString(heating ? STATE_HEATING : STATE_OFF);
+      this->state->asString(heating ? STATE_HEATING : STATE_OFF);
     }
     WTuyaDevice::loop(now);
     updateCurrentSchedulePeriod();
     if (receivedSchedules()) {
       //Notify schedules
-      if ((network->isMqttConnected()) && (lastScheduleNotify == 0) && (now - lastScheduleNotify > MINIMUM_INTERVAL)) {
+      if ((network()->isMqttConnected()) && (lastScheduleNotify == 0) && (now - lastScheduleNotify > MINIMUM_INTERVAL)) {
         handleSchedulesChange("");
         schedulesChanged = false;
         lastScheduleNotify = now;
@@ -321,7 +321,7 @@ public :
   }
 
   virtual bool sendCompleteDeviceState() {
-      return this->completeDeviceState->getBoolean();
+      return this->completeDeviceState->asBool();
   }
 
 protected :
@@ -361,14 +361,14 @@ protected :
     //HEX: 55 AA 00 1C 00 08 01 13 02 0F 10 04 12 05
     //DEC:                   01 19 02 20 17 51 44 03
     //HEX: 55 AA 00 1C 00 08 01 13 02 14 11 33 2C 03
-    unsigned long epochTime = wClock->getEpochTime();
+    unsigned long epochTime = wClock->epochTime();
     epochTime = epochTime + (getSchedulesDayOffset() * 86400);
-    byte year = wClock->getYear(epochTime) % 100;
-    byte month = wClock->getMonth(epochTime);
-    byte dayOfMonth = wClock->getDay(epochTime);
-    byte hours = wClock->getHours(epochTime) ;
-    byte minutes = wClock->getMinutes(epochTime);
-    byte seconds = wClock->getSeconds(epochTime);
+    byte year = wClock->yearOf(epochTime) % 100;
+    byte month = wClock->monthOf(epochTime);
+    byte dayOfMonth = wClock->dayOf(epochTime);
+    byte hours = wClock->hoursOf(epochTime) ;
+    byte minutes = wClock->minutesOf(epochTime);
+    byte seconds = wClock->secondsOf(epochTime);
     byte dayOfWeek = getDayOfWeek();
     unsigned char cancelConfigCommand[] = { 0x55, 0xaa, 0x00, 0x1c, 0x00, 0x08,
                                             0x01, year, month, dayOfMonth,
@@ -377,9 +377,9 @@ protected :
   }
 
   byte getDayOfWeek() {
-    unsigned long epochTime = wClock->getEpochTime();
+    unsigned long epochTime = wClock->epochTime();
     epochTime = epochTime + (getSchedulesDayOffset() * 86400);
-    byte dayOfWeek = wClock->getWeekDay(epochTime);
+    byte dayOfWeek = wClock->weekDayOf(epochTime);
     //make sunday a seven
     dayOfWeek = (dayOfWeek ==0 ? 7 : dayOfWeek);
     return dayOfWeek;
@@ -391,7 +391,7 @@ protected :
   }
 
   byte getSchedulesDayOffset() {
-    return schedulesDayOffset->getByte();
+    return schedulesDayOffset->asByte();
   }
 
   virtual bool processCommand(byte commandByte, byte length) {
@@ -409,7 +409,7 @@ protected :
         //send answer: 55 aa 00 03 00 01 00
         unsigned char configCommand[] = { 0x55, 0xAA, 0x00, 0x03, 0x00,	0x01, 0x00 };
         commandCharsToSerial(7, configCommand);
-        network->startWebServer();
+        network()->startWebServer();
         knownCommand = true;
         break;
       }
@@ -437,8 +437,8 @@ protected :
         //2021-01-24 test for bht-002
         if (!this->mcuRestarted) {
           newB = (receivedCommand[10] == 0x01);
-          changed = ((changed) || (newB != deviceOn->getBoolean()));
-          deviceOn->setBoolean(newB);
+          changed = ((changed) || (newB != deviceOn->asBool()));
+          deviceOn->asBool(newB);
         } else if (!this->deviceOn->isNull()) {
           deviceOnToMcu(this->deviceOn);
           this->mcuRestarted = false;
@@ -464,7 +464,7 @@ protected :
         unsigned long rawValue = WSettings::getUnsignedLong(receivedCommand[10], receivedCommand[11], receivedCommand[12], receivedCommand[13]);
         newValue = (float) rawValue / this->temperatureFactor;
         changed = ((changed) || (!actualTemperature->equalsDouble(newValue)));
-        actualTemperature->setDouble(newValue);
+        actualTemperature->asDouble(newValue);
         knownCommand = true;
       }
     } else if ((byteTemperatureFloor != NOT_SUPPORTED) && (cByte == byteTemperatureFloor)) {
@@ -474,15 +474,15 @@ protected :
         unsigned long rawValue = WSettings::getUnsignedLong(receivedCommand[10], receivedCommand[11], receivedCommand[12], receivedCommand[13]);
         newValue = (float) rawValue / this->temperatureFactor;
         changed = ((changed) || (!actualFloorTemperature->equalsDouble(newValue)));
-        actualFloorTemperature->setDouble(newValue);
+        actualFloorTemperature->asDouble(newValue);
         knownCommand = true;
       }
     } else if (cByte == byteSchedulesMode) {
       if (commandLength == 0x05) {
         //schedulesMode
-        newS = schedulesMode->getEnumString(receivedCommand[10]);
+        newS = schedulesMode->enumString(receivedCommand[10]);
         if (newS != nullptr) {
-          changed = ((changed) || (schedulesMode->setString(newS)));
+          changed = ((changed) || (schedulesMode->asString(newS)));
           if (changed) updateTargetTemperature();
           knownCommand = true;
         }
@@ -491,8 +491,8 @@ protected :
       if (commandLength == 0x05) {
         //locked
         newB = (receivedCommand[10] == 0x01);
-        changed = ((changed) || (newB != locked->getBoolean()));
-        locked->setBoolean(newB);
+        changed = ((changed) || (newB != locked->asBool()));
+        locked->asBool(newB);
         knownCommand = true;
       }
     } else if (cByte == byteSchedules) {
@@ -530,7 +530,7 @@ protected :
     if ((receivedSchedules()) && (wClock->isValidTime())) {
       byte hh_Offset = byteSchedulingPosHour;
       byte mm_Offset = byteSchedulingPosMinute;
-      byte weekDay = wClock->getWeekDay();
+      byte weekDay = wClock->weekDay();
       weekDay += getSchedulesDayOffset();
       weekDay = weekDay % 7;
       int startAddr = (this->byteSchedulingDays == 18 ? (weekDay == 0 ? 36 : (weekDay == 6 ? 18 : 0)) : ((weekDay == 0) || (weekDay == 6) ? 18 : 0));
@@ -561,10 +561,10 @@ protected :
         }
       }
       int newPeriod = startAddr + period * 3;
-      if ((this->switchBackToAuto->getBoolean()) &&
+      if ((this->switchBackToAuto->asBool()) &&
           (this->currentSchedulePeriod > -1) && (newPeriod != this->currentSchedulePeriod) &&
           (this->schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
-        this->schedulesMode->setString(SCHEDULES_MODE_AUTO);
+        this->schedulesMode->asString(SCHEDULES_MODE_AUTO);
       }
       this->currentSchedulePeriod = newPeriod;
     } else {
@@ -575,7 +575,7 @@ protected :
   virtual void deviceOnToMcu(WProperty* property) {
     if (!isReceivingDataFromMcu()) {
         //55 AA 00 06 00 05 01 01 00 01 01
-        byte dt = (this->deviceOn->getBoolean() ? 0x01 : 0x00);
+        byte dt = (this->deviceOn->asBool() ? 0x01 : 0x00);
         unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
                                             byteDeviceOn, 0x01, 0x00, 0x01, dt};
         commandCharsToSerial(11, deviceOnCommand);
@@ -584,7 +584,7 @@ protected :
 
   void targetTemperatureManualModeToMcu() {
     if ((!isReceivingDataFromMcu()) && (schedulesMode->equalsString(SCHEDULES_MODE_OFF))) {
-      network->debug(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
+      network()->debug(F("Set target Temperature (manual mode) to %D"), targetTemperatureManualMode);
       //55 AA 00 06 00 08 02 02 00 04 00 00 00 2C
       byte ulValues[4];
       WSettings::getUnsignedLongBytes((targetTemperatureManualMode * this->temperatureFactor), ulValues);
@@ -597,7 +597,7 @@ protected :
   void schedulesModeToMcu(WProperty* property) {
     if ((!isReceivingDataFromMcu()) && (schedulesMode != nullptr)) {
       //55 AA 00 06 00 05 04 04 00 01 01
-      byte sm = schedulesMode->getEnumIndex();
+      byte sm = schedulesMode->enumIndex();
       if (sm != 0xFF) {
         unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
                                             byteSchedulesMode, 0x04, 0x00, 0x01, sm};
@@ -608,7 +608,7 @@ protected :
 
   void lockedToMcu(WProperty* property) {
     if (!isReceivingDataFromMcu()) {
-      byte dt = (this->locked->getBoolean() ? 0x01 : 0x00);
+      byte dt = (this->locked->asBool() ? 0x01 : 0x00);
       unsigned char deviceOnCommand[] = { 0x55, 0xAA, 0x00, 0x06, 0x00, 0x05,
                                           byteLocked, 0x01, 0x00, 0x01, dt};
       commandCharsToSerial(11, deviceOnCommand);
@@ -647,18 +647,18 @@ protected :
   }
 
   void handleSchedulesChange(String completeTopic) {
-    network->debug(F("Send Schedules state..."));
+    network()->debug(F("Send Schedules state..."));
     if (completeTopic == "") {
-      completeTopic = String(network->getMqttBaseTopic()) + SLASH + String(this->getId()) + SLASH + String(network->getMqttStateTopic()) + SLASH + SCHEDULES;
+      completeTopic = String(network()->mqttBaseTopic()) + SLASH + String(this->id()) + SLASH + String(network()->mqttStateTopic()) + SLASH + SCHEDULES;
     }
-    WStringStream* response = network->getResponseStream();
+    WStringStream* response = network()->getResponseStream();
     WJson json(response);
     json.beginObject();
     this->toJsonSchedules(&json, 0);// SCHEDULE_WORKDAY);
     this->toJsonSchedules(&json, 1);// SCHEDULE_SATURDAY);
     this->toJsonSchedules(&json, 2);// SCHEDULE_SUNDAY);
     json.endObject();
-    network->publishMqtt(completeTopic.c_str(), response);
+    network()->publishMqtt(completeTopic.c_str(), response);
   }
 
   void printConfigSchedulesPage(AsyncWebServerRequest* request, Print* page) {
@@ -723,7 +723,7 @@ protected :
       }
     }
     if (schedulesChanged) {
-      network->debug(F("Some schedules changed. Write to MCU..."));
+      network()->debug(F("Some schedules changed. Write to MCU..."));
       this->schedulesToMcu();
       page->print(F("Changed schedules have been saved."));
     } else {
@@ -732,8 +732,8 @@ protected :
   }
 
   void setTargetTemperature(WProperty* property) {
-    if (!WProperty::isEqual(targetTemperatureManualMode, this->targetTemperature->getDouble(), 0.01)) {
-      targetTemperatureManualMode = this->targetTemperature->getDouble();
+    if (!WProperty::isEqual(targetTemperatureManualMode, this->targetTemperature->asDouble(), 0.01)) {
+      targetTemperatureManualMode = this->targetTemperature->asDouble();
       targetTemperatureManualModeToMcu();
       //schedulesMode->setString(SCHEDULES_MODE_OFF);
     }
@@ -742,14 +742,14 @@ protected :
   void updateTargetTemperature() {
     if ((this->currentSchedulePeriod != -1) && (schedulesMode->equalsString(SCHEDULES_MODE_AUTO))) {
       double temp = (double) schedules[this->currentSchedulePeriod + 2] / this->temperatureFactor;
-      targetTemperature->setDouble(temp);
+      targetTemperature->asDouble(temp);
     } else {
-      targetTemperature->setDouble(targetTemperatureManualMode);
+      targetTemperature->asDouble(targetTemperatureManualMode);
     }
   }
 
   bool receivedSchedules() {
-    return ((network->isDebugging()) || (this->schedulesReceived));
+    return ((network()->isDebugging()) || (this->schedulesReceived));
   }
 
   void notifyState() {

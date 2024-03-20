@@ -43,8 +43,8 @@ public :
     this->sensorSelection->addEnumString(SENSOR_SELECTION_INTERNAL);
     this->sensorSelection->addEnumString(SENSOR_SELECTION_FLOOR);
     this->sensorSelection->addEnumString(SENSOR_SELECTION_BOTH);
-    this->sensorSelection->setVisibility(MQTT);
-    this->sensorSelection->setOnChange(std::bind(&WThermostat_ME102H::sensorSelectionToMcu, this, std::placeholders::_1));
+    this->sensorSelection->visibility(MQTT);
+    this->sensorSelection->addListener(std::bind(&WThermostat_ME102H::sensorSelectionToMcu, this, std::placeholders::_1));
     this->addProperty(this->sensorSelection);
   }
 
@@ -63,9 +63,9 @@ protected :
           //internal: 55 aa 03 07 00 05 2b 04 00 01 00
           //floor:    55 aa 03 07 00 05 2b 04 00 01 01
           //both:     55 aa 03 07 00 05 2b 04 00 01 02
-          newS = this->sensorSelection->getEnumString(receivedCommand[10]);
+          newS = this->sensorSelection->enumString(receivedCommand[10]);
           if (newS != nullptr) {
-            changed = ((changed) || (this->sensorSelection->setString(newS)));
+            changed = ((changed) || (this->sensorSelection->asString(newS)));
             knownCommand = true;
           }
         }
@@ -121,7 +121,7 @@ protected :
 
   void sensorSelectionToMcu(WProperty* property) {
     if (!isReceivingDataFromMcu()) {
-      byte sm = property->getEnumIndex();
+      byte sm = property->enumIndex();
       if (sm != 0xFF) {
         //send to device
         //internal:    55 aa 03 07 00 05 2b 04 00 01 00

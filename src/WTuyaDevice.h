@@ -33,7 +33,7 @@ public :
       this->receivingDataFromMcu = false;
       lastHeartBeat = lastQueryStatus = 0;
       //notifyAllMcuCommands
-  		this->notifyAllMcuCommands = network->getSettings()->setBoolean("notifyAllMcuCommands", false);
+  		this->notifyAllMcuCommands = network->settings()->setBoolean("notifyAllMcuCommands", false);
       // JY
       gpioStatus = -1;
       gpioReset = -1;
@@ -103,7 +103,7 @@ public :
     if (gpioReset != -1) {
       int iNewResetState = digitalRead(gpioReset);
       if (iResetState != iNewResetState) {
-        network->debug(F("Wifi Reset State change, new state = %d"), iNewResetState);
+        network()->debug(F("Wifi Reset State change, new state = %d"), iNewResetState);
         iResetState = iNewResetState;
         if (!iResetState) {
           //tbi
@@ -128,7 +128,7 @@ public :
       case STATE_PRODUCT_INFO_WAIT: {
         if ((now - lastCommandSent) > CMD_RESP_TIMEOUT) {
           setProcessingState(STATE_PRODUCT_INFO_DONE);
-          network->error(F("Timeout: waiting for Product Info response"));
+          network()->error(F("Timeout: waiting for Product Info response"));
         }
         break;
       }
@@ -139,7 +139,7 @@ public :
       case STATE_WIFI_WORKING_MODE_WAIT: {
         if ((now - lastCommandSent) > CMD_RESP_TIMEOUT) {
           setProcessingState(STATE_WIFI_WORKING_MODE_DONE);
-          network->error(F("Timeout: waiting for Wifi Working Mode response"));
+          network()->error(F("Timeout: waiting for Wifi Working Mode response"));
         }
         break;
       }
@@ -336,7 +336,7 @@ protected :
         break;
       }
       case 0x01: {
-        network->debug(F("MCU: Product info received: %s"), this->getCommandAsString().c_str());
+        network()->debug(F("MCU: Product info received: %s"), this->getCommandAsString().c_str());
         //queryWorkingModeWiFi();
         if (processingState == STATE_PRODUCT_INFO_WAIT) {
           setProcessingState(STATE_PRODUCT_INFO_DONE);
@@ -344,14 +344,14 @@ protected :
         break;
       }
       case 0x02: {
-        network->debug(F("MCU: Working mode of Wifi: %s"), this->getCommandAsString().c_str());
+        network()->debug(F("MCU: Working mode of Wifi: %s"), this->getCommandAsString().c_str());
         //Working mode of Wifi
         if (receivedCommand[5] == 0x00) {
           knownCommand = true;
           //nothing to do
         } else if (receivedCommand[5] == 0x02) {
           //ME102H resonds: 55 AA 03 02 00 02 0E 00 14; GPIO 0E - Wifi status; 00 - Reset button
-          network->setStatusLedPin(receivedCommand[6], true);
+          network()->setStatusLedPin(receivedCommand[6], true);
           this->gpioReset =  receivedCommand[7];
           knownCommand = true;
         }
@@ -366,13 +366,13 @@ protected :
       case 0x03: {
         //ignore, MCU response to wifi state
         //55 aa 01 03 00 00
-        network->debug(F("WiFi state: %s"), this->getCommandAsString().c_str());
+        network()->debug(F("WiFi state: %s"), this->getCommandAsString().c_str());
         break;
       }
       case 0x04: {
         //Setup initialization request
     		//received: 55 aa 01 04 00 00
-        network->debug(F("WiFi reset: %s"), this->getCommandAsString().c_str());
+        network()->debug(F("WiFi reset: %s"), this->getCommandAsString().c_str());
         //send answer: 55 aa 00 03 00 01 00
     		unsigned char configCommand[] = { 0x55, 0xAA, 0x00, 0x03, 0x00, 0x01, 0x00 };
     		commandCharsToSerial(7, configCommand);
@@ -382,7 +382,7 @@ protected :
       case 0x05: {
         //ignore, MCU response to wifi state
         //55 aa 01 03 00 00
-        network->debug(F("Reset WiFi selection: %s"), this->getCommandAsString().c_str());
+        network()->debug(F("Reset WiFi selection: %s"), this->getCommandAsString().c_str());
         break;
       }
       case 0x07: {
@@ -405,8 +405,8 @@ protected :
       //unknown
       //55 aa 00 00 00 00
       this->receivingDataFromMcu = true;
-      if (notifyAllMcuCommands->getBoolean()) {
-        network->debug(F("MCU: %s"), this->getCommandAsString().c_str());
+      if (notifyAllMcuCommands->asBool()) {
+        network()->debug(F("MCU: %s"), this->getCommandAsString().c_str());
       }
       bool knownCommand = false;
       if (receivedCommand[3] == 0x07) {
@@ -426,7 +426,7 @@ protected :
   }
 
   void notifyUnknownCommand() {
-    network->error(F("Unknown MCU command: %s"), this->getCommandAsString().c_str());
+    network()->error(F("Unknown MCU command: %s"), this->getCommandAsString().c_str());
   }
 
   void onConfigurationRequest() {
@@ -474,7 +474,7 @@ protected :
           commandWriteQueue[commandWriteQDepth] = pBuffer;
           commandWriteQDepth++;
         } else {
-          network->error(F("commandCharsToSerial: no space left in command write queue"));
+          network()->error(F("commandCharsToSerial: no space left in command write queue"));
         }
       }
     } else {

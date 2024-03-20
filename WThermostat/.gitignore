@@ -1,8 +1,0 @@
-/build/
-/.project
-/.pio
-/.settings
-/include
-/test
-/.gcc-flags.json
-/.travis.yml
